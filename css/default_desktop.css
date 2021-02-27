@@ -1,8 +1,11 @@
 @charset "UTF-8";
 /* Body */
 body {
-	font-family: source-sans-pro;
-	background-color: #2C2C2C;
+	font-family: Arial;
+	background-image: -webkit-linear-gradient(90deg,rgba(19,31,123,1.00) 0%,rgba(56,91,255,1.00) 100%);
+	background-image: -moz-linear-gradient(90deg,rgba(19,31,123,1.00) 0%,rgba(56,91,255,1.00) 100%);
+	background-image: -o-linear-gradient(90deg,rgba(19,31,123,1.00) 0%,rgba(56,91,255,1.00) 100%);
+	background-image: linear-gradient(0deg,rgba(19,31,123,1.00) 0%,rgba(56,91,255,1.00) 100%);
 	margin-top: 0px;
 	margin-right: 0px;
 	margin-bottom: 0px;
@@ -261,11 +264,11 @@ footer {
 }
 
 /* Mobile */
-@media (max-width: 320px) {
+@media (max-width: 400px) {
 .logo {
 	width: 100%;
 	text-align: center;
-	margin-top: 13px;
+	margin-top: 10px;
 	margin-right: 0px;
 	margin-bottom: 0px;
 	margin-left: 0px;
