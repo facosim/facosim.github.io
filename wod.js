@@ -7,14 +7,24 @@ var arrayLinkMishap = ['https://www.skybrary.aero/index.php/B742_/_B741,_Tenerif
 var arrayAircraft = ['Aermacchi MB-339','Airbus A-320','Boeing C-17 Globemaster','Bombardier Dash 8 Q400','Boeing 737 Max 9','Cessna 172 Skyhawk','Douglas DC-3','ATR-72-600','Agusta A-129','GAK-22 Dino','GatesLearjet 35','Gulfstream G280','Hindustan ALH Dhruv','Handley Page HP-137 Jetstream','Jurca MJ-2 Tempete','Cessna 441 Conquest 2','Jodel D-150 Mascaret','Piper PA-47 PiperJet','Raytheon 390 Premier 1','MBB Bo 105','Mitsubishi LR-1','Piper L-18C','Vickers VC-10','Piaggio PD-808','Myasishchev M-101 Expedition','Melex Turbine Dromader','Lake Buccaneer','Khrunichev T-411 Aist','Robin R-1180 Aiglon','Zenair Ch-150 Acro-zenith','Yakovlev Yak-42','Pilatus Pc-24','Aerospatiale Alouette 2','Airbus A400m Atlas','Boeing 767-200er','Beech 1900','Antonov an-124 Ruslan','Alenia G-222',];
 var arrayLinkAircraft = ['https://www.skybrary.aero/index.php/M339','https://www.skybrary.aero/index.php/A20N','https://www.skybrary.aero/index.php/C17','https://www.skybrary.aero/index.php/DH8D','https://www.skybrary.aero/index.php/B39M','https://www.skybrary.aero/index.php/C172','https://www.skybrary.aero/index.php/DC3','https://www.skybrary.aero/index.php/AT76','https://www.skybrary.aero/index.php/A129','https://www.skybrary.aero/index.php/DINO','https://www.skybrary.aero/index.php/LJ35','https://www.skybrary.aero/index.php/G280','https://www.skybrary.aero/index.php/ALH','https://www.skybrary.aero/index.php/JS20','https://www.skybrary.aero/index.php/MJ2','https://www.skybrary.aero/index.php/C441','https://www.skybrary.aero/index.php/D150','https://www.skybrary.aero/index.php/PA47','https://www.skybrary.aero/index.php/PRM1','https://www.skybrary.aero/index.php/B105','https://www.skybrary.aero/index.php/MU2','https://www.skybrary.aero/index.php/PA18','https://www.skybrary.aero/index.php/VC10','https://www.skybrary.aero/index.php/P808','https://www.skybrary.aero/index.php/M101','https://www.skybrary.aero/index.php/M18T','https://www.skybrary.aero/index.php/LA4','https://www.skybrary.aero/index.php/T411','https://www.skybrary.aero/index.php/R100','https://www.skybrary.aero/index.php/CH15','https://www.skybrary.aero/index.php/YK42','https://www.skybrary.aero/index.php/PC24','https://www.skybrary.aero/index.php/ALO2','https://www.skybrary.aero/index.php/A400','https://www.skybrary.aero/index.php/B762','https://www.skybrary.aero/index.php/B190','https://www.skybrary.aero/index.php/A124','https://www.skybrary.aero/index.php/G222',];
 
-var dt = new Date();
-var numDay = dt.getDate()-1;
-if (numDay > arrayEmerg.length) {
-	numDay = 0
-};
+var today = new Date();
+var startOfYear = new Date(today.getFullYear(), 0, 1);
+var dayNumber = Math.floor((today - startOfYear) / 86400000);
 
-document.getElementById("emerg").innerHTML = arrayEmerg[numDay].link(arrayLinkEmerg[numDay]);
-document.getElementById("mishap").innerHTML = arrayMishap[numDay].link(arrayLinkMishap[numDay]);
-document.getElementById("aircraft").innerHTML = arrayAircraft[numDay].link(arrayLinkAircraft[numDay]);
+function populateItem(id, items, links) {
+	var element = document.getElementById(id);
+	var itemIndex = dayNumber % items.length;
+	var link = document.createElement("a");
+
+	link.href = links[itemIndex];
+	link.target = "_blank";
+	link.rel = "noopener noreferrer";
+	link.textContent = items[itemIndex];
+	element.replaceChildren(link);
+}
+
+populateItem("emerg", arrayEmerg, arrayLinkEmerg);
+populateItem("mishap", arrayMishap, arrayLinkMishap);
+populateItem("aircraft", arrayAircraft, arrayLinkAircraft);
 
 }
