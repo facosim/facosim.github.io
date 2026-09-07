@@ -50,14 +50,14 @@ Currently these are loaded on every page, but only used 1-2 times:
 
 ### 1. **User Account System** (~200 KB)
 - **Script:** `user-account-core-*.js`
-- **Current usage:** 64 occurrences (user-account tracking/attributes)
+- **Current status:** Removed from the static export
 
 **Can remove IF:**
 - ✗ You don't need login/member areas
 - ✗ You don't track user accounts
 - ✗ You don't need contact CRM integration
 
-**On your site:** Member functionality IS being tracked, so **NOT RECOMMENDED to remove**
+**Current behavior:** Account/login services are unavailable, but the visual page rendering is unchanged.
 
 ---
 
@@ -148,14 +148,14 @@ EFFORT: Medium
 VERDICT: Good balance of performance vs. functionality
 ```
 
-### Scenario 5: **Remove User Accounts** (Not recommended)
+### Scenario 5: **User Accounts Removed**
 ```
 REMOVE:
   user-account-core-*.js (~200 KB)
 
 TOTAL SAVED: ~200 KB (5%)
-IMPACT: Breaks member tracking, CRM integration, login
-VERDICT: Not worth it - these features are needed
+IMPACT: Account/member tracking, CRM integration, and login are unavailable
+VERDICT: Applied while preserving static page visualization
 ```
 
 ---
@@ -270,7 +270,7 @@ rm js/image-effect-*.js
 |-----------|-------|-----------|------|--------|--------|
 | Word of Day | ✗ No | ✓ Yes | 65 KB | None | Low |
 | Image Effects | ✓ Yes | ⚠ Optional | 350 KB | Visual | Medium |
-| User Accounts | ✓ Yes | ✗ No | 200 KB | Critical | - |
+| User Accounts | ✗ No | ✓ Removed | 200 KB | Account features unavailable | Low |
 | Renderers (HTML/Image) | ✓ Yes | ✗ No | 500 KB | Critical | - |
 | Core Squarespace | ✓ Yes | ✗ No | 2000 KB | Critical | - |
 

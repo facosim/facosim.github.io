@@ -46,7 +46,7 @@ Static.SQUARESPACE_CONTEXT = {
 
 #### 2.3 **Squarespace Core**
 - `common-*.js` - Squarespace common utilities
-- `user-account-core-*.js` - User authentication & account management
+- `user-account-core-*.js` - User authentication & account management (removed from this export)
 - `site-bundle.*.js` - Main Squarespace site rendering engine
 
 #### 2.4 **Component Rendering System**
@@ -76,7 +76,7 @@ image-effect-film-grain.js        // Vintage film effect
 ```
 
 #### 2.7 **Content Management**
-- `visitor-site-error-reporter-*.js` - Error tracking
+- `visitor-site-error-reporter-*.js` - Error tracking (removed from this export)
 - Various numbered chunks (`2452.js`, `2513.js`, etc.) - Dynamic component loading
 
 ---
@@ -184,19 +184,23 @@ css/fonts.css  ← Consolidated font definitions (extracted in cleanup)
 
 ## 7. User Account System
 
+The account client is not loaded by the current static export. Account/login services are therefore unavailable, while the visual layout remains unchanged.
+
 ### Features:
 - **User authentication** - Login/password management
 - **Account management** - Profile, settings
 - **Member areas** - Gated content (members-only)
 
 ### Scripts Involved:
-- `user-account-core-*.js` - Core account functionality
+- `user-account-core-*.js` - Core account functionality (not loaded)
 - Authentication flows managed through Squarespace API
 - Session persistence via browser storage
 
 ---
 
 ## 8. E-Commerce System (Cart & Store)
+
+The exported cart markup and styling remain in place for visual consistency, but no separate commerce service bundle is loaded by these pages. Checkout and server-backed cart operations should not be treated as available.
 
 ### Capabilities:
 - **Shopping cart** - Product basket management
