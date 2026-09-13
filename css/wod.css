@@ -1,0 +1,32 @@
+.wod-list {
+  max-width: 760px;
+  margin: 3rem auto;
+  padding: 0 1.5rem;
+  color: #272727;
+  font-family: "Public Sans", sans-serif;
+}
+
+.wod-list h1 {
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.wod-list article {
+  margin: 1.5rem 0;
+  padding: 1.5rem;
+  background: #fff;
+  border: 1px solid #ddd;
+}
+
+.wod-list h2 {
+  margin-top: 0;
+  font-size: 1.25rem;
+}
+
+.wod-list p {
+  margin-bottom: 0;
+}
+
+.wod-list a {
+  color: inherit;
+}
