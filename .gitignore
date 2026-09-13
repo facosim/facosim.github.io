@@ -1,0 +1,42 @@
+# macOS
+.DS_Store
+
+# Excel files
+*.xlsx
+
+# Logs
+*.log
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+_site/
+.cache/
+
+# Environment variables
+.env
+.env.*
+
+# IDEs and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Jekyll
+.jekyll-cache/
+.jekyll-metadata
+
+# Coverage
+coverage/
+
+# Temporary files
+tmp/
+temp/
+
+# OS files
+Thumbs.db
+Desktop.ini
