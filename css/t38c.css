@@ -192,6 +192,15 @@ section[data-sqsp-section="gallery"] .gallery {
   color: #fff;
 }
 
+.t38-control-card__contact {
+  background: #111;
+}
+
+.t38-control-card__contact:hover,
+.t38-control-card__contact:focus-visible {
+  background: #333;
+}
+
 @media (max-width: 767px) {
   .t38-annotations {
     font-size: 0.8rem;
