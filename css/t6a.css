@@ -125,6 +125,10 @@ section[data-sqsp-section="gallery"] .gallery {
   width: 100%;
 }
 
+.t6a-control-card__images a {
+  display: block;
+}
+
 .t6a-control-card h2 {
   color: #0879d1;
   font-size: clamp(1.4rem, 2.4vw, 2.2rem);
@@ -136,6 +140,31 @@ section[data-sqsp-section="gallery"] .gallery {
   font-size: clamp(1rem, 1.3vw, 1.2rem);
   line-height: 1.7;
   margin: 0;
+}
+
+.t6a-control-card__download {
+  background: #0879d1;
+  color: #fff;
+  display: inline-block;
+  font-weight: 700;
+  margin: 1rem 0 1.5rem;
+  padding: 0.7rem 1.1rem;
+  text-decoration: none;
+}
+
+.t6a-control-card__download:hover,
+.t6a-control-card__download:focus-visible {
+  background: #075a9c;
+  color: #fff;
+}
+
+.t6a-control-card__contact {
+  background: #111;
+}
+
+.t6a-control-card__contact:hover,
+.t6a-control-card__contact:focus-visible {
+  background: #333;
 }
 
 @media (max-width: 767px) {
