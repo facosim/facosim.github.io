@@ -53,11 +53,10 @@
     create() {
       FI.panel = this;
       this.cam = this.cameras.main;
-      this.cam.setBackgroundColor('#141a21');
       this.root = this.add.container(0, 0);
-      const bg = this.add.graphics();
-      bg.fillStyle(0x1a212a, 1); bg.fillRoundedRect(4, 4, W - 8, H - 8, 14);
+      const bg = this.plate = this.add.graphics();
       this.root.add(bg);
+      this.paintPlate();
       this.inst = {};
       this.buildASI(0, 0); this.buildAI(1, 0); this.buildALT(2, 0);
       this.buildTC(0, 1); this.buildHI(1, 1); this.buildVSI(2, 1);
@@ -80,7 +79,19 @@
       this.mode = mode === 'glass' ? 'glass' : 'analog';
       this.root.setVisible(this.mode === 'analog');
       this.glass.root.setVisible(this.mode === 'glass');
-      this.cam.setBackgroundColor(this.mode === 'glass' ? '#05070a' : '#141a21');
+      this.paintPlate();
+    }
+
+    // The panel plate behind the gauges: dark, or light grey in light mode.
+    // The gauges and the glass display keep their real colours.
+    paintPlate() {
+      const light = !!(window.facoTheme && facoTheme.isLight);
+      this.lightPlate = light;
+      this.cam.setBackgroundColor(this.mode === 'glass' ? (light ? '#c3cad2' : '#05070a') : (light ? '#c3cad2' : '#141a21'));
+      this.plate.clear();
+      this.plate.fillStyle(light ? 0xa9b2bc : 0x1a212a, 1);
+      this.plate.fillRoundedRect(4, 4, W - 8, H - 8, 14);
+      (this.plateLabels || []).forEach(t => t.setColor(light ? '#2c3540' : '#aeb9c4'));
     }
 
     // ---------- building blocks ----------
@@ -269,7 +280,7 @@
       const gsFlag = this.flag(flags, -42, -44, 'GS');
       const toTxt = this.txt(flags, 'TO', 42, 60, 10, '#aeb9c4', SANS);
       const n = this.add.graphics(); c.add(n);
-      this.txt(c, 'OBS', -R + 22, R - 18, 10, '#aeb9c4', SANS);
+      (this.plateLabels = this.plateLabels || []).push(this.txt(c, 'OBS', -R + 22, R - 18, 10, '#aeb9c4', SANS));
       this.inst.cdi = { card, n, toFrom, navFlag, gsFlag, gsDots, toTxt };
     }
     flag(c, x, y, label) {
@@ -293,7 +304,7 @@
       const f = this.add.graphics(); f.lineStyle(3, 0xffb547, 1);
       f.lineBetween(0, -40, 0, 26); f.lineBetween(-30, -6, 30, -6); f.lineBetween(-12, 22, 12, 22);     // little airplane
       c.add(f);
-      this.txt(c, 'ADF', -R + 26, R - 18, 10, '#aeb9c4', SANS);
+      (this.plateLabels = this.plateLabels || []).push(this.txt(c, 'ADF', -R + 26, R - 18, 10, '#aeb9c4', SANS));
       const id = this.txt(c, '', 0, 52, 12, '#e6edf3', MONO);
       const n = this.add.graphics(); c.add(n); this.hub(c);
       this.inst.adf = { n, id };
@@ -319,6 +330,7 @@
 
     // ---------- per frame ----------
     update() {
+      if (!!(window.facoTheme && facoTheme.isLight) !== this.lightPlate) this.paintPlate();
       const s = FI.state, n = FI.navOut, nv = FI.nav, I = this.inst;
       if (!n || !I.asi) return;
       if (this.mode === 'glass') { this.glass.update(); return; }

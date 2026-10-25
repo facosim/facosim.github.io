@@ -244,12 +244,14 @@
     openSettings() {
       $('set-wdir').value = FI.wind.dir; $('set-wkt').value = FI.wind.kt;
       $('set-touch').checked = ui.touch;
+      if (window.facoTheme) $('set-theme').value = facoTheme.get();
       $('settings').classList.add('open');
     },
     applySettings() {
       FI.wind.dir = FI.norm360(+$('set-wdir').value || 0);
       FI.wind.kt = clamp(+$('set-wkt').value || 0, 0, 60);
       ui.setTouch($('set-touch').checked);
+      if (window.facoTheme) facoTheme.set($('set-theme').value);
       $('settings').classList.remove('open');
       ui.refresh();
     },

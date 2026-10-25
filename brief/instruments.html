@@ -1,7 +1,8 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme-no-button>
 <head>
 <meta charset="utf-8">
+<script src="../js/theme.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Flight Instruments</title>
 <meta property="og:site_name" content="FACO">
@@ -16,8 +17,21 @@
 <link rel="icon" type="image/png" href="../img/favicon.png">
 <style>
   :root {
-    --bg: #0a0e13; --bar: #111821; --panel: #121a24; --line: #233244; --text: #c9d4df;
-    --dim: #7d8a96; --accent: #4da3ff; --warn: #ffb547; --on: #1d3a5a;
+    --bg: #0a0e13; --bar: #111821; --panel: #121a24; --line: #233244; --text: #c9d4df; --dim: #7d8a96;
+    --accent: #4da3ff; --warn: #ffb547; --on: #1d3a5a; --head: #8fb3d1; --line-hover: #3a5470; --on-text: #e6f1ff;
+    --field: #0d141c; --btn: #18222e; --btn-hover: #1c2938; --strong: #e6edf3; --track: #2a3c50; --out: #26e05a;
+    --hit: #2a5a8c; --primary: #1f4f80; --tip-bg: rgba(13,20,28,.96); --float-bg: rgba(18,26,36,.94);
+    --float-bg2: rgba(18,26,36,.96); --hub-bg: rgba(10,14,19,.8);
+    color-scheme: dark;
+  }
+  /* Light mode: set in Settings, shared with the rest of the site (js/theme.js) */
+  html[data-theme="light"] {
+    --bg: #eef1f5; --bar: #ffffff; --panel: #ffffff; --line: #cfd8e2; --text: #27313b; --dim: #5f6b77;
+    --accent: #1a73d1; --warn: #b86a00; --on: #dcebfb; --head: #2f5f8a; --line-hover: #9fb3c8; --on-text: #0d3c6b;
+    --field: #f7f9fb; --btn: #f1f4f7; --btn-hover: #e3eaf1; --strong: #10171e; --track: #c3cfdb; --out: #13853a;
+    --hit: #b9d6f5; --primary: #cfe3fa; --tip-bg: rgba(255,255,255,.97); --float-bg: rgba(255,255,255,.95);
+    --float-bg2: rgba(255,255,255,.97); --hub-bg: rgba(244,246,249,.9);
+    color-scheme: light;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
@@ -28,18 +42,18 @@
      control strip and status bar at the bottom. */
   #bar { position: fixed; top: 0; left: 0; right: 0; min-height: 48px; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; row-gap: 5px; padding: 6px 10px;
     background: var(--bar); border-bottom: 1px solid var(--line); z-index: 10; white-space: nowrap; }
-  #bar h1 { font: 600 13px Menlo, Consolas, monospace; letter-spacing: .08em; color: #8fb3d1; margin: 0 6px 0 0; }
+  #bar h1 { font: 600 13px Menlo, Consolas, monospace; letter-spacing: .08em; color: var(--head); margin: 0 6px 0 0; }
   #btn-home { display: inline-flex; align-items: center; height: 30px; padding: 0 10px; margin-right: 6px; border: 1px solid var(--line);
-    border-radius: 6px; background: #18222e; color: var(--text); text-decoration: none; }
-  #btn-home:hover { border-color: #3a5470; background: #1c2938; }
+    border-radius: 6px; background: var(--btn); color: var(--text); text-decoration: none; }
+  #btn-home:hover { border-color: var(--line-hover); background: var(--btn-hover); }
   #bar > * { flex: none; }
   .spacer { flex: 1 1 auto; }
   .grp { display: flex; align-items: center; gap: 4px; }
   .sep { width: 1px; height: 26px; background: var(--line); margin: 0 4px; }
-  button, select { font: inherit; color: var(--text); background: #18222e; border: 1px solid var(--line);
+  button, select { font: inherit; color: var(--text); background: var(--btn); border: 1px solid var(--line);
     border-radius: 6px; height: 30px; padding: 0 8px; cursor: pointer; }
-  button:hover:not(:disabled), select:hover { border-color: #3a5470; background: #1c2938; }
-  button.on { background: var(--on); border-color: var(--accent); color: #e6f1ff; }
+  button:hover:not(:disabled), select:hover { border-color: var(--line-hover); background: var(--btn-hover); }
+  button.on { background: var(--on); border-color: var(--accent); color: var(--on-text); }
   button.icon { width: 34px; padding: 0; font-size: 15px; }
   #scn { max-width: 300px; }
   #btn-play { min-width: 86px; }
@@ -55,7 +69,7 @@
   #ctl { position: fixed; left: 0; right: 0; bottom: 28px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; row-gap: 6px; padding: 6px 10px;
     background: var(--bar); border-top: 1px solid var(--line); z-index: 10; white-space: nowrap; }
   #ctl > * { flex: none; }
-  .ctl-h { color: #8fb3d1; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; margin-right: 2px; }
+  .ctl-h { color: var(--head); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; margin-right: 2px; }
   .sl { display: flex; align-items: center; gap: 6px; }
   .sl label { color: var(--dim); width: 44px; text-align: right; }
   .sl input[type=range] { width: 120px; accent-color: var(--accent); }
@@ -64,45 +78,45 @@
   .bug .v { font-family: Menlo, Consolas, monospace; font-size: 12.5px; min-width: 42px; text-align: center; }
   .bug button.icon { width: 30px; }
   .ap { font-weight: 600; letter-spacing: .04em; min-width: 50px; }
-  .freq { width: 62px; height: 30px; background: #0d141c; color: #26e05a; border: 1px solid var(--line); border-radius: 6px; padding: 0 6px;
+  .freq { width: 62px; height: 30px; background: var(--field); color: var(--out); border: 1px solid var(--line); border-radius: 6px; padding: 0 6px;
     font: 12.5px Menlo, Consolas, monospace; text-align: center; }
   .freq:focus { outline: none; border-color: var(--accent); }
   .radio { display: flex; flex-direction: column; align-items: center; gap: 1px; }
   .radio small { font-size: 9.5px; color: var(--dim); letter-spacing: .05em; line-height: 1; }
   #r-tune { max-width: 150px; }
-  #apt { width: 64px; height: 30px; background: #0d141c; color: #e6edf3; border: 1px solid var(--line); border-radius: 6px; padding: 0 6px;
+  #apt { width: 64px; height: 30px; background: var(--field); color: var(--strong); border: 1px solid var(--line); border-radius: 6px; padding: 0 6px;
     font: 600 12.5px Menlo, Consolas, monospace; text-transform: uppercase; text-align: center; }
   #apt:focus { outline: none; border-color: var(--accent); }
   #app { max-width: 170px; }
 
   #status { position: fixed; left: 0; right: 0; bottom: 0; height: 28px; display: flex; align-items: center; gap: 16px;
     padding: 0 12px; background: var(--bar); border-top: 1px solid var(--line); color: var(--dim); font-size: 12px; z-index: 10; white-space: nowrap; }
-  #st-mode { color: #e6edf3; flex: none; max-width: 48%; overflow: hidden; text-overflow: ellipsis; }
+  #st-mode { color: var(--strong); flex: none; max-width: 48%; overflow: hidden; text-overflow: ellipsis; }
   #st-data { font-family: Menlo, Consolas, monospace; font-size: 11.5px; flex: none; }
   #st-brief { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; text-align: right; }
   #scale { display: flex; align-items: center; gap: 6px; flex: none; }
-  #scale-bar { height: 6px; border: 1px solid #8fb3d1; border-top: 0; }
+  #scale-bar { height: 6px; border: 1px solid var(--head); border-top: 0; }
 
   /* Steering tooltip and the quick menu around the aircraft */
-  #tip { position: fixed; display: none; z-index: 15; pointer-events: none; background: rgba(13,20,28,.96); border: 1px solid #3a5470;
+  #tip { position: fixed; display: none; z-index: 15; pointer-events: none; background: var(--tip-bg); border: 1px solid var(--line-hover);
     border-radius: 6px; padding: 6px 9px; font-size: 12px; line-height: 1.45; max-width: 320px; }
-  #tip b { color: #e6f1ff; font-weight: 600; }
+  #tip b { color: var(--on-text); font-weight: 600; }
   #tip .dim { color: var(--dim); font-size: 11px; }
   #quick { position: fixed; display: none; z-index: 16; width: 260px; user-select: none; -webkit-user-select: none; }
   #quick.open { display: block; animation: q-in .12s ease-out; }
   @keyframes q-in { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: none; } }
   #quick svg { display: block; filter: drop-shadow(0 4px 14px rgba(0,0,0,.55)); }
   #quick .wedge { cursor: pointer; outline: none; }
-  #quick .wedge path { fill: rgba(18,26,36,.94); stroke: #3a5470; stroke-width: 1; transition: fill .08s; }
-  #quick .wedge:hover path, #quick .wedge:focus-visible path { fill: #1d3a5a; stroke: var(--accent); }
-  #quick .wedge.hit path { fill: #2a5a8c; }
-  #quick text { fill: #c9d4df; font: 600 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; text-anchor: middle; pointer-events: none; }
-  #quick text.v { fill: #8fb3d1; font: 11px Menlo, Consolas, monospace; }
-  #quick .hub { fill: rgba(10,14,19,.8); stroke: #3a5470; }
+  #quick .wedge path { fill: var(--float-bg); stroke: var(--line-hover); stroke-width: 1; transition: fill .08s; }
+  #quick .wedge:hover path, #quick .wedge:focus-visible path { fill: var(--on); stroke: var(--accent); }
+  #quick .wedge.hit path { fill: var(--hit); }
+  #quick text { fill: var(--text); font: 600 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; text-anchor: middle; pointer-events: none; }
+  #quick text.v { fill: var(--head); font: 11px Menlo, Consolas, monospace; }
+  #quick .hub { fill: var(--hub-bg); stroke: var(--line-hover); }
   #quick text.ro { fill: var(--dim); font: 11px Menlo, Consolas, monospace; }
-  #quick text.ro.held { fill: #4da3ff; }
+  #quick text.ro.held { fill: var(--accent); }
   #quick .pills { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin-top: 4px; }
-  #quick .pills button { height: 26px; padding: 0 9px; border-radius: 13px; font-size: 12px; background: rgba(18,26,36,.96); }
+  #quick .pills button { height: 26px; padding: 0 9px; border-radius: 13px; font-size: 12px; background: var(--float-bg2); }
   body.touch #quick .pills button { height: 36px; border-radius: 18px; padding: 0 12px; }
 
   /* Dialogs */
@@ -111,17 +125,17 @@
   .dialog { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; width: min(680px, calc(100% - 32px));
     max-height: calc(100% - 40px); overflow: auto; }
   .dialog h2 { margin: 0 0 12px; font-size: 15px; }
-  .dialog h3 { margin: 16px 0 6px; font-size: 12px; color: #8fb3d1; text-transform: uppercase; letter-spacing: .06em; }
+  .dialog h3 { margin: 16px 0 6px; font-size: 12px; color: var(--head); text-transform: uppercase; letter-spacing: .06em; }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; }
   .grid2 label { display: block; color: var(--dim); font-size: 12px; margin-bottom: 3px; }
   .check { display: flex; align-items: center; gap: 8px; color: var(--text) !important; font-size: 13px !important; }
-  input[type=number] { width: 100%; height: 28px; background: #0d141c; color: var(--text); border: 1px solid var(--line); border-radius: 5px; padding: 0 7px; font: inherit; }
+  input[type=number] { width: 100%; height: 28px; background: var(--field); color: var(--text); border: 1px solid var(--line); border-radius: 5px; padding: 0 7px; font: inherit; }
   .dialog .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
-  .primary { background: #1f4f80; border-color: var(--accent); }
+  .primary { background: var(--primary); border-color: var(--accent); }
   .note { font-size: 11.5px; color: var(--dim); margin-top: 8px; }
   #help ul { margin: 0; padding-left: 18px; }
   #help li { margin: 4px 0; }
-  kbd { font: 11px Menlo, Consolas, monospace; background: #0d141c; border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+  kbd { font: 11px Menlo, Consolas, monospace; background: var(--field); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
 
   /* Touchscreen mode: finger-sized buttons and sliders, bars scroll sideways */
   body.touch { touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
@@ -133,10 +147,10 @@
   body.touch #btn-home { height: 40px; font-size: 14px; padding: 0 12px; }
   body.touch input[type=checkbox] { width: 22px; height: 22px; }
   body.touch .sl input[type=range] { -webkit-appearance: none; appearance: none; height: 36px; width: 140px; background: transparent; }
-  body.touch input[type=range]::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: #2a3c50; }
-  body.touch input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px; height: 26px; margin-top: -10px; border-radius: 50%; background: var(--accent); border: 2px solid #e6f1ff; }
-  body.touch input[type=range]::-moz-range-track { height: 6px; border-radius: 3px; background: #2a3c50; }
-  body.touch input[type=range]::-moz-range-thumb { width: 24px; height: 24px; border-radius: 50%; background: var(--accent); border: 2px solid #e6f1ff; }
+  body.touch input[type=range]::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: var(--track); }
+  body.touch input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px; height: 26px; margin-top: -10px; border-radius: 50%; background: var(--accent); border: 2px solid var(--on-text); }
+  body.touch input[type=range]::-moz-range-track { height: 6px; border-radius: 3px; background: var(--track); }
+  body.touch input[type=range]::-moz-range-thumb { width: 24px; height: 24px; border-radius: 50%; background: var(--accent); border: 2px solid var(--on-text); }
   body.touch input[type=number] { height: 40px; font-size: 16px; }
   body.touch .freq, body.touch #apt { height: 40px; font-size: 16px; width: 76px; }
   body.map-gesture #bar, body.map-gesture #ctl, body.map-gesture #status { pointer-events: none; }
@@ -243,6 +257,11 @@
       <div><label>Speed (knots)</label><input id="set-wkt" type="number" min="0" max="60" step="5"></div>
     </div>
     <p class="note">With wind the dashed blue line from the aircraft is its ground track and the yellow line is its heading. The crosswind scenario sets its own wind.</p>
+    <h3>Appearance</h3>
+    <div class="grid2">
+      <div><label for="set-theme">Theme</label><select style="width:100%" id="set-theme" aria-label="Colour theme"><option value="dark">Dark</option><option value="light">Light</option></select></div>
+      <div class="note" style="margin:0">Light or dark for the map and controls. The instruments keep their real colours. The choice is shared with the rest of the FACO site.</div>
+    </div>
     <h3>Input</h3>
     <label class="check"><input id="set-touch" type="checkbox"> Touchscreen mode</label>
     <div class="actions"><button id="set-cancel">Cancel</button><button id="set-apply" class="primary">Apply</button></div>

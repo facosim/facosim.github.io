@@ -710,6 +710,7 @@
       $('set-vlevel').value = st.vertLevelFt;
       $('set-vsteep').value = st.vertSteepFt;
       $('set-touch').checked = this.touch;
+      if (window.facoTheme) $('set-theme').value = facoTheme.get();
       this.buildSettings();
       this.setSettingsTab(this.settingsTab || 'general');
       $('settings').classList.add('open');
@@ -738,6 +739,7 @@
         t.maxG = Math.max(1, t.maxG);
       });
       if ($('set-touch').checked !== this.touch) this.setTouch($('set-touch').checked, true);
+      if (window.facoTheme) facoTheme.set($('set-theme').value);
       DL.resimAll();
       $('settings').classList.remove('open');
       this.refresh();

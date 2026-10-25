@@ -9,13 +9,20 @@
   const GA = [[0,-11],[2,-9],[2,-5],[13,-5],[13,-2],[2,-2],[1.5,7],[5,8],[5,10],[-5,10],[-5,8],[-1.5,7],[-2,-2],[-13,-2],[-13,-5],[-2,-5],[-2,-9]];
   const touch = () => !!(FI.ui && FI.ui.touch);
 
+  // Light-mode partners for the map colours (Settings > Appearance)
+  const T = window.facoTheme ? facoTheme.swap({
+    '#0a0e13': '#f4f6f8', '#1b2733': '#dde3ea', '#233244': '#c3ccd6', '#3a4d62': '#8a9aab',
+    '#3a5470': '#7f97b0', '#3a6f9e': '#5d8ab5', '#4da3ff': '#1a73d1', '#6a7684': '#7c8792',
+    '#7d8a96': '#5f6b77', '#8fb3d1': '#2f5f8a', '#b98ac9': '#8a4fa0', '#c9d4df': '#27313b',
+    '#e6edf3': '#10171e', '#e6f1ff': '#0d2a47', '#ffb547': '#c77800', '#ffd166': '#c98a00'
+  }) : c => c;
+
   class MapScene extends Phaser.Scene {
     constructor() { super('map'); }
 
     create() {
       FI.map = this;
       this.cam = this.cameras.main;
-      this.cam.setBackgroundColor('#0a0e13');
       this.view = { x: 0, y: 0, w: this.scale.width, h: this.scale.height };
       this.cam.setZoom(FI.startZoom || 0.012);
       this.gridG = this.add.graphics().setDepth(0);
@@ -237,7 +244,7 @@
       this.textUsed++;
       t.setVisible(true).setText(str).setPosition(x, y).setOrigin(ox == null ? 0.5 : ox, oy == null ? 0.5 : oy);
       t.setScale(1 / this.cam.zoom).setRotation(rot || 0);
-      t.setColor(color || '#c9d4df');
+      t.setColor(color || T('#c9d4df'));
       t.setFontSize(size || 11);
       return t;
     }
@@ -245,6 +252,8 @@
 
     update(time, delta) {
       FI.advance(delta);
+      const bg = T('#0a0e13');
+      if (bg !== this.bg) { this.bg = bg; this.cam.setBackgroundColor(bg); }
       if (this.follow) this.centerOnAircraft();
       const z = this.cam.zoom, c = this.cam;
       const tl = this.toWorld({ x: c.x, y: c.y }), br = this.toWorld({ x: c.x + c.width, y: c.y + c.height });
@@ -263,7 +272,7 @@
       let step = NM;
       while (step * z < 40) step *= 2;
       const dim = clamp((step * z - 40) / 80, 0, 1);
-      g.lineStyle(1 / z, 0x1b2733, 0.6 + 0.4 * dim);
+      g.lineStyle(1 / z, T(0x1b2733), 0.6 + 0.4 * dim);
       const x0 = Math.floor(v.x0 / step) * step, y0 = Math.floor(v.y0 / step) * step;
       for (let x = x0; x <= v.x1; x += step) g.lineBetween(x, v.y0, x, v.y1);
       for (let y = y0; y <= v.y1; y += step) g.lineBetween(v.x0, y, v.x1, y);
@@ -271,11 +280,11 @@
       if (step * z >= 50) {
         for (let x = x0; x <= v.x1; x += step) {
           const nm = Math.round(x / NM); if (!nm) continue;
-          this.text(`${nm > 0 ? 'E' : 'W'} ${Math.abs(nm)}`, x, v.y1 - 4 / z, '#3a4d62', 10, 0.5, 1);
+          this.text(`${nm > 0 ? 'E' : 'W'} ${Math.abs(nm)}`, x, v.y1 - 4 / z, T('#3a4d62'), 10, 0.5, 1);
         }
         for (let y = y0; y <= v.y1; y += step) {
           const nm = Math.round(y / NM); if (!nm) continue;
-          this.text(`${nm > 0 ? 'S' : 'N'} ${Math.abs(nm)}`, v.x0 + 4 / z, y, '#3a4d62', 10, 0, 0.5);
+          this.text(`${nm > 0 ? 'S' : 'N'} ${Math.abs(nm)}`, v.x0 + 4 / z, y, T('#3a4d62'), 10, 0, 0.5);
         }
       }
     }
@@ -296,14 +305,14 @@
         for (const r of a.runways) {
           const dx = r.b.x - r.a.x, dy = r.b.y - r.a.y, L = Math.hypot(dx, dy) || 1, hw = Math.max(r.width, 4 / z) / 2;
           const nx = -dy / L * hw, ny = dx / L * hw;
-          g.fillStyle(0x6a7684, 1);
+          g.fillStyle(T(0x6a7684), 1);
           g.fillPoints([{ x: r.a.x + nx, y: r.a.y + ny }, { x: r.b.x + nx, y: r.b.y + ny }, { x: r.b.x - nx, y: r.b.y - ny }, { x: r.a.x - nx, y: r.a.y - ny }], true);
           if (pxNm > 150) {
-            this.text(r.ends[0], r.a.x - dx / L * 14 / z, r.a.y - dy / L * 14 / z, '#8fb3d1', 10);
-            if (r.ends[1]) this.text(r.ends[1], r.b.x + dx / L * 14 / z, r.b.y + dy / L * 14 / z, '#8fb3d1', 10);
+            this.text(r.ends[0], r.a.x - dx / L * 14 / z, r.a.y - dy / L * 14 / z, T('#8fb3d1'), 10);
+            if (r.ends[1]) this.text(r.ends[1], r.b.x + dx / L * 14 / z, r.b.y + dy / L * 14 / z, T('#8fb3d1'), 10);
           }
         }
-        if (labels) this.text(a.code, a.x, a.y + 14 / z, a === FI.home.apt ? '#e6f1ff' : '#8fb3d1', a === FI.home.apt ? 12 : 10, 0.5, 0);
+        if (labels) this.text(a.code, a.x, a.y + 14 / z, a === FI.home.apt ? T('#e6f1ff') : T('#8fb3d1'), a === FI.home.apt ? 12 : 10, 0.5, 0);
       }
 
       // --- localizer feathers ---
@@ -315,11 +324,11 @@
         const tip = { x: L.loc.x - dx * fl, y: L.loc.y - dy * fl };
         if (!inV(L.loc.x, L.loc.y, fl)) continue;
         const pts = [{ x: L.loc.x, y: L.loc.y }, { x: tip.x + rx * half, y: tip.y + ry * half }, { x: tip.x - rx * half, y: tip.y - ry * half }];
-        g.lineStyle((act ? 1.5 : 1) / z, act ? 0x4da3ff : 0x3a5470, act ? 0.9 : 0.7);
+        g.lineStyle((act ? 1.5 : 1) / z, act ? T(0x4da3ff) : T(0x3a5470), act ? 0.9 : 0.7);
         g.strokePoints(pts, true);
         if (act) {
-          g.fillStyle(0x4da3ff, 0.15); g.fillPoints(pts, true);
-          g.lineStyle(1 / z, 0x4da3ff, 0.9);
+          g.fillStyle(T(0x4da3ff), 0.15); g.fillPoints(pts, true);
+          g.lineStyle(1 / z, T(0x4da3ff), 0.9);
           this.dashed(g, L.thr.x, L.thr.y, tip.x, tip.y, 18 / z, 10 / z);
           // glideslope check altitudes every 2 nm from the threshold
           if (L.hasGs) {
@@ -327,15 +336,15 @@
               const x = L.thr.x - dx * d * NM, y = L.thr.y - dy * d * NM;
               const gd = Math.hypot(x - L.gs.x, y - L.gs.y), alt = Math.round((L.elev + gd * Math.tan(L.gsAngle * D2R)) / 10) * 10;
               g.lineBetween(x - rx * 6 / z, y - ry * 6 / z, x + rx * 6 / z, y + ry * 6 / z);
-              this.text(`${d} nm\n${alt.toLocaleString('en-US')} ft`, x + rx * 10 / z, y + ry * 10 / z, '#4da3ff', 10, 0, 0.5);
+              this.text(`${d} nm\n${alt.toLocaleString('en-US')} ft`, x + rx * 10 / z, y + ry * 10 / z, T('#4da3ff'), 10, 0, 0.5);
             }
           }
-          g.fillStyle(0xe6f1ff, 1);
+          g.fillStyle(T(0xe6f1ff), 1);
           g.fillCircle(L.loc.x, L.loc.y, 2.5 / z);
-          this.text('LOC', L.loc.x + dx * 10 / z, L.loc.y + dy * 10 / z, '#8fb3d1', 10);
-          if (L.gs) { g.fillCircle(L.gs.x, L.gs.y, 2.5 / z); this.text('GS', L.gs.x + rx * 12 / z, L.gs.y + ry * 12 / z, '#8fb3d1', 10); }
-          this.text(`${L.apt.code} ${L.name}\n${L.id} ${FI.fmtMhz(L.mhz)}  ${FI.pad3(L.crsM)}°`, tip.x, tip.y - 8 / z, '#e6f1ff', 11, 0.5, 1);
-        } else if (pxNm >= 25) this.text(`${L.id} ${FI.fmtMhz(L.mhz)}`, tip.x, tip.y, '#3a5470', 10);
+          this.text('LOC', L.loc.x + dx * 10 / z, L.loc.y + dy * 10 / z, T('#8fb3d1'), 10);
+          if (L.gs) { g.fillCircle(L.gs.x, L.gs.y, 2.5 / z); this.text('GS', L.gs.x + rx * 12 / z, L.gs.y + ry * 12 / z, T('#8fb3d1'), 10); }
+          this.text(`${L.apt.code} ${L.name}\n${L.id} ${FI.fmtMhz(L.mhz)}  ${FI.pad3(L.crsM)}°`, tip.x, tip.y - 8 / z, T('#e6f1ff'), 11, 0.5, 1);
+        } else if (pxNm >= 25) this.text(`${L.id} ${FI.fmtMhz(L.mhz)}`, tip.x, tip.y, T('#3a5470'), 10);
       }
 
       // --- navaids ---
@@ -346,43 +355,43 @@
         if (labels || on) {
           const f = st.ndb ? `${st.khz}` : st.vor ? FI.fmtMhz(st.mhz) : `${FI.fmtMhz(st.mhz)} ${st.chan}`;
           const ch = st.tacan && st.vor ? ` ${st.chan}` : '';
-          this.text(`${st.id} ${f}${ch}`, st.x, st.y + 13 / z, on ? '#e6f1ff' : st.ndb ? '#b98ac9' : '#8fb3d1', on ? 11 : 10, 0.5, 0);
+          this.text(`${st.id} ${f}${ch}`, st.x, st.y + 13 / z, on ? T('#e6f1ff') : st.ndb ? T('#b98ac9') : T('#8fb3d1'), on ? 11 : 10, 0.5, 0);
         }
       }
 
       // --- the tuned VOR or TACAN: rose, range, selected course, current radial ---
       if (tuned && (n.kind === 'VOR' || n.kind === 'TACAN')) {
         const V = tuned, rr = 70 / z, vr = V.varE;
-        g.lineStyle(1.5 / z, 0x8fb3d1, 0.9);
+        g.lineStyle(1.5 / z, T(0x8fb3d1), 0.9);
         g.strokeCircle(V.x, V.y, rr);
         for (let a = 0; a < 360; a += 10) {
           const t = (a + vr) * D2R, s = Math.sin(t), c = Math.cos(t), len = a % 30 ? 5 / z : 10 / z;
           g.lineBetween(V.x + s * rr, V.y - c * rr, V.x + s * (rr - len), V.y - c * (rr - len));
-          if (a % 30 === 0) this.text(FI.pad3(a), V.x + s * (rr + 11 / z), V.y - c * (rr + 11 / z), '#8fb3d1', 10);
+          if (a % 30 === 0) this.text(FI.pad3(a), V.x + s * (rr + 11 / z), V.y - c * (rr + 11 / z), T('#8fb3d1'), 10);
         }
         const R = FI.vhfRange(V.vorCls || V.dmeCls, FI.state.alt - V.elev) * NM;
-        g.lineStyle(1 / z, 0x233244, 1); g.strokeCircle(V.x, V.y, R);
+        g.lineStyle(1 / z, T(0x233244), 1); g.strokeCircle(V.x, V.y, R);
         const a = (nv.obs + vr) * D2R, s = Math.sin(a), c = Math.cos(a);
-        g.lineStyle(1.5 / z, 0x4da3ff, 0.9);
+        g.lineStyle(1.5 / z, T(0x4da3ff), 0.9);
         this.dashed(g, V.x - s * R, V.y + c * R, V.x + s * R, V.y - c * R, 18 / z, 10 / z);
-        this.text(`R-${FI.pad3(nv.obs)}`, V.x + s * (rr + 46 / z), V.y - c * (rr + 46 / z), '#4da3ff', 11);
-        this.text(`R-${FI.pad3(nv.obs + 180)}`, V.x - s * (rr + 46 / z), V.y + c * (rr + 46 / z), '#4da3ff', 11);
+        this.text(`R-${FI.pad3(nv.obs)}`, V.x + s * (rr + 46 / z), V.y - c * (rr + 46 / z), T('#4da3ff'), 11);
+        this.text(`R-${FI.pad3(nv.obs + 180)}`, V.x - s * (rr + 46 / z), V.y + c * (rr + 46 / z), T('#4da3ff'), 11);
         if (n.radial != null) {
           const ra = (n.radial + vr) * D2R;
-          g.lineStyle(1 / z, 0xffb547, 0.5);
+          g.lineStyle(1 / z, T(0xffb547), 0.5);
           g.lineBetween(V.x, V.y, V.x + Math.sin(ra) * n.dist * NM, V.y - Math.cos(ra) * n.dist * NM);
         }
       }
       // the ADF bearing: a thin line from the aircraft to the NDB
       if (n.adf.valid) {
-        g.lineStyle(1 / z, 0xb98ac9, 0.7);
+        g.lineStyle(1 / z, T(0xb98ac9), 0.7);
         this.dashed(g, s0.x, s0.y, n.adf.st.x, n.adf.st.y, 8 / z, 6 / z);
       }
     }
 
     // Chart-style navaid symbols at a fixed screen size.
     symbol(g, st, z, on) {
-      const k = 1 / z, x = st.x, y = st.y, col = on ? 0xe6f1ff : st.ndb ? 0xb98ac9 : 0x8fb3d1;
+      const k = 1 / z, x = st.x, y = st.y, col = on ? T(0xe6f1ff) : st.ndb ? T(0xb98ac9) : T(0x8fb3d1);
       g.lineStyle(1.5 * k, col, 1); g.fillStyle(col, 1);
       if (st.ndb) {
         for (let i = 0; i < 16; i++) { const a = i * Math.PI / 8; g.fillCircle(x + Math.cos(a) * 9 * k, y + Math.sin(a) * 9 * k, 0.9 * k); }
@@ -420,34 +429,34 @@
       // trail
       const tr = FI.trail;
       if (tr.length > 1) {
-        tg.lineStyle(1.5 / z, 0xffd166, 0.7);
+        tg.lineStyle(1.5 / z, T(0xffd166), 0.7);
         tg.strokePoints(tr.concat([{ x: s.x, y: s.y }]));
       }
       // track line (dashed) and heading line
       const L = 70 / z, t = s.trk * D2R, h = s.hdg * D2R;
       if (FI.wind.kt > 0) {
-        g.lineStyle(1.5 / z, 0x4da3ff, 0.9);
+        g.lineStyle(1.5 / z, T(0x4da3ff), 0.9);
         this.dashed(g, s.x, s.y, s.x + Math.sin(t) * L * 1.3, s.y - Math.cos(t) * L * 1.3, 6 / z, 4 / z);
       }
-      g.lineStyle(1.5 / z, 0xffd166, 0.9);
+      g.lineStyle(1.5 / z, T(0xffd166), 0.9);
       g.lineBetween(s.x, s.y, s.x + Math.sin(h) * L, s.y - Math.cos(h) * L);
       this.drawPlan(z);
       // hover hint: the aircraft is a stick
       const steering = this.drag && this.drag.kind === 'steer';
       if ((this.hoverAc && !this.drag) || steering) {
-        g.lineStyle(1.5 / z, 0x4da3ff, steering ? 0.9 : 0.6);
+        g.lineStyle(1.5 / z, T(0x4da3ff), steering ? 0.9 : 0.6);
         g.strokeCircle(s.x, s.y, (touch() ? 30 : 18) / z);
-        if (!steering) this.text(this.moveNext ? 'drag to move' : 'drag to steer · right-click for menu', s.x, s.y + 24 / z, '#8fb3d1', 10, 0.5, 0);
+        if (!steering) this.text(this.moveNext ? 'drag to move' : 'drag to steer · right-click for menu', s.x, s.y + 24 / z, T('#8fb3d1'), 10, 0.5, 0);
       }
       // nose handle
       const hp = this.handlePos();
-      g.fillStyle(0xffd166, 1); g.fillCircle(hp.x, hp.y, (touch() ? 9 : 5) / z);
+      g.fillStyle(T(0xffd166), 1); g.fillCircle(hp.x, hp.y, (touch() ? 9 : 5) / z);
       // symbol
       const k = 1.1 / z, pts = GA.map(([px, py]) => ({ x: s.x + (px * Math.cos(h) - py * Math.sin(h)) * k, y: s.y + (px * Math.sin(h) + py * Math.cos(h)) * k }));
-      g.fillStyle(0xffd166, 1); g.fillPoints(pts, true);
-      g.lineStyle(1 / z, 0x0a0e13, 1); g.strokePoints(pts, true);
+      g.fillStyle(T(0xffd166), 1); g.fillPoints(pts, true);
+      g.lineStyle(1 / z, T(0x0a0e13), 1); g.strokePoints(pts, true);
       // data block
-      this.text(`${FI.pad3(FI.toMag(s.hdg))}° ${Math.round(s.ias)} kt\n${Math.round(s.alt).toLocaleString('en-US')} ft`, s.x + 22 / z, s.y + 14 / z, '#e6edf3', 11, 0, 0);
+      this.text(`${FI.pad3(FI.toMag(s.hdg))}° ${Math.round(s.ias)} kt\n${Math.round(s.alt).toLocaleString('en-US')} ft`, s.x + 22 / z, s.y + 14 / z, T('#e6edf3'), 11, 0, 0);
     }
 
     // The planned flight path while the mouse or the quick menu is steering
@@ -475,11 +484,11 @@
         pts.push({ x, y });
       }
       const a = live ? 0.95 : 0.45;
-      g.lineStyle(2 / z, 0x4da3ff, a);
+      g.lineStyle(2 / z, T(0x4da3ff), a);
       g.strokePoints(pts);
       // arrowhead at the end
       const e = pts[pts.length - 1], hr = h * D2R, b = 8 / z;
-      g.fillStyle(0x4da3ff, a);
+      g.fillStyle(T(0x4da3ff), a);
       g.fillPoints([{ x: e.x + Math.sin(hr) * b, y: e.y - Math.cos(hr) * b },
         { x: e.x - Math.sin(hr) * b * 0.6 + Math.cos(hr) * b * 0.6, y: e.y + Math.cos(hr) * b * 0.6 + Math.sin(hr) * b * 0.6 },
         { x: e.x - Math.sin(hr) * b * 0.6 - Math.cos(hr) * b * 0.6, y: e.y + Math.cos(hr) * b * 0.6 - Math.sin(hr) * b * 0.6 }], true);
@@ -489,7 +498,7 @@
         const ad = Math.abs(dAlt), count = ad < 100 ? 1 : ad < 1000 ? 2 : 3;
         const stepPx = count === 1 ? 0 : clamp(3 + 7 * ad / 1000, 3, 8), sign = dAlt >= 0 ? 1 : -1;
         const p0 = pts[mid - 1], p1 = pts[mid + 1], L = Math.hypot(p1.x - p0.x, p1.y - p0.y) || 1, ux = (p1.x - p0.x) / L, uy = (p1.y - p0.y) / L;
-        g.lineStyle(2 / z, 0x4da3ff, Math.min(1, a + 0.05));
+        g.lineStyle(2 / z, T(0x4da3ff), Math.min(1, a + 0.05));
         for (let k = 0; k < count; k++) {
           const off = (k - (count - 1) / 2) * 7 / z, cx = pts[mid].x + ux * off, cy = pts[mid].y + uy * off;
           const half = (20 + sign * k * stepPx) / 2 / z;
@@ -498,7 +507,7 @@
       }
       if (live || ap.hdg || ap.alt) {
         const lbl = [ap.hdg && !ap.nav ? `${FI.pad3(FI.nav.bug)}°` : null, ap.alt ? `${Math.round(ap.altTgt).toLocaleString('en-US')} ft` : null].filter(Boolean).join(' · ');
-        if (lbl) this.text(lbl, e.x + Math.cos(hr) * 12 / z, e.y + Math.sin(hr) * 12 / z, live ? '#4da3ff' : '#3a6f9e', 11, 0, 0.5);
+        if (lbl) this.text(lbl, e.x + Math.cos(hr) * 12 / z, e.y + Math.sin(hr) * 12 / z, live ? T('#4da3ff') : T('#3a6f9e'), 11, 0, 0.5);
       }
     }
 
@@ -507,16 +516,16 @@
       const g = this.hudG; g.clear();
       const w = FI.wind;
       const cx = v.x0 + 46 / z, cy = v.y0 + 46 / z;
-      g.lineStyle(1 / z, 0x3a5470, 1); g.strokeCircle(cx, cy, 26 / z);
+      g.lineStyle(1 / z, T(0x3a5470), 1); g.strokeCircle(cx, cy, 26 / z);
       if (w.kt > 0) {
         const a = (w.dir + 180) * D2R, s = Math.sin(a), c = Math.cos(a), r = 22 / z;
-        g.lineStyle(2 / z, 0x4da3ff, 1);
+        g.lineStyle(2 / z, T(0x4da3ff), 1);
         g.lineBetween(cx - s * r, cy + c * r, cx + s * r, cy - c * r);
         const tx = cx + s * r, ty = cy - c * r, b = 7 / z;
-        g.fillStyle(0x4da3ff, 1);
+        g.fillStyle(T(0x4da3ff), 1);
         g.fillPoints([{ x: tx, y: ty }, { x: tx - s * b * 1.6 + c * b * 0.6, y: ty + c * b * 1.6 + s * b * 0.6 }, { x: tx - s * b * 1.6 - c * b * 0.6, y: ty + c * b * 1.6 - s * b * 0.6 }], true);
-        this.text(`Wind ${FI.pad3(w.dir)}/${Math.round(w.kt)}`, cx, cy + 34 / z, '#4da3ff', 10, 0.5, 0);
-      } else this.text('Calm', cx, cy + 34 / z, '#7d8a96', 10, 0.5, 0);
+        this.text(`Wind ${FI.pad3(w.dir)}/${Math.round(w.kt)}`, cx, cy + 34 / z, T('#4da3ff'), 10, 0.5, 0);
+      } else this.text('Calm', cx, cy + 34 / z, T('#7d8a96'), 10, 0.5, 0);
     }
   }
 

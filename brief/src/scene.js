@@ -185,13 +185,23 @@
 
   const fmt = n => (Math.round(n) + 0).toLocaleString('en-US');
 
+  // Light-mode partners for the map colours (Settings > General > Appearance).
+  // The aircraft colours get deeper shades so they read on a light grid.
+  const T = window.facoTheme ? facoTheme.swap({
+    '#0a0e13': '#f4f6f8', '#1a2836': '#e2e8ef', '#27405a': '#c5d2df', '#3a6488': '#7f9bb8',
+    '#3d5f7d': '#6f8aa5', '#ffffff': '#1f2a36', '#e6edf3': '#10171e', '#9fb3c5': '#4f6275',
+    '#7d8a96': '#5f6b77', '#c9d4df': '#27313b', '#b0b6bd': '#6f7a86',
+    '#4da3ff': '#1a73d1', '#ff5a5a': '#d93636', '#5fd38d': '#1f9d55', '#ffd166': '#b07800',
+    '#c78bff': '#8a4fd8', '#ff9f43': '#d46a00', '#2fd6d6': '#0f9a9a', '#ff7eb6': '#d2457f',
+    '#ff6b6b': '#d93636', '#ffb547': '#c77800'
+  }) : c => c;
+
   class DebriefScene extends Phaser.Scene {
     constructor() { super('debrief'); }
 
     create() {
       DL.scene = this;
       this.cam = this.cameras.main;
-      this.cam.setBackgroundColor('#0a0e13');
       this.cam.setZoom(0.12);
       this.cam.centerOn(0, 0);
 
@@ -604,12 +614,14 @@
         this.textPool.push(t);
       }
       this.textUsed++;
-      t.setText(str).setFontSize(size || 11).setColor(color || '#c9d4df')
+      t.setText(str).setFontSize(size || 11).setColor(color || T('#c9d4df'))
         .setOrigin(originX || 0, originY || 0).setPosition(x, y).setScale(1 / this.cam.zoom).setVisible(true);
       return t;
     }
 
     update() {
+      const bg = T('#0a0e13');
+      if (bg !== this.bg) { this.bg = bg; this.cam.setBackgroundColor(bg); }
       this.textUsed = 0;
       this.tickHits = [];
       this.evHits = [];
@@ -676,19 +688,19 @@
         for (let y = Math.floor(v.y / step) * step; y <= y1; y += step) { g.moveTo(v.x, y); g.lineTo(x1, y); }
         g.strokePath();
       };
-      lines(minor, 0x1a2836, 1);
-      lines(major, 0x27405a, 1);
-      g.lineStyle(1.5 / z, 0x3a6488, 1);
+      lines(minor, T(0x1a2836), 1);
+      lines(major, T(0x27405a), 1);
+      g.lineStyle(1.5 / z, T(0x3a6488), 1);
       g.lineBetween(0, v.y, 0, y1);
       g.lineBetween(v.x, 0, x1, 0);
       // major-line distance labels along the top and left edges
       if ((x1 - x0) / major < 40) {
         for (let x = Math.ceil(v.x / major) * major; x <= x1; x += major) {
-          this.text(DL.fmtFt(x), x + 3 / z, v.y + 4 / z, '#3d5f7d', 10);
+          this.text(DL.fmtFt(x), x + 3 / z, v.y + 4 / z, T('#3d5f7d'), 10);
         }
         for (let y = Math.ceil(v.y / major) * major; y <= y1; y += major) {
           if (y - v.y < 20 / z) continue;
-          this.text(DL.fmtFt(-y), v.x + 4 / z, y + 3 / z, '#3d5f7d', 10);
+          this.text(DL.fmtFt(-y), v.x + 4 / z, y + 3 / z, T('#3d5f7d'), 10);
         }
       }
       this.gridInfo = { minor, major };
@@ -753,7 +765,7 @@
         this.tickHits.push(Object.assign({ x: m.x, y: m.y }, hit));
         const vw = DL.ui.vw;
         if (vw && vw.k === hit.k && vw.id === hit.id) {
-          g.lineStyle(1.5 / z, 0xffd166, 0.9);
+          g.lineStyle(1.5 / z, T(0xffd166), 0.9);
           g.strokeCircle(m.x, m.y, 18 / z);
         }
       }
@@ -776,7 +788,7 @@
           if (!ac) continue;
           const age = tl.current - k;
           const alpha = Math.max(0.3, 0.9 - age * 0.06);
-          const col = DL.colorAt(k - 1, id);   // the color it wore while flying this segment
+          const col = T(DL.colorAt(k - 1, id));   // the color it wore while flying this segment
           g.lineStyle(2 / z, col, alpha);
           if (s.path) {
             g.strokePoints(s.path.map(([x, y]) => ({ x, y })));
@@ -792,14 +804,14 @@
         for (const id in f) {
           const s = f[id], ac = tl.aircraft[id];
           if (!ac) continue;
-          const col = s.color || ac.color;
+          const col = T(s.color || ac.color);
           if (DL.settings.showGhosts) {
             g.fillStyle(col, 0.28);
             g.fillPoints(this.iconPoints(ac.type, s.x, s.y, s.hdg, 0.7), true);
           }
           g.fillStyle(col, 0.9);
           g.fillCircle(s.x, s.y, 2.5 / z);
-          if (DL.settings.showLabels && z * 300 > 8) this.text(String(k), s.x + 8 / z, s.y + 6 / z, '#7d8a96', 10);
+          if (DL.settings.showLabels && z * 300 > 8) this.text(String(k), s.x + 8 / z, s.y + 6 / z, T('#7d8a96'), 10);
         }
       }
     }
@@ -811,7 +823,7 @@
       for (const id in f) {
         const s = f[id], ac = DL.tl.aircraft[id];
         const sel = id === DL.ui.selected;
-        const col = s.color || ac.color;
+        const col = T(s.color || ac.color);
         const r = this.pred[id] || DL.step(ac.type, s, DL.frameDur(DL.tl.current));
         if (st.showPrediction) {
           g.lineStyle((sel ? 2 : 1.5) / z, col, sel ? 0.9 : 0.55);
@@ -837,7 +849,7 @@
             let tAhead = 0;
             for (let i = 0; i < ahead.length; i++) tAhead += DL.frameDur(DL.tl.current + i);
             this.text('rolls out +' + DL.fmtSec(tAhead) + 's  ' + String(Math.round(last.hdg)).padStart(3, '0') + '°  ' + fmt(last.alt) + ' ft',
-              last.x + 14 / z, last.y - 18 / z, '#ffd166', 10);
+              last.x + 14 / z, last.y - 18 / z, T('#ffd166'), 10);
           }
         }
         const ti = DL.turnInfo(ac.type, s.spd, s.ctl, s.gam);
@@ -847,18 +859,18 @@
           const cy = s.y + Math.sin(h) * ti.radius * ti.dir;
           g.lineStyle(1 / z, col, 0.3);
           g.strokeCircle(cx, cy, ti.radius);
-          g.lineStyle(1 / z, 0xffffff, 0.45);
+          g.lineStyle(1 / z, T(0xffffff), 0.45);
           this.dashed(g, [[s.x, s.y], [cx, cy]], 5 / z, 4 / z);
-          g.fillStyle(0xffffff, 0.7);
+          g.fillStyle(T(0xffffff), 0.7);
           g.fillCircle(cx, cy, 2.5 / z);
           const mx = (s.x + cx) / 2, my = (s.y + cy) / 2;
-          this.text('R ' + fmt(ti.radius) + ' ft', mx, my, '#e6edf3', 11, 0.5, 1.2);
-          this.text(Math.abs(ti.rateDps).toFixed(1) + '°/s', cx, cy + 6 / z, '#9fb3c5', 10, 0.5, 0);
+          this.text('R ' + fmt(ti.radius) + ' ft', mx, my, T('#e6edf3'), 11, 0.5, 1.2);
+          this.text(Math.abs(ti.rateDps).toFixed(1) + '°/s', cx, cy + 6 / z, T('#9fb3c5'), 10, 0.5, 0);
         }
         if (st.showPrediction && sel) {
           const dh = r.dHdg;
           this.text('+' + DL.fmtSec(DL.frameDur(DL.tl.current)) + 's  Δhdg ' + (dh >= 0 ? '+' : '') + dh.toFixed(0) + '°  ' + fmt(r.spd) + ' kt  Δalt ' + (r.dAlt >= 0 ? '+' : '') + fmt(r.dAlt) + ' ft',
-            r.x + 14 / z, r.y + 10 / z, '#9fb3c5', 10);
+            r.x + 14 / z, r.y + 10 / z, T('#9fb3c5'), 10);
         }
       }
     }
@@ -872,7 +884,7 @@
       g.clear();
       if (!rd || !rd.on) return;
       const f = this.scrub || DL.cur();
-      const GREY = 0xb0b6bd, GREYS = '#b0b6bd';
+      const GREY = T(0xb0b6bd), GREYS = T('#b0b6bd');
       const ids = rd.who === 'all' ? Object.keys(f) : (DL.ui.selected && f[DL.ui.selected] ? [DL.ui.selected] : []);
       for (const id of ids) {
         const s = f[id], ac = DL.tl.aircraft[id];
@@ -904,17 +916,17 @@
           for (const c of contacts) {
             if (c.detected && Math.abs(c.rel - d) <= stepDeg / 2) { len = Math.min(len, c.range); bright = true; }
           }
-          g.lineStyle((bright ? 1.5 : 1) / z, bright ? 0xffffff : GREY, bright ? 0.7 : 0.1);
+          g.lineStyle((bright ? 1.5 : 1) / z, bright ? T(0xffffff) : GREY, bright ? 0.7 : 0.1);
           g.lineBetween(s.x, s.y, s.x + Math.sin(ang) * len, s.y - Math.cos(ang) * len);
         }
         // contact brackets and readouts
         for (const c of contacts) {
           if (!c.detected) continue;
           const b = 14 / z;
-          g.lineStyle(1.5 / z, 0xffffff, 0.9);
+          g.lineStyle(1.5 / z, T(0xffffff), 0.9);
           g.strokeRect(c.x - b, c.y - b, 2 * b, 2 * b);
-          this.text(c.rangeNm < 10 ? c.rangeNm.toFixed(1) + ' nm' : Math.round(c.rangeNm) + ' nm', c.x + b + 4 / z, c.y - b, '#ffffff', 10);
-          this.text((c.dAlt >= 0 ? '+' : '') + fmt(c.dAlt) + ' ft  ' + (c.closure >= 0 ? '+' : '') + fmt(c.closure) + ' kt', c.x + b + 4 / z, c.y - b + 12 / z, '#9fb3c5', 10);
+          this.text(c.rangeNm < 10 ? c.rangeNm.toFixed(1) + ' nm' : Math.round(c.rangeNm) + ' nm', c.x + b + 4 / z, c.y - b, T('#ffffff'), 10);
+          this.text((c.dAlt >= 0 ? '+' : '') + fmt(c.dAlt) + ' ft  ' + (c.closure >= 0 ? '+' : '') + fmt(c.closure) + ' kt', c.x + b + 4 / z, c.y - b + 12 / z, T('#9fb3c5'), 10);
         }
         if (ids.length > 1) this.text(ac.callsign + ' radar', s.x + Math.sin(h) * R * 0.5 + 4 / z, s.y - Math.cos(h) * R * 0.5, GREYS, 10);
       }
@@ -943,19 +955,19 @@
         const h = s.hdg * DL.D2R;
         const key = ev.k + ':' + ev.ac, row = stack[key] || 0;
         stack[key] = row + 1;
-        const label = (txt, x, y, col) => this.text(txt, x + 10 / z, y - 16 / z - row * 12 / z, col || '#' + kind.color.toString(16).padStart(6, '0'), 10);
+        const label = (txt, x, y, col) => this.text(txt, x + 10 / z, y - 16 / z - row * 12 / z, col || T('#' + kind.color.toString(16).padStart(6, '0')), 10);
         if (ev.kind === 'gun') {
           const alpha = age === 0 ? 1 : 0.45;
           const ex = s.x + Math.sin(h) * ev.len, ey = s.y - Math.cos(h) * ev.len;
-          g.lineStyle(1 / z, kind.color, alpha * 0.5);
+          g.lineStyle(1 / z, T(kind.color), alpha * 0.5);
           g.lineBetween(s.x, s.y, ex, ey);
           // short tracer dashes along the line
-          g.lineStyle(2.5 / z, kind.color, alpha);
+          g.lineStyle(2.5 / z, T(kind.color), alpha);
           for (let i = 1; i <= 5; i++) {
             const t0 = (i - 0.35) / 5.5, t1 = i / 5.5;
             g.lineBetween(s.x + (ex - s.x) * t0, s.y + (ey - s.y) * t0, s.x + (ex - s.x) * t1, s.y + (ey - s.y) * t1);
           }
-          g.lineStyle(1.5 / z, kind.color, alpha);
+          g.lineStyle(1.5 / z, T(kind.color), alpha);
           g.strokeCircle(ex, ey, 5 / z);
           g.lineBetween(ex - 8 / z, ey, ex + 8 / z, ey); g.lineBetween(ex, ey - 8 / z, ex, ey + 8 / z);
           label('GUNS', ex, ey);
@@ -977,7 +989,7 @@
             const side = (i % 2 ? 1 : -1) * 7 / z;
             const fx = p.x - dy / L * side, fy = p.y + dx / L * side;
             const out = fr <= prog + 1e-9;
-            g.lineStyle((out ? 1.5 : 1) / z, kind.color, out ? (age === 0 ? 1 : 0.5) : 0.3);
+            g.lineStyle((out ? 1.5 : 1) / z, T(kind.color), out ? (age === 0 ? 1 : 0.5) : 0.3);
             this.starburst(g, fx, fy, (out ? 5 : 4) / z);
             if (i === 0) { lx = fx; ly = fy; }
           }
@@ -986,7 +998,7 @@
         } else if (ev.kind === 'shot') {
           const st = DL.shotState(ev, kcf);
           if (!st) continue;
-          const col = kind.color;
+          const col = T(kind.color);
           // launch point
           g.lineStyle(1.5 / z, col, 0.9);
           g.strokeCircle(st.launch.x, st.launch.y, 6 / z);
@@ -1009,7 +1021,7 @@
             if (!st.done) {
               g.fillStyle(col, 1);
               g.fillPoints(pts, true);
-              label(Math.round(st.p * ev.tof) + ' / ' + ev.tof + ' s', st.at.x, st.at.y + 26 / z, '#e6edf3');
+              label(Math.round(st.p * ev.tof) + ' / ' + ev.tof + ' s', st.at.x, st.at.y + 26 / z, T('#e6edf3'));
             } else {
               // end of flight: result marker set by the user
               const ex = st.at.x, ey = st.at.y;
@@ -1019,14 +1031,14 @@
                 g.strokeCircle(ex, ey, 5 / z);
                 label('HIT', ex, ey + 26 / z);
               } else if (ev.result === 'miss') {
-                g.lineStyle(2 / z, 0x9fb3c5, 1);
+                g.lineStyle(2 / z, T(0x9fb3c5), 1);
                 g.lineBetween(ex - 7 / z, ey - 7 / z, ex + 7 / z, ey + 7 / z);
                 g.lineBetween(ex - 7 / z, ey + 7 / z, ex + 7 / z, ey - 7 / z);
-                label('MISS', ex, ey + 26 / z, '#9fb3c5');
+                label('MISS', ex, ey + 26 / z, T('#9fb3c5'));
               } else {
                 g.lineStyle(1.5 / z, col, 0.9);
                 g.strokeCircle(ex, ey, 7 / z);
-                label('end of flight ?', ex, ey + 26 / z, '#e6edf3');
+                label('end of flight ?', ex, ey + 26 / z, T('#e6edf3'));
               }
               this.evHits.push({ x: ex, y: ey, ev });
             }
@@ -1050,7 +1062,7 @@
       for (const id in f) {
         const s = f[id], ac = DL.tl.aircraft[id];
         const sel = id === DL.ui.selected;
-        const acol = s.color || ac.color;
+        const acol = T(s.color || ac.color);
         if (this.scrub) {
           // faint symbol where the frame starts while the slider moves it along
           const s0 = DL.cur()[id];
@@ -1060,18 +1072,18 @@
         const pts = this.iconPoints(ac.type, s.x, s.y, s.hdg, 1);
         g.fillStyle(acol, 1);
         g.fillPoints(pts, true);
-        g.lineStyle(1 / z, 0xffffff, sel ? 0.95 : 0.4);
+        g.lineStyle(1 / z, T(0xffffff), sel ? 0.95 : 0.4);
         g.strokePoints(pts, true);
         if (sel) {
-          g.lineStyle(1 / z, 0xffffff, 0.5);
+          g.lineStyle(1 / z, T(0xffffff), 0.5);
           g.strokeCircle(s.x, s.y, 24 / z);
         }
         if (sel && DL.canEditPose(id) && !this.scrub) {
           const h = s.hdg * DL.D2R;
           const hx = s.x + Math.sin(h) * handlePx() / z, hy = s.y - Math.cos(h) * handlePx() / z;
-          g.lineStyle(1.5 / z, 0xffd166, 0.9);
+          g.lineStyle(1.5 / z, T(0xffd166), 0.9);
           g.lineBetween(s.x + Math.sin(h) * 20 / z, s.y - Math.cos(h) * 20 / z, hx, hy);
-          g.fillStyle(0xffd166, 1);
+          g.fillStyle(T(0xffd166), 1);
           g.fillCircle(hx, hy, (touch() ? 9 : 5) / z);
         }
         if (DL.settings.showLabels) {
@@ -1091,7 +1103,7 @@
       // placement preview
       if (DL.ui.tool === 'place' && this.hover && !this.drag) {
         const pts = this.iconPoints(DL.ui.placeType, this.snap(this.hover.x), this.snap(this.hover.y), 0, 1);
-        g.lineStyle(1.5 / z, 0xffffff, 0.6);
+        g.lineStyle(1.5 / z, T(0xffffff), 0.6);
         g.strokePoints(pts, true);
       }
     }

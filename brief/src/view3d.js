@@ -201,9 +201,10 @@
       // sky and ground split at the horizon
       const hy = cy - focal * Math.tan(elv);
       const sky = ctx.createLinearGradient(0, 0, 0, H);
-      sky.addColorStop(0, '#16324d'); sky.addColorStop(1, '#2a5578');
+      const lightMode = !!(window.facoTheme && facoTheme.isLight);
+      sky.addColorStop(0, lightMode ? '#7fb1dc' : '#16324d'); sky.addColorStop(1, lightMode ? '#c4dcf0' : '#2a5578');
       ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
-      ctx.fillStyle = '#2b2419';
+      ctx.fillStyle = lightMode ? '#8c7a5c' : '#2b2419';
       ctx.fillRect(0, DL.clamp(hy, -1, H + 1), W, H);
       ctx.strokeStyle = 'rgba(230,240,255,.55)'; ctx.lineWidth = 1;
       ctx.beginPath(); ctx.moveTo(0, hy); ctx.lineTo(W, hy); ctx.stroke();
