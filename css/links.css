@@ -1,0 +1,213 @@
+/* Links page (links.html): a tablet home screen, like a pilot's EFB,
+   with one app icon per link. */
+.efb {
+  /* the site header is fixed and sits over the top of the page */
+  margin: calc(var(--header-height, 80px) + 2rem) auto 3rem;
+  padding: 0 1.5rem;
+  font-family: "Public Sans", sans-serif;
+}
+
+.efb-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Device: dark bezel with a camera dot. Width is capped so the whole
+   tablet fits the window below the header. */
+.efb-device {
+  position: relative;
+  box-sizing: border-box;
+  width: min(100%, 1040px, calc((100vh - var(--header-height, 80px) - 5rem - 44px) * 4 / 3 + 44px));
+  min-width: min(100%, 560px);
+  margin: 0 auto;
+  padding: 22px;
+  border-radius: 42px;
+  background: #16181c;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.25), inset 0 0 0 2px #2c3037;
+}
+
+.efb-device::before {
+  content: "";
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  margin-left: -3px;
+  border-radius: 50%;
+  background: #2d3846;
+}
+
+.efb-screen {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border-radius: 22px;
+  color: #fff;
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(134, 180, 221, 0.55) 0%, rgba(134, 180, 221, 0) 60%),
+    linear-gradient(180deg, #0b5c99 0%, #0a4677 55%, #072f52 100%);
+}
+
+/* Status bar: local time on the left, Zulu time and icons on the right */
+.efb-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 22px 0;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.efb-status-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.efb-status svg {
+  display: block;
+  fill: currentColor;
+}
+
+/* App grid */
+.efb-apps {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 28px 12px;
+  align-content: start;
+  flex: 1;
+  margin: 0;
+  padding: 36px 36px 0;
+  list-style: none;
+}
+
+.efb-apps li {
+  margin: 0;
+  padding: 0;
+}
+
+.efb-apps li::before {
+  content: none;
+}
+
+.efb-app {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: #fff;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.efb-icon {
+  display: block;
+  width: 76px;
+  height: 76px;
+  overflow: hidden;
+  border-radius: 18px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: transform 0.15s ease;
+}
+
+.efb-icon img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+}
+
+.efb-app:hover .efb-icon {
+  transform: translateY(-2px) scale(1.05);
+}
+
+.efb-app:active .efb-icon {
+  transform: scale(0.95);
+}
+
+.efb-app:focus-visible {
+  outline: none;
+}
+
+.efb-app:focus-visible .efb-icon {
+  outline: 3px solid #fff;
+  outline-offset: 3px;
+}
+
+.efb-label {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+}
+
+/* Home indicator along the bottom edge */
+.efb-home {
+  flex: none;
+  width: 140px;
+  height: 5px;
+  margin: 0 auto 10px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+/* Phones: a portrait tablet with a thinner bezel */
+@media (max-width: 640px) {
+  .efb {
+    margin-top: calc(var(--header-height, 80px) + 1rem);
+    padding: 0 1rem;
+  }
+
+  .efb-device {
+    width: 100%;
+    min-width: 0;
+    padding: 10px;
+    border-radius: 30px;
+  }
+
+  .efb-device::before {
+    top: 2px;
+    width: 4px;
+    height: 4px;
+    margin-left: -2px;
+  }
+
+  .efb-screen {
+    aspect-ratio: 3 / 4;
+    border-radius: 22px;
+  }
+
+  .efb-status {
+    padding: 8px 16px 0;
+    font-size: 13px;
+  }
+
+  .efb-apps {
+    grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+    gap: 22px 8px;
+    padding: 26px 16px 0;
+  }
+
+  .efb-icon {
+    width: 62px;
+    height: 62px;
+    border-radius: 15px;
+  }
+
+  .efb-label {
+    font-size: 12px;
+  }
+}
