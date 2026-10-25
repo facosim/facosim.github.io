@@ -100,7 +100,11 @@
   var SVGNS = 'http://www.w3.org/2000/svg';
   function svgEl(parent, tag, attrs, text) {
     var el = document.createElementNS(SVGNS, tag);
-    for (var k in attrs) el.setAttribute(k, attrs[k]);
+    for (var k in attrs) {
+      // Theme colours are CSS variables, which only work through style
+      if ((k === 'fill' || k === 'stroke') && /^var\(/.test(attrs[k])) el.style[k] = attrs[k];
+      else el.setAttribute(k, attrs[k]);
+    }
     if (text != null) el.textContent = text;
     parent.appendChild(el);
     return el;
@@ -113,8 +117,8 @@
     });
   }
   function northArrow(svg, x, y) {
-    svgEl(svg, 'path', { d: 'M' + x + ',' + (y + 16) + ' L' + x + ',' + y, stroke: '#7d8a96', 'stroke-width': 1.5, 'marker-end': 'url(#mk-n)' });
-    svgEl(svg, 'text', { x: x, y: y + 28, fill: '#7d8a96', 'text-anchor': 'middle' }, 'N');
+    svgEl(svg, 'path', { d: 'M' + x + ',' + (y + 16) + ' L' + x + ',' + y, stroke: 'var(--dim)', 'stroke-width': 1.5, 'marker-end': 'url(#mk-n)' });
+    svgEl(svg, 'text', { x: x, y: y + 28, fill: 'var(--dim)', 'text-anchor': 'middle' }, 'N');
   }
 
   function drawTriangle(tc, tas, wd, ws, r) {
@@ -130,18 +134,18 @@
     var ox = 150 - (minX + maxX) / 2 * s, oy = 84 - (minY + maxY) / 2 * s;
     function P(p) { return [ox + p[0] * s, oy + p[1] * s]; }
     var o = P([0, 0]), a = P(A), g = P(G);
-    markers(svg, [['mk-air', '#c9d4df'], ['mk-gnd', '#26e05a'], ['mk-wnd', '#ffb547'], ['mk-n', '#7d8a96']]);
+    markers(svg, [['mk-air', 'var(--text)'], ['mk-gnd', 'var(--out)'], ['mk-wnd', 'var(--warn)'], ['mk-n', 'var(--dim)']]);
     northArrow(svg, 14, 8);
     function line(p, q, color, mk, dash) {
       svgEl(svg, 'line', { x1: p[0], y1: p[1], x2: q[0], y2: q[1], stroke: color, 'stroke-width': 2.2, 'marker-end': 'url(#' + mk + ')', 'stroke-dasharray': dash || '' });
     }
-    line(o, a, '#c9d4df', 'mk-air');
-    if (ws > 0.5) line(a, g, '#ffb547', 'mk-wnd', '5 3');
-    line(o, g, '#26e05a', 'mk-gnd');
+    line(o, a, 'var(--text)', 'mk-air');
+    if (ws > 0.5) line(a, g, 'var(--warn)', 'mk-wnd', '5 3');
+    line(o, g, 'var(--out)', 'mk-gnd');
     // Legend under the drawing
-    [['#c9d4df', 'Heading ' + deg3(r.th) + ' at ' + Math.round(tas) + ' kt TAS (air)'],
-      ['#ffb547', ws > 0.5 ? 'Wind ' + deg3(wd) + ' at ' + Math.round(ws) + ' kt' : 'Calm'],
-      ['#26e05a', 'Course ' + deg3(tc) + ' at ' + Math.round(r.gs) + ' kt GS (ground)']].forEach(function (l, i) {
+    [['var(--text)', 'Heading ' + deg3(r.th) + ' at ' + Math.round(tas) + ' kt TAS (air)'],
+      ['var(--warn)', ws > 0.5 ? 'Wind ' + deg3(wd) + ' at ' + Math.round(ws) + ' kt' : 'Calm'],
+      ['var(--out)', 'Course ' + deg3(tc) + ' at ' + Math.round(r.gs) + ' kt GS (ground)']].forEach(function (l, i) {
       var y = 176 + i * 16;
       svgEl(svg, 'line', { x1: 34, y1: y - 4, x2: 52, y2: y - 4, stroke: l[0], 'stroke-width': 2.2, 'stroke-dasharray': i === 1 ? '5 3' : '' });
       svgEl(svg, 'text', { x: 60, y: y, fill: l[0] }, l[1]);
@@ -346,16 +350,16 @@
   function drawRunway(rh, wd, ws) {
     var svg = $('xw-dia');
     svg.innerHTML = '';
-    markers(svg, [['mk-x', '#ffb547'], ['mk-n', '#7d8a96']]);
+    markers(svg, [['mk-x', 'var(--warn)'], ['mk-n', 'var(--dim)']]);
     northArrow(svg, 18, 8);
     var cx = 150, cy = 112, L = 170, W = 24;
     var g = svgEl(svg, 'g', { transform: 'rotate(' + rh + ' ' + cx + ' ' + cy + ')' });
-    svgEl(g, 'rect', { x: cx - W / 2, y: cy - L / 2, width: W, height: L, rx: 2, fill: '#2a333d', stroke: '#4a5866' });
-    svgEl(g, 'line', { x1: cx, y1: cy - L / 2 + 22, x2: cx, y2: cy + L / 2 - 22, stroke: '#c9d4df', 'stroke-width': 1.5, 'stroke-dasharray': '9 7' });
+    svgEl(g, 'rect', { x: cx - W / 2, y: cy - L / 2, width: W, height: L, rx: 2, fill: 'var(--rwy)', stroke: 'var(--rwy-edge)' });
+    svgEl(g, 'line', { x1: cx, y1: cy - L / 2 + 22, x2: cx, y2: cy + L / 2 - 22, stroke: 'var(--text)', 'stroke-width': 1.5, 'stroke-dasharray': '9 7' });
     // Runway numbers: landing on 25 you head 250, so "25" is painted at the end you touch down on
     var R = Math.PI / 180;
     function paint(h, d) {
-      svgEl(svg, 'text', { x: cx + Math.sin(h * R) * d, y: cy - Math.cos(h * R) * d + 4, fill: '#e6edf3', 'text-anchor': 'middle', 'font-weight': 600 }, rwyName(h + 180));
+      svgEl(svg, 'text', { x: cx + Math.sin(h * R) * d, y: cy - Math.cos(h * R) * d + 4, fill: 'var(--strong)', 'text-anchor': 'middle', 'font-weight': 600 }, rwyName(h + 180));
     }
     paint(rh + 180, L / 2 + 14);
     paint(rh, L / 2 + 14);
@@ -363,9 +367,9 @@
       var r1 = 104, r2 = 30;
       var x1 = cx + Math.sin(wd * R) * r1, y1 = cy - Math.cos(wd * R) * r1;
       var x2 = cx + Math.sin(wd * R) * r2, y2 = cy - Math.cos(wd * R) * r2;
-      svgEl(svg, 'line', { x1: x1, y1: y1, x2: x2, y2: y2, stroke: '#ffb547', 'stroke-width': 3, 'marker-end': 'url(#mk-x)' });
+      svgEl(svg, 'line', { x1: x1, y1: y1, x2: x2, y2: y2, stroke: 'var(--warn)', 'stroke-width': 3, 'marker-end': 'url(#mk-x)' });
       var tx = cx + Math.sin(wd * R) * (r1 + 2), ty = cy - Math.cos(wd * R) * (r1 + 2);
-      svgEl(svg, 'text', { x: Math.max(30, Math.min(270, tx)), y: Math.max(12, Math.min(214, ty + (ty > cy ? 12 : -4))), fill: '#ffb547', 'text-anchor': 'middle' }, deg3(wd) + '/' + Math.round(ws));
+      svgEl(svg, 'text', { x: Math.max(30, Math.min(270, tx)), y: Math.max(12, Math.min(214, ty + (ty > cy ? 12 : -4))), fill: 'var(--warn)', 'text-anchor': 'middle' }, deg3(wd) + '/' + Math.round(ws));
     }
   }
 
@@ -406,7 +410,7 @@
       var box = document.createElement('div');
       box.className = 'r';
       box.innerHTML = '<span>' + UNIT_LABELS[cat][u] + '</span><b class="val">' + smart(r) + unit(cat === 'temp' && u !== 'K' ? '°' + u : u) + '</b>';
-      if (u === from.value) box.style.borderColor = '#3a5470';
+      if (u === from.value) box.style.borderColor = 'var(--line-hover)';
       out.appendChild(box);
     });
   }
@@ -465,7 +469,7 @@
     a.href = 'https://www.openstreetmap.org/?mlat=' + p.lat.toFixed(6) + '&mlon=' + p.lon.toFixed(6) + '#map=13/' + p.lat.toFixed(5) + '/' + p.lon.toFixed(5);
     a.target = '_blank'; a.rel = 'noopener';
     a.textContent = 'Show on a map ↗';
-    a.style.cssText = 'color:#4da3ff;font-size:13px;justify-self:start;margin-top:2px';
+    a.style.cssText = 'color:var(--accent);font-size:13px;justify-self:start;margin-top:2px';
     out.appendChild(a);
   }
 
