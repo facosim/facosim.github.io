@@ -34,6 +34,7 @@
       $('btn-fit').addEventListener('click', () => FI.map.fit());
       $('btn-zin').addEventListener('click', () => FI.map.zoomCenter(1.4));
       $('btn-zout').addEventListener('click', () => FI.map.zoomCenter(1 / 1.4));
+      document.querySelectorAll('[data-panel]').forEach(b => b.addEventListener('click', () => ui.setPanel(b.dataset.panel)));
       $('btn-touch').addEventListener('click', () => ui.setTouch(!ui.touch));
       $('btn-help').addEventListener('click', () => $('help').classList.add('open'));
       $('help-close').addEventListener('click', () => $('help').classList.remove('open'));
@@ -77,6 +78,13 @@
       FI.nav[what] = FI.norm360(FI.nav[what] + d);
       ui.refresh();
     },
+    // Six-pack or glass cockpit. Remembered per browser; ?p=glass opens glass.
+    setPanel(mode) {
+      FI.panelMode = mode === 'glass' ? 'glass' : 'analog';
+      try { localStorage.setItem('fi-panel', FI.panelMode); } catch (e) { /* private mode */ }
+      if (FI.panel && FI.panel.glass) FI.panel.setMode(FI.panelMode);
+      ui.refresh();
+    },
     setSource(src) { FI.nav.source = src; FI.ap.gsCap = false; FI.computeNav(); ui.refresh(); },
 
     start(idx) {
@@ -88,7 +96,7 @@
     },
 
     // keyboard: arrows bank and pitch, W/S power, L level, [ ] OBS, , . bug,
-    // H/A/N autopilot, V nav source, Space pause, F follow, 0 fit, ? help
+    // H/A/N autopilot, V nav source, G six-pack or glass, Space pause, F follow, 0 fit, ? help
     key(e) {
       const tag = (e.target.tagName || '').toLowerCase();
       if (tag === 'input' || tag === 'select' || tag === 'textarea') return;
@@ -109,6 +117,7 @@
       else if (k === 'h' || k === 'H') FI.setAp('hdg', !FI.ap.hdg);
       else if (k === 'a' || k === 'A') FI.setAp('alt', !FI.ap.alt);
       else if (k === 'n' || k === 'N') FI.setAp('nav', !FI.ap.nav);
+      else if (k === 'g' || k === 'G') ui.setPanel(FI.panelMode === 'glass' ? 'analog' : 'glass');
       else if (k === 'v' || k === 'V') ui.setSource(FI.nav.source === 'VOR' ? 'ILS' : 'VOR');
       else if (k === ' ') FI.paused = !FI.paused;
       else if (k === 'f' || k === 'F') FI.map.setFollow(!FI.map.follow);
@@ -154,6 +163,7 @@
       const s = FI.state, ap = FI.ap, nv = FI.nav;
       $('btn-play').textContent = FI.paused ? '▶ Play' : '❚❚ Pause';
       document.querySelectorAll('[data-speed]').forEach(b => b.classList.toggle('on', +b.dataset.speed === FI.speed));
+      document.querySelectorAll('[data-panel]').forEach(b => b.classList.toggle('on', b.dataset.panel === FI.panelMode));
       $('btn-follow').classList.toggle('on', !!(FI.map && FI.map.follow));
       $('ap-hdg').classList.toggle('on', ap.hdg); $('ap-alt').classList.toggle('on', ap.alt); $('ap-nav').classList.toggle('on', ap.nav);
       document.querySelectorAll('[data-src]').forEach(b => b.classList.toggle('on', b.dataset.src === nv.source));

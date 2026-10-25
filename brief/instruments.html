@@ -8,7 +8,7 @@
 <meta property="og:title" content="Flight Instruments — FACO">
 <meta property="og:url" content="https://facosim.com/brief/instruments.html">
 <meta property="og:type" content="website">
-<meta property="og:description" content="Fly around a VOR and down an ILS on a top-down map and watch what the six-pack and the nav needle show in the cockpit.">
+<meta property="og:description" content="Fly around a VOR and down an ILS on a top-down map and watch what the six-pack or a G1000-style glass cockpit shows.">
 <meta property="og:image" content="https://facosim.com/img/icon_instruments.jpg">
 <meta property="og:image:width" content="1500">
 <meta property="og:image:height" content="1500">
@@ -142,6 +142,10 @@
     <button id="btn-fit" title="Fit the VOR, the airport and the aircraft (0)">Fit</button>
     <button id="btn-zin" class="icon zoom-step" title="Zoom in">+</button>
   </div>
+  <div class="sep"></div>
+  <div class="seg" title="Instrument panel: analog six-pack or G1000-style glass cockpit (G)">
+    <button data-panel="analog" class="on">Six-pack</button><button data-panel="glass">Glass</button>
+  </div>
   <div class="spacer"></div>
   <button id="btn-touch" title="Touchscreen mode: finger-sized buttons and sliders">Touch</button>
   <button id="btn-help" class="icon" title="Controls and what the instruments show (?)">?</button>
@@ -200,6 +204,7 @@
       <li><b>Map:</b> drag the aircraft to move it and drag the yellow dot ahead of it to point the nose (<kbd>Shift</kbd> snaps to 15°). Drag empty map to pan, wheel or pinch to zoom, <b>Follow</b> (<kbd>F</kbd>) keeps the aircraft centered, <b>Fit</b> (<kbd>0</kbd>) shows everything.</li>
       <li><b>Autopilot:</b> set the heading bug with − and + (<kbd>,</kbd> <kbd>.</kbd>) and press <b>HDG</b> (<kbd>H</kbd>) to fly it; <b>ALT</b> (<kbd>A</kbd>) holds the current altitude; <b>NAV</b> (<kbd>N</kbd>) tracks the OBS course through the VOR, or the localizer and glideslope with the ILS selected. Moving the bank slider releases HDG and NAV, moving pitch releases ALT.</li>
       <li><b>Nav:</b> <b>VOR</b> or <b>ILS</b> (<kbd>V</kbd>) picks what the nav indicator shows; − and + (<kbd>[</kbd> <kbd>]</kbd>) turn the OBS. On the map the selected course is the dashed blue line and the thin orange line is the radial you are on.</li>
+      <li><b>Panel:</b> <b>Six-pack</b> or <b>Glass</b> (<kbd>G</kbd>) switches between the analog gauges and a G1000-style glass cockpit. Both show the same aircraft, so you can switch mid-flight and compare.</li>
       <li><b>Scenarios:</b> <b>Play</b> (<kbd>Space</kbd>) pauses and resumes, <b>↺ Restart</b> starts the scenario over, 1× 2× 4× sets the speed. The status bar says what the autopilot is doing.</li>
     </ul>
     <h3>The instruments</h3>
@@ -211,6 +216,7 @@
       <li><b>Heading indicator:</b> the card turns so your heading is under the line at the top. The orange bug is the autopilot's heading.</li>
       <li><b>Vertical speed:</b> climb or descent in hundreds of feet per minute.</li>
       <li><b>VOR/ILS:</b> turn the OBS so the course is at the top. The needle shows which side the course is on: each dot is 2° for a VOR and ½° for a localizer. With a VOR the triangle says whether that course takes you <b>TO</b> or <b>FROM</b> the station, and the OFF flag shows out of range or right over it. With the ILS the horizontal needle is the glideslope (each dot 0.14°): needle below center means fly down. Flying away from the runway on a back course the needle reads backwards.</li>
+      <li><b>Glass cockpit:</b> the same information on one screen. The attitude fills the background with the yellow aircraft symbol in the middle; airspeed is the tape on the left (TAS below it), altitude on the right with vertical speed beside it, the selected altitude in cyan above and the altimeter setting below. Magenta bars on the tapes show where airspeed and altitude will be in 6 seconds. The HSI at the bottom combines the heading indicator and the nav indicator: cyan is the heading bug, the green arrow is the course with the deviation bar in its middle (2 dots each side, full scale), the small green triangle points TO or FROM, the magenta diamond is the ground track and the magenta arc on top is where the heading will be in 6 seconds. With the ILS the green diamond left of the altitude tape is the glideslope. The top bar shows the nav frequencies (green is the one feeding the HSI) and the autopilot modes, active in green and armed in white; the boxes beside the HSI show the wind and DME.</li>
       <li><b>Readout:</b> the lower right box lists the receiver, course, the radial you are on, DME distance, the flags, heading and bug, ground track and groundspeed, and the wind.</li>
     </ul>
     <div class="actions"><button id="help-close" class="primary">Close</button></div>
@@ -221,6 +227,7 @@
 <script src="phaser.min.js"></script>
 <script src="inst/sim.js"></script>
 <script src="inst/map.js"></script>
+<script src="inst/glass.js"></script>
 <script src="inst/panel.js"></script>
 <script src="inst/ui.js"></script>
 <script>
@@ -231,6 +238,9 @@
   FI.loadScenario(FI.SCENARIOS[scnIndex]);
   for (let t = (+q.get('t') || 0) * 4; t > 0; t--) FI.advance(250);
   FI.startZoom = +q.get('z') || 0;                 // map zoom, screen px per foot
+  let savedPanel = null;
+  try { savedPanel = localStorage.getItem('fi-panel'); } catch (e) { /* private mode */ }
+  FI.panelMode = (q.get('p') || savedPanel) === 'glass' ? 'glass' : 'analog';   // ?p=glass or ?p=analog
   FI.ui.init();
   document.getElementById('scn').value = String(scnIndex);
   FI.game = new Phaser.Game({

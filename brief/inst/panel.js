@@ -62,6 +62,9 @@
       this.buildASI(0, 0); this.buildAI(1, 0); this.buildALT(2, 0);
       this.buildTC(0, 1); this.buildHI(1, 1); this.buildVSI(2, 1);
       this.buildCDI(0, 2); this.buildReadout(1.5, 2);
+      // the glass cockpit shares the design size and the layout; only one shows
+      this.glass = FI.Glass(this);
+      this.setMode(FI.panelMode);
       if (this.pending) this.layout(this.pending);
     }
 
@@ -69,7 +72,15 @@
       if (!this.cam) { this.pending = L; return; }
       this.cam.setViewport(L.x, L.y, L.w, L.h);
       const s = Math.min(L.w / W, L.h / H);
-      this.root.setScale(s).setPosition((L.w - W * s) / 2, (L.h - H * s) / 2);
+      for (const r of [this.root, this.glass.root]) r.setScale(s).setPosition((L.w - W * s) / 2, (L.h - H * s) / 2);
+    }
+
+    // 'analog' shows the six-pack, 'glass' the G1000-style display
+    setMode(mode) {
+      this.mode = mode === 'glass' ? 'glass' : 'analog';
+      this.root.setVisible(this.mode === 'analog');
+      this.glass.root.setVisible(this.mode === 'glass');
+      this.cam.setBackgroundColor(this.mode === 'glass' ? '#05070a' : '#141a21');
     }
 
     // ---------- building blocks ----------
@@ -295,6 +306,7 @@
     update() {
       const s = FI.state, n = FI.navOut, nv = FI.nav, I = this.inst;
       if (!n || !I.asi) return;
+      if (this.mode === 'glass') { this.glass.update(); return; }
       // ASI
       I.asi.n.clear(); needle(I.asi.n, I.asi.ang(clamp(s.ias, 0, 200)), R - 22, 9, WHITE, 18);
       // AI
