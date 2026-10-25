@@ -1,4 +1,4 @@
-// Links page: keep the tablet's status bar clock current (local and Zulu time).
+// Links page: keep the local and Zulu clocks at the top of the page current.
 (function () {
   var local = document.getElementById('efb-local');
   var zulu = document.getElementById('efb-zulu');
