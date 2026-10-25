@@ -41,7 +41,9 @@ window.FI = window.FI || {};
   // ADF kHz, OBS and heading bug (magnetic)
   FI.nav = { src: 'NAV', mhz: 112.6, chan: '73X', khz: 0, obs: 90, bug: 0 };
   FI.wind = { dir: 0, kt: 0 };                           // wind from dir at kt
-  FI.ap = { hdg: false, alt: false, nav: false, altTgt: 3000, gsCap: false };
+  // spd holds spdTgt with power; turnDir (+1 right, -1 left, 0 shortest) keeps
+  // a HDG turn of more than 180° going the way the student asked for.
+  FI.ap = { hdg: false, alt: false, nav: false, altTgt: 3000, gsCap: false, spd: false, spdTgt: 100, turnDir: 0 };
   FI.trail = [];
   FI.paused = false;
   FI.speed = 1;
@@ -204,7 +206,7 @@ window.FI = window.FI || {};
   function targets() {
     const sc = FI.scn, ap = FI.ap, nv = FI.nav;
     if (sc && !sc.off && sc.step) return sc.step;
-    const t = {};
+    const t = targets.user = {};
     if (ap.nav) {
       // follow the CDI: a radial or the localizer; with no signal, hold heading
       const n = FI.navOut;
@@ -212,6 +214,7 @@ window.FI = window.FI || {};
       else t.hdg = S.hdg;
     } else if (ap.hdg) t.hdg = FI.toTrue(nv.bug);
     if (ap.alt) t.alt = ap.altTgt;
+    if (ap.spd) t.ias = ap.spdTgt;
     return t;
   }
 
@@ -230,7 +233,12 @@ window.FI = window.FI || {};
       } else if (t.hdg != null) hdgTgt = t.hdg;
       if (hdgTgt != null) {
         const lim = Math.min(AC.maxBank - 5, stdBank());
-        bank = clamp(norm180(hdgTgt - S.hdg) * 1.2, -lim, lim);
+        let err = norm180(hdgTgt - S.hdg);
+        if (t === targets.user && ap.turnDir) {
+          if (Math.abs(err) < 10) ap.turnDir = 0;
+          else if (Math.sign(err) !== ap.turnDir) err += 360 * ap.turnDir;
+        }
+        bank = clamp(err * 1.2, -lim, lim);
       }
     }
     if (bank != null) S.cmdBank = bank;
@@ -309,15 +317,15 @@ window.FI = window.FI || {};
   FI.takeover = function () {
     const sc = FI.scn, ap = FI.ap;
     if (sc && !sc.off) sc.off = true;
-    ap.hdg = ap.alt = ap.nav = false; ap.gsCap = false; ap.info = null;
+    ap.hdg = ap.alt = ap.nav = ap.spd = false; ap.gsCap = false; ap.info = null; ap.turnDir = 0;
     FI.msg = 'You have control';
   };
   FI.setControl = function (axis, v) {
     const sc = FI.scn, ap = FI.ap;
     if (sc && !sc.off) FI.takeover();
-    if (axis === 'bank') { S.cmdBank = clamp(v, -AC.maxBank, AC.maxBank); ap.hdg = ap.nav = false; ap.gsCap = false; }
+    if (axis === 'bank') { S.cmdBank = clamp(v, -AC.maxBank, AC.maxBank); ap.hdg = ap.nav = false; ap.gsCap = false; ap.turnDir = 0; }
     if (axis === 'pitch') { S.cmdPitch = clamp(v, AC.pitchMin, AC.pitchMax); ap.alt = false; ap.gsCap = false; }
-    if (axis === 'power') S.power = clamp(v, 0, 100);
+    if (axis === 'power') { S.power = clamp(v, 0, 100); ap.spd = false; }
   };
   FI.place = function (x, y, hdg) {
     FI.takeover();
@@ -331,11 +339,36 @@ window.FI = window.FI || {};
     const sc = FI.scn, ap = FI.ap;
     if (sc && !sc.off) FI.takeover();
     if (mode === 'alt') { ap.alt = on; if (on) ap.altTgt = Math.round(S.alt / 100) * 100; ap.gsCap = false; }
-    if (mode === 'hdg') { ap.hdg = on; if (on) ap.nav = false; }
-    if (mode === 'nav') { ap.nav = on; if (on) ap.hdg = false; ap.gsCap = false; }
+    if (mode === 'hdg') { ap.hdg = on; ap.turnDir = 0; if (on) ap.nav = false; }
+    if (mode === 'spd') { ap.spd = on; if (on) ap.spdTgt = Math.round(S.ias); }
+    if (mode === 'nav') { ap.nav = on; if (on) ap.hdg = false; ap.gsCap = false; ap.turnDir = 0; }
     if (!on && mode !== 'alt') ap.info = null;
     FI.msg = '';
   };
+  // Mouse steering and the quick menu: fly to a heading (magnetic) with a
+  // standard-rate turn the way `dir` says, an altitude at 500 fpm, and an
+  // airspeed with power. Each one left out is untouched.
+  FI.steer = function ({ hdg, dir, alt, ias }) {
+    const sc = FI.scn, ap = FI.ap;
+    if (sc && !sc.off) FI.takeover();
+    if (hdg != null) {
+      FI.nav.bug = norm360(Math.round(hdg));
+      ap.hdg = true; ap.nav = false; ap.gsCap = false; ap.info = null;
+      ap.turnDir = dir || 0;
+    }
+    if (alt != null) { ap.alt = true; ap.altTgt = Math.max(FI.groundElev || 0, Math.round(alt / 100) * 100); ap.gsCap = false; }
+    if (ias != null) { ap.spd = true; ap.spdTgt = clamp(Math.round(ias), FI.SPD_MIN, FI.SPD_MAX); }
+    FI.msg = '';
+  };
+  // Degrees of turn left in the HDG turn now flying, signed (+ right), or 0.
+  FI.turnLeft = function () {
+    const ap = FI.ap;
+    if (!ap.hdg || ap.nav || (FI.scn && !FI.scn.off)) return 0;
+    let err = norm180(FI.toTrue(FI.nav.bug) - S.hdg);
+    if (ap.turnDir && Math.abs(err) >= 10 && Math.sign(err) !== ap.turnDir) err += 360 * ap.turnDir;
+    return err;
+  };
+  FI.SPD_MIN = 60; FI.SPD_MAX = 125;      // speeds the trainer can hold level
 
   // ---------- scenarios ----------
   // Each scenario is a start state plus steps the autopilot flies in turn.
@@ -482,7 +515,7 @@ window.FI = window.FI || {};
     S.power = clamp(drag(S.ias) * S.ias / AC.kT, 0, 100);
     Object.assign(FI.nav, def.nav);
     if (def.wind) Object.assign(FI.wind, def.wind);
-    Object.assign(FI.ap, { hdg: false, alt: false, nav: false, gsCap: false, info: null, altTgt: st.alt });
+    Object.assign(FI.ap, { hdg: false, alt: false, nav: false, spd: false, turnDir: 0, gsCap: false, info: null, altTgt: st.alt });
     FI.trail.length = 0; trailT = 0; acc = 0;
     FI.scn = { def, i: 0, step: def.steps[0], ctx: newCtx(), off: false, done: false };
     FI.msg = '';
@@ -497,7 +530,7 @@ window.FI = window.FI || {};
     const f = FI.freeStart;
     Object.assign(S, { x: f.x, y: f.y, hdg: f.hdg, alt: f.alt, ias: f.ias, vs: 0, bank: 0, cmdBank: 0, turnRate: 0, t: 0 });
     S.pitch = S.cmdPitch = aoa(S.ias); S.power = clamp(drag(S.ias) * S.ias / AC.kT, 0, 100);
-    Object.assign(FI.ap, { hdg: false, alt: false, nav: false, gsCap: false, info: null });
+    Object.assign(FI.ap, { hdg: false, alt: false, nav: false, spd: false, turnDir: 0, gsCap: false, info: null });
     FI.trail.length = 0; trailT = 0; acc = 0; FI.msg = 'You have control'; FI.paused = false;
     physics(0); computeNav();
   };
@@ -522,6 +555,7 @@ window.FI = window.FI || {};
     if (ap.nav) m.push('NAV ' + (n.kind === 'LOC' ? `${n.loc.name}` + (ap.gsCap ? ' + GS' : '') : n.track ? `${n.ident} course ${pad3(FI.nav.obs)}` : 'no signal, holding heading'));
     else if (ap.hdg) m.push('HDG ' + pad3(FI.nav.bug));
     if (ap.alt && !(ap.gsCap && ap.nav)) m.push('ALT ' + fmtAlt(ap.altTgt));
+    if (ap.spd) m.push('SPD ' + ap.spdTgt + ' kt');
     return m.length ? 'Autopilot: ' + m.join(' · ') : (FI.msg || 'You have control');
   };
 })(window.FI);

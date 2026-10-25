@@ -83,6 +83,28 @@
   #scale { display: flex; align-items: center; gap: 6px; flex: none; }
   #scale-bar { height: 6px; border: 1px solid #8fb3d1; border-top: 0; }
 
+  /* Steering tooltip and the quick menu around the aircraft */
+  #tip { position: fixed; display: none; z-index: 15; pointer-events: none; background: rgba(13,20,28,.96); border: 1px solid #3a5470;
+    border-radius: 6px; padding: 6px 9px; font-size: 12px; line-height: 1.45; max-width: 320px; }
+  #tip b { color: #e6f1ff; font-weight: 600; }
+  #tip .dim { color: var(--dim); font-size: 11px; }
+  #quick { position: fixed; display: none; z-index: 16; width: 260px; user-select: none; -webkit-user-select: none; }
+  #quick.open { display: block; animation: q-in .12s ease-out; }
+  @keyframes q-in { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: none; } }
+  #quick svg { display: block; filter: drop-shadow(0 4px 14px rgba(0,0,0,.55)); }
+  #quick .wedge { cursor: pointer; outline: none; }
+  #quick .wedge path { fill: rgba(18,26,36,.94); stroke: #3a5470; stroke-width: 1; transition: fill .08s; }
+  #quick .wedge:hover path, #quick .wedge:focus-visible path { fill: #1d3a5a; stroke: var(--accent); }
+  #quick .wedge.hit path { fill: #2a5a8c; }
+  #quick text { fill: #c9d4df; font: 600 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; text-anchor: middle; pointer-events: none; }
+  #quick text.v { fill: #8fb3d1; font: 11px Menlo, Consolas, monospace; }
+  #quick .hub { fill: rgba(10,14,19,.8); stroke: #3a5470; }
+  #quick text.ro { fill: var(--dim); font: 11px Menlo, Consolas, monospace; }
+  #quick text.ro.held { fill: #4da3ff; }
+  #quick .pills { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin-top: 4px; }
+  #quick .pills button { height: 26px; padding: 0 9px; border-radius: 13px; font-size: 12px; background: rgba(18,26,36,.96); }
+  body.touch #quick .pills button { height: 36px; border-radius: 18px; padding: 0 12px; }
+
   /* Dialogs */
   .modal { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none; align-items: center; justify-content: center; z-index: 20; }
   .modal.open { display: flex; }
@@ -171,6 +193,17 @@
 </div>
 
 <div id="game"></div>
+<div id="tip"></div>
+<div id="quick" role="menu" aria-label="Quick aircraft menu">
+  <div class="ring"></div>
+  <div class="pills">
+    <button data-q="level" title="Wings level on the current heading and hold the current altitude">Level off</button>
+    <button data-q="rev" title="Turn 180° at standard rate">Turn 180°</button>
+    <button data-q="spd" id="q-spd" title="Hold the current airspeed with power">Hold speed</button>
+    <button data-q="hand" title="Autopilot off, wings level: you fly with the sliders or keys">Hand-fly</button>
+    <button data-q="move" title="Your next drag on the aircraft moves it (same as Shift+drag)">Move</button>
+  </div>
+</div>
 
 <div id="ctl">
   <span class="ctl-h">Fly</span>
@@ -223,8 +256,10 @@
     <h3>Controls</h3>
     <ul>
       <li><b>Fly:</b> the Bank, Pitch and Power sliders, or <kbd>←</kbd> <kbd>→</kbd> bank, <kbd>↑</kbd> <kbd>↓</kbd> pitch, <kbd>W</kbd> <kbd>S</kbd> power, <kbd>L</kbd> wings level. Hold <kbd>Shift</kbd> for finer steps.</li>
-      <li><b>Map:</b> drag the aircraft to move it and drag the yellow dot ahead of it to point the nose (<kbd>Shift</kbd> snaps to 15°). Drag empty map to pan, wheel or pinch to zoom, <b>Follow</b> (<kbd>F</kbd>) keeps the aircraft centered, <b>Fit</b> (<kbd>0</kbd>) shows everything.</li>
-      <li><b>Autopilot:</b> set the heading bug with − and + (<kbd>,</kbd> <kbd>.</kbd>) and press <b>HDG</b> (<kbd>H</kbd>) to fly it; <b>ALT</b> (<kbd>A</kbd>) holds the current altitude; <b>NAV</b> (<kbd>N</kbd>) tracks the OBS course through the VOR, or the localizer and glideslope with the ILS selected. Moving the bank slider releases HDG and NAV, moving pitch releases ALT.</li>
+      <li><b>Steer with the mouse:</b> press and hold on the aircraft and drag, like a stick. Left or right picks a new heading (5° for every 10 px, <kbd>Shift</kbd> for 1° steps) and the aircraft rolls into a standard-rate turn (3° a second) to fly it. Up climbs and down descends, 100 ft for every 4 px, at 500 fpm, the way Combat Lines sets climb by dragging its ticks. The blue line ahead shows the planned path, with Combat Lines' climb ticks across its middle: one tick level, two a gentle climb or descent, three a steep one, growing to climb and shrinking to descend. It uses the heading bug and the HDG and ALT holds, so the instruments show where you are going; let go and the aircraft finishes the turn and levels off by itself. Drag again mid-turn to add to it.</li>
+      <li><b>Quick menu:</b> right-click the aircraft (press and hold on a touchscreen) for a ring of quick changes laid out like the drag: climb or descend 500 ft, turn 30° or 90° either way, and 10 kt faster or slower (which holds the speed with power). Clicks add up, and <kbd>Shift</kbd>+click doubles a step. The middle shows the heading, altitude and speed, blue where they are being held. Below it: <b>Level off</b>, <b>Turn 180°</b>, <b>Hold speed</b>, <b>Hand-fly</b> (autopilot off) and <b>Move</b>. Click outside or press <kbd>Esc</kbd> to close.</li>
+      <li><b>Map:</b> <kbd>Shift</kbd>+drag the aircraft (or <b>Move</b> in the quick menu) to move it, and drag the yellow dot ahead of it to point the nose (<kbd>Shift</kbd> snaps to 15°). Drag empty map to pan, wheel or pinch to zoom, <b>Follow</b> (<kbd>F</kbd>) keeps the aircraft centered, <b>Fit</b> (<kbd>0</kbd>) shows everything.</li>
+      <li><b>Autopilot:</b> set the heading bug with − and + (<kbd>,</kbd> <kbd>.</kbd>) and press <b>HDG</b> (<kbd>H</kbd>) to fly it; <b>ALT</b> (<kbd>A</kbd>) holds the current altitude; <b>NAV</b> (<kbd>N</kbd>) tracks the OBS course through the VOR, or the localizer and glideslope with the ILS selected. Moving the bank slider releases HDG and NAV, moving pitch releases ALT, and moving power releases the speed hold.</li>
       <li><b>Radios:</b> type a frequency in <b>NAV1</b> (a VOR such as 112.60, or a localizer such as 109.70), a channel in <b>TACAN</b> (such as 73X), or a kHz in <b>ADF</b>, or pick a station from <b>Tune nearby</b>. <b>NAV1</b> or <b>TCN</b> (<kbd>V</kbd>) picks which one drives the nav indicator; − and + (<kbd>[</kbd> <kbd>]</kbd>) turn the OBS. On the map the tuned station's compass rose is turned to its magnetic north, the selected course is the dashed blue line and the thin orange line is the radial you are on.</li>
       <li><b>What each station gives:</b> a VOR gives a radial; VOR/DME and VORTAC add DME on NAV1. The aircraft has a military TACAN receiver, so a TACAN or VORTAC gives a radial and DME by channel. A standalone TACAN tuned on NAV1 (its paired VHF frequency) gives DME only, as in a civil aircraft. A DME gives distance only. An ILS gives the localizer and glideslope, and DME where the approach has it. An NDB gives a bearing on the ADF. A station only comes in within its published service volume (25 to 130 nm by class and height) and radio line of sight; out of range the flag shows.</li>
       <li><b>Magnetic:</b> headings, courses, radials and bearings are magnetic, like in the airplane. Each VOR's radials use that station's own variation, so they can differ by a few degrees from the area's. The wind is in degrees true, like a winds-aloft forecast.</li>

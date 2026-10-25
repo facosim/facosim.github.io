@@ -430,7 +430,7 @@
       nav1.setText(`NAV1 ${FI.fmtMhz(nv.mhz)} ${!tcn && n.ident ? n.ident : ''}`).setColor(tcn ? C.white : C.green);
       nav2.setText(`TCN  ${(nv.chan || '---').padStart(4)}   ${tcn && n.ident ? n.ident : ''}`).setColor(tcn ? C.green : C.white);
       let lat = '', lArm = '', vert = '', vArm = '';
-      const anyAp = ap.hdg || ap.alt || ap.nav || !!run;
+      const anyAp = ap.hdg || ap.alt || ap.nav || ap.spd || !!run;
       if (run) {
         lat = run.track ? (run.mode || (n.kind === 'LOC' ? 'LOC' : n.kind === 'TACAN' ? 'TCN' : 'VOR')) : run.hdg != null ? 'HDG' : 'ROL';
         vert = ap.gsCap ? 'GS' : run.alt != null ? 'ALT' : run.vs != null ? 'VS' : 'PIT';

@@ -103,14 +103,58 @@
       this.setFollow(false);
     }
 
+    // Press on the aircraft and drag to steer it, like a stick: left and
+    // right set a new heading flown with a standard-rate turn, up and down a
+    // new altitude (as Combat Lines' climb ticks: drag up to climb). Shift+drag
+    // moves it, the yellow dot points the nose. Right-click (or press and
+    // hold on a touchscreen) opens the quick menu.
     onDown(p) {
       if (!this.inView(p)) return;
+      FI.ui && FI.ui.closeQuick();
       if (this.startPinch() || this.pinch) return;
-      const w = this.toWorld(p);
+      const w = this.toWorld(p), ev = p.event || {};
+      if (p.rightButtonDown && p.rightButtonDown()) {
+        if (this.hitAircraft(w)) FI.ui && FI.ui.openQuick(p);
+        return;
+      }
       if (this.hitHandle(w)) this.drag = { kind: 'nose' };
-      else if (this.hitAircraft(w)) this.drag = { kind: 'move', dx: FI.state.x - w.x, dy: FI.state.y - w.y };
+      else if (this.hitAircraft(w)) {
+        if (ev.shiftKey || this.moveNext) {
+          this.drag = { kind: 'move', dx: FI.state.x - w.x, dy: FI.state.y - w.y };
+          this.moveNext = false;
+          FI.ui && FI.ui.hideTip();
+        } else this.startSteer(p);
+      }
       else this.drag = { kind: 'pan', sx: this.cam.scrollX, sy: this.cam.scrollY, px: p.x, py: p.y };
       document.body.classList.add('map-gesture');
+    }
+    // The drag adds to whatever turn and altitude change is already under way,
+    // so a second drag mid-turn carries on from where the first one ends up.
+    startSteer(p) {
+      const s = FI.state, ap = FI.ap, run = FI.scn && !FI.scn.off;
+      const d = this.drag = {
+        kind: 'steer', px: p.x, py: p.y, moved: false, h0: FI.toMag(s.hdg),
+        turn0: FI.turnLeft(),
+        alt0: !run && ap.alt ? ap.altTgt : Math.round(s.alt / 100) * 100,
+        turn: 0, dAlt: 0,
+      };
+      if (touch()) d.hold = setTimeout(() => {
+        if (this.drag === d && !d.moved) { this.drag = null; document.body.classList.remove('map-gesture'); FI.ui && FI.ui.openQuick(p); }
+      }, 550);
+    }
+    moveSteer(p, d) {
+      const dx = p.x - d.px, dy = d.py - p.y;
+      if (!d.moved && Math.hypot(dx, dy) < (touch() ? 10 : 5)) return;
+      if (!d.moved) { d.moved = true; clearTimeout(d.hold); }
+      const fine = p.event && p.event.shiftKey;
+      // 2 px a degree in 5° steps, 4 px per 100 ft
+      const dh = fine ? Math.round(dx / 2) : Math.round(dx / 10) * 5;
+      d.turn = clamp(d.turn0 + dh, -355, 355);
+      d.dAlt = Math.round(dy / 4) * 100;
+      // past 170° the turn goes the way it was dragged, not the short way
+      FI.steer({ hdg: d.h0 + d.turn, dir: Math.abs(d.turn) > 170 ? Math.sign(d.turn) : 0, alt: d.alt0 + d.dAlt });
+      d.hdgTgt = FI.nav.bug; d.altTgt = FI.ap.altTgt;
+      FI.ui && FI.ui.steerTip(p, d);
     }
     onMove(p) {
       if (this.pinch) { this.movePinch(); return; }
@@ -118,8 +162,9 @@
       if (!d || !p.isDown) {
         if (this.inView(p)) {
           const w = this.toWorld(p);
-          this.game.canvas.style.cursor = this.hitHandle(w) || this.hitAircraft(w) ? 'grab' : 'default';
-        }
+          this.hoverAc = this.hitAircraft(w) && !this.hitHandle(w);
+          this.game.canvas.style.cursor = this.hitHandle(w) ? 'grab' : this.hoverAc ? (this.moveNext ? 'move' : 'grab') : 'default';
+        } else this.hoverAc = false;
         return;
       }
       const w = this.toWorld(p);
@@ -127,6 +172,9 @@
         this.cam.scrollX = d.sx - (p.x - d.px) / this.cam.zoom;
         this.cam.scrollY = d.sy - (p.y - d.py) / this.cam.zoom;
         this.setFollow(false);
+      } else if (d.kind === 'steer') {
+        this.game.canvas.style.cursor = 'grabbing';
+        this.moveSteer(p, d);
       } else if (d.kind === 'move') {
         FI.place(w.x + d.dx, w.y + d.dy, null);
       } else if (d.kind === 'nose') {
@@ -139,6 +187,12 @@
     }
     onUp() {
       if (this.pinch && !this.touchesDown().length) this.pinch = null;
+      const d = this.drag;
+      if (d && d.kind === 'steer') {
+        clearTimeout(d.hold);
+        FI.ui && FI.ui.hideTip();
+        this.game.canvas.style.cursor = 'grab';
+      }
       this.drag = null;
       document.body.classList.remove('map-gesture');
     }
@@ -377,6 +431,14 @@
       }
       g.lineStyle(1.5 / z, 0xffd166, 0.9);
       g.lineBetween(s.x, s.y, s.x + Math.sin(h) * L, s.y - Math.cos(h) * L);
+      this.drawPlan(z);
+      // hover hint: the aircraft is a stick
+      const steering = this.drag && this.drag.kind === 'steer';
+      if ((this.hoverAc && !this.drag) || steering) {
+        g.lineStyle(1.5 / z, 0x4da3ff, steering ? 0.9 : 0.6);
+        g.strokeCircle(s.x, s.y, (touch() ? 30 : 18) / z);
+        if (!steering) this.text(this.moveNext ? 'drag to move' : 'drag to steer · right-click for menu', s.x, s.y + 24 / z, '#8fb3d1', 10, 0.5, 0);
+      }
       // nose handle
       const hp = this.handlePos();
       g.fillStyle(0xffd166, 1); g.fillCircle(hp.x, hp.y, (touch() ? 9 : 5) / z);
@@ -386,6 +448,58 @@
       g.lineStyle(1 / z, 0x0a0e13, 1); g.strokePoints(pts, true);
       // data block
       this.text(`${FI.pad3(FI.toMag(s.hdg))}° ${Math.round(s.ias)} kt\n${Math.round(s.alt).toLocaleString('en-US')} ft`, s.x + 22 / z, s.y + 14 / z, '#e6edf3', 11, 0, 0);
+    }
+
+    // The planned flight path while the mouse or the quick menu is steering
+    // (bright) or a turn or altitude change it set is still under way (dim):
+    // a standard-rate turn to the new heading, then straight. Climb ticks
+    // across its middle read like Combat Lines': one tick level, two a
+    // gentle climb or descent, three a steep one; growing ticks climb and
+    // shrinking ticks descend.
+    drawPlan(z) {
+      const s = FI.state, ap = FI.ap, g = this.acG;
+      if (FI.scn && !FI.scn.off) return;
+      const live = (this.drag && this.drag.kind === 'steer' && this.drag.moved) || (FI.ui && FI.ui.quickOpen);
+      const turn = FI.turnLeft(), dAlt = ap.alt ? ap.altTgt - s.alt : 0;
+      if (!live && Math.abs(turn) < 2 && Math.abs(dAlt) < 60) return;
+      if (!ap.hdg && !ap.alt) return;
+      const w = FI.wind, wx = -w.kt * Math.sin(w.dir * D2R), wy = w.kt * Math.cos(w.dir * D2R);
+      let x = s.x, y = s.y, h = s.hdg, left = ap.hdg && !ap.nav ? turn : 0;
+      const pts = [{ x, y }], dt = 1, rate = 3;
+      const T = Math.abs(left) / rate + Math.max(20, 140 / (Math.max(s.tas, 40) * FI.KT * z));
+      for (let t = 0; t < Math.min(T, 240); t += dt) {
+        if (Math.abs(left) > 0.01) { const st = Math.sign(left) * Math.min(rate * dt, Math.abs(left)); h += st; left -= st; }
+        const hr = h * D2R;
+        x += (s.tas * Math.sin(hr) + wx) * FI.KT * dt;
+        y += (-s.tas * Math.cos(hr) + wy) * FI.KT * dt;
+        pts.push({ x, y });
+      }
+      const a = live ? 0.95 : 0.45;
+      g.lineStyle(2 / z, 0x4da3ff, a);
+      g.strokePoints(pts);
+      // arrowhead at the end
+      const e = pts[pts.length - 1], hr = h * D2R, b = 8 / z;
+      g.fillStyle(0x4da3ff, a);
+      g.fillPoints([{ x: e.x + Math.sin(hr) * b, y: e.y - Math.cos(hr) * b },
+        { x: e.x - Math.sin(hr) * b * 0.6 + Math.cos(hr) * b * 0.6, y: e.y + Math.cos(hr) * b * 0.6 + Math.sin(hr) * b * 0.6 },
+        { x: e.x - Math.sin(hr) * b * 0.6 - Math.cos(hr) * b * 0.6, y: e.y + Math.cos(hr) * b * 0.6 - Math.sin(hr) * b * 0.6 }], true);
+      // climb ticks at the middle of the path
+      const mid = Math.floor(pts.length / 2);
+      if (pts.length > 4) {
+        const ad = Math.abs(dAlt), count = ad < 100 ? 1 : ad < 1000 ? 2 : 3;
+        const stepPx = count === 1 ? 0 : clamp(3 + 7 * ad / 1000, 3, 8), sign = dAlt >= 0 ? 1 : -1;
+        const p0 = pts[mid - 1], p1 = pts[mid + 1], L = Math.hypot(p1.x - p0.x, p1.y - p0.y) || 1, ux = (p1.x - p0.x) / L, uy = (p1.y - p0.y) / L;
+        g.lineStyle(2 / z, 0x4da3ff, Math.min(1, a + 0.05));
+        for (let k = 0; k < count; k++) {
+          const off = (k - (count - 1) / 2) * 7 / z, cx = pts[mid].x + ux * off, cy = pts[mid].y + uy * off;
+          const half = (20 + sign * k * stepPx) / 2 / z;
+          g.lineBetween(cx - uy * half, cy + ux * half, cx + uy * half, cy - ux * half);
+        }
+      }
+      if (live || ap.hdg || ap.alt) {
+        const lbl = [ap.hdg && !ap.nav ? `${FI.pad3(FI.nav.bug)}°` : null, ap.alt ? `${Math.round(ap.altTgt).toLocaleString('en-US')} ft` : null].filter(Boolean).join(' · ');
+        if (lbl) this.text(lbl, e.x + Math.cos(hr) * 12 / z, e.y + Math.sin(hr) * 12 / z, live ? '#4da3ff' : '#3a6f9e', 11, 0, 0.5);
+      }
     }
 
     // wind arrow in the top-left corner of the map

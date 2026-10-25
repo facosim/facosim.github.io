@@ -83,6 +83,7 @@
       $('ap-nav').addEventListener('click', () => { FI.setAp('nav', !FI.ap.nav); ui.refresh(); });
       document.querySelectorAll('[data-src]').forEach(b => b.addEventListener('click', () => ui.setSource(b.dataset.src)));
 
+      ui.buildQuick();
       window.addEventListener('keydown', e => ui.key(e));
       window.addEventListener('resize', () => ui.layoutDom());
       const coarse = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window && navigator.maxTouchPoints > 0;
@@ -218,7 +219,7 @@
       else if (k === 'f' || k === 'F') FI.map.setFollow(!FI.map.follow);
       else if (k === '0') FI.map.fit();
       else if (k === '?') $('help').classList.toggle('open');
-      else if (k === 'Escape') document.querySelectorAll('.modal.open').forEach(m => m.classList.remove('open'));
+      else if (k === 'Escape') { ui.closeQuick(); document.querySelectorAll('.modal.open').forEach(m => m.classList.remove('open')); }
       else used = false;
       if (used) { e.preventDefault(); ui.refresh(); }
     },
@@ -298,7 +299,117 @@
       const stepNm = nm > 120 ? 1 : nm > 60 ? 2 : nm > 24 ? 5 : 10;
       $('scale-bar').style.width = `${Math.round(stepNm * nm)}px`;
       $('scale-label').textContent = `${stepNm} nm`;
-      if (FI.ap.hdg || FI.ap.alt || FI.ap.nav || (sc && !sc.off)) ui.sliders();
+      if (FI.ap.hdg || FI.ap.alt || FI.ap.nav || FI.ap.spd || (sc && !sc.off)) ui.sliders();
+      if (ui.quickOpen) ui.quickReadout();
+    },
+
+    // ---------- tooltip while steering with the mouse ----------
+    tip(html, p) {
+      const t = $('tip'), r = FI.game.canvas.getBoundingClientRect();
+      t.innerHTML = html; t.style.display = 'block';
+      const x = r.left + p.x + 18, y = r.top + p.y + 18;
+      t.style.left = Math.min(x, innerWidth - t.offsetWidth - 8) + 'px';
+      t.style.top = Math.min(y, innerHeight - t.offsetHeight - 8) + 'px';
+    },
+    hideTip() { $('tip').style.display = 'none'; },
+    steerTip(p, d) {
+      const t = d.turn, a = d.dAlt;
+      const turn = Math.abs(t) < 1 ? `<b>Hold ${FI.pad3(d.hdgTgt)}°</b>` : `<b>${t > 0 ? 'Right' : 'Left'} ${Math.abs(Math.round(t))}° to ${FI.pad3(d.hdgTgt)}°</b> at standard rate`;
+      const alt = a === 0 ? `<b>Hold ${d.altTgt.toLocaleString('en-US')} ft</b>` : `<b>${a > 0 ? 'Climb' : 'Descend'} ${a > 0 ? '+' : '−'}${Math.abs(a).toLocaleString('en-US')} ft to ${d.altTgt.toLocaleString('en-US')} ft</b> at 500 fpm`;
+      ui.tip(`${turn}<br>${alt}<br><span class="dim">Drag left or right to turn, up to climb, down to descend.${ui.touch ? '' : ' Shift for 1° steps.'}</span>`, p);
+    },
+
+    // ---------- quick menu: right-click (or press and hold) the aircraft ----------
+    // Eight wedges laid out like the drag: up climbs, down descends, right
+    // and left turn, and the lower corners change speed. Clicks add up, so
+    // two clicks on Climb +500 ft climb 1,000 ft. Shift doubles a step.
+    quickOpen: false,
+    buildQuick() {
+      const box = $('quick'), NS = 'http://www.w3.org/2000/svg';
+      const items = ui.quickItems = [
+        { a: 0, t: 'Climb', v: '+500 ft', go: m => ui.qAlt(500 * m) },
+        { a: 45, t: 'Right', v: '30°', go: m => ui.qTurn(30 * m) },
+        { a: 90, t: 'Right', v: '90°', go: m => ui.qTurn(90 * m) },
+        { a: 135, t: 'Faster', v: '+10 kt', go: m => ui.qSpd(10 * m) },
+        { a: 180, t: 'Descend', v: '−500 ft', go: m => ui.qAlt(-500 * m) },
+        { a: 225, t: 'Slower', v: '−10 kt', go: m => ui.qSpd(-10 * m) },
+        { a: 270, t: 'Left', v: '90°', go: m => ui.qTurn(-90 * m) },
+        { a: 315, t: 'Left', v: '30°', go: m => ui.qTurn(-30 * m) },
+      ];
+      const C = 130, r0 = 50, r1 = 122, half = 22.5 - 1.2;
+      const pt = (a, r) => [C + Math.sin(a * Math.PI / 180) * r, C - Math.cos(a * Math.PI / 180) * r];
+      const svg = document.createElementNS(NS, 'svg');
+      svg.setAttribute('viewBox', '0 0 260 260'); svg.setAttribute('width', '260'); svg.setAttribute('height', '260');
+      for (const it of items) {
+        const [x0, y0] = pt(it.a - half, r1), [x1, y1] = pt(it.a + half, r1), [x2, y2] = pt(it.a + half, r0), [x3, y3] = pt(it.a - half, r0);
+        const g = document.createElementNS(NS, 'g'); g.setAttribute('class', 'wedge'); g.setAttribute('role', 'button');
+        g.setAttribute('tabindex', '0'); g.setAttribute('aria-label', `${it.t} ${it.v}`);
+        const path = document.createElementNS(NS, 'path');
+        path.setAttribute('d', `M${x0},${y0} A${r1},${r1} 0 0 1 ${x1},${y1} L${x2},${y2} A${r0},${r0} 0 0 0 ${x3},${y3} Z`);
+        g.appendChild(path);
+        const [tx, ty] = pt(it.a, (r0 + r1) / 2);
+        const t1 = document.createElementNS(NS, 'text'); t1.setAttribute('x', tx); t1.setAttribute('y', ty - 3); t1.textContent = it.t;
+        const t2 = document.createElementNS(NS, 'text'); t2.setAttribute('x', tx); t2.setAttribute('y', ty + 11); t2.setAttribute('class', 'v'); t2.textContent = it.v;
+        g.appendChild(t1); g.appendChild(t2);
+        const fire = e => { e.preventDefault(); e.stopPropagation(); it.go(e.shiftKey ? 2 : 1); ui.flash(g); ui.refresh(); ui.quickReadout(); };
+        g.addEventListener('click', fire);
+        g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') fire(e); });
+        svg.appendChild(g);
+      }
+      const hub = document.createElementNS(NS, 'circle');
+      hub.setAttribute('cx', C); hub.setAttribute('cy', C); hub.setAttribute('r', r0 - 4); hub.setAttribute('class', 'hub');
+      svg.appendChild(hub);
+      ui.qText = [-14, 2, 18].map(dy => {
+        const t = document.createElementNS(NS, 'text'); t.setAttribute('x', C); t.setAttribute('y', C + dy); t.setAttribute('class', 'ro');
+        svg.appendChild(t); return t;
+      });
+      box.querySelector('.ring').appendChild(svg);
+      box.addEventListener('contextmenu', e => e.preventDefault());
+      box.querySelectorAll('[data-q]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); ui.quickPill(b.dataset.q); }));
+      document.addEventListener('pointerdown', e => {
+        if (ui.quickOpen && !box.contains(e.target) && e.target !== FI.game.canvas) ui.closeQuick();
+      }, true);
+    },
+    flash(g) { g.classList.remove('hit'); void g.getBBox(); g.classList.add('hit'); setTimeout(() => g.classList.remove('hit'), 220); },
+    openQuick(p) {
+      const box = $('quick'), r = FI.game.canvas.getBoundingClientRect();
+      ui.hideTip();
+      box.classList.add('open'); ui.quickOpen = true;
+      const w = box.offsetWidth, h = box.offsetHeight;
+      const x = clamp(r.left + p.x - w / 2, 4, innerWidth - w - 4), y = clamp(r.top + p.y - 130, 4, innerHeight - h - 4);
+      box.style.left = x + 'px'; box.style.top = y + 'px';
+      ui.quickReadout();
+    },
+    closeQuick() { if (!ui.quickOpen) return; ui.quickOpen = false; $('quick').classList.remove('open'); },
+    quickReadout() {
+      const s = FI.state, ap = FI.ap, run = FI.scn && !FI.scn.off, [a, b, c] = ui.qText;
+      const hHold = !run && ap.hdg && !ap.nav, aHold = !run && ap.alt, sHold = !run && ap.spd;
+      a.textContent = `HDG ${FI.pad3(hHold ? FI.nav.bug : FI.toMag(s.hdg))}°`;
+      b.textContent = `${Math.round(aHold ? ap.altTgt : s.alt).toLocaleString('en-US')} ft`;
+      c.textContent = `${Math.round(sHold ? ap.spdTgt : s.ias)} kt`;
+      a.classList.toggle('held', hHold); b.classList.toggle('held', aHold); c.classList.toggle('held', sHold);
+      $('q-spd').classList.toggle('on', sHold);
+    },
+    qTurn(d) {
+      const tot = clamp(FI.turnLeft() + d, -355, 355);
+      FI.steer({ hdg: FI.toMag(FI.state.hdg) + tot, dir: Math.abs(tot) > 170 ? Math.sign(tot) : 0 });
+    },
+    qAlt(d) {
+      const ap = FI.ap, run = FI.scn && !FI.scn.off;
+      FI.steer({ alt: (!run && ap.alt ? ap.altTgt : Math.round(FI.state.alt / 100) * 100) + d });
+    },
+    qSpd(d) {
+      const ap = FI.ap, run = FI.scn && !FI.scn.off;
+      FI.steer({ ias: (!run && ap.spd ? ap.spdTgt : Math.round(FI.state.ias / 5) * 5) + d });
+    },
+    quickPill(q) {
+      const s = FI.state;
+      if (q === 'level') FI.steer({ hdg: FI.toMag(s.hdg), dir: 0, alt: s.alt });
+      else if (q === 'rev') ui.qTurn(FI.turnLeft() >= 0 ? 180 : -180);
+      else if (q === 'spd') { if (FI.ap.spd) FI.ap.spd = false; else FI.steer({ ias: s.ias }); }
+      else if (q === 'hand') { FI.takeover(); FI.setControl('bank', 0); }
+      else if (q === 'move') { FI.map.moveNext = true; ui.closeQuick(); }
+      ui.refresh(); ui.quickReadout();
     },
   };
 })(window.FI);
