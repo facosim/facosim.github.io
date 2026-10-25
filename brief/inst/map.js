@@ -157,9 +157,12 @@
     zoomCenter(k) { this.zoomAt({ x: this.cam.x + this.cam.width / 2, y: this.cam.y + this.cam.height / 2 }, k); }
     setFollow(on) { this.follow = on; FI.ui && FI.ui.refresh(); }
 
-    // Frame the VOR, the airport and the aircraft.
+    // Frame the aircraft, the home airport and the stations it is tuned to.
     fit() {
-      const s = FI.state, pts = [[FI.VOR.x, FI.VOR.y], [FI.RWY.thr.x, FI.RWY.y], [FI.RWY.loc.x, FI.RWY.y], [s.x, s.y]];
+      const s = FI.state, n = FI.navOut, pts = [[s.x, s.y], [FI.home.apt.x, FI.home.apt.y]];
+      if (n && n.station) pts.push([n.station.x, n.station.y]);
+      if (n && n.loc) pts.push([n.loc.thr.x - Math.sin(n.loc.course * D2R) * 12 * NM, n.loc.thr.y + Math.cos(n.loc.course * D2R) * 12 * NM]);
+      if (n && n.adf.valid) pts.push([n.adf.st.x, n.adf.st.y]);
       let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
       for (const [x, y] of pts) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
       const pad = 2.5 * NM;
@@ -223,68 +226,128 @@
       }
     }
 
-    // VOR rose and selected course, runway, localizer feather and glideslope.
+    // Airports and runways, localizer feathers, navaids with chart-style
+    // symbols, and for the tuned station its compass rose (turned to its
+    // magnetic north), the selected course and the radial you are on.
     drawNav(v, z) {
       const g = this.navG; g.clear();
-      const V = FI.VOR, R = FI.RWY, nv = FI.nav, n = FI.navOut;
-      // --- VOR ---
-      const rr = 70 / z;
-      g.lineStyle(1.5 / z, 0x8fb3d1, 0.9);
-      g.strokeCircle(V.x, V.y, rr);
-      for (let a = 0; a < 360; a += 10) {
-        const s = Math.sin(a * D2R), c = Math.cos(a * D2R), len = a % 30 ? 5 / z : 10 / z;
-        g.lineBetween(V.x + s * rr, V.y - c * rr, V.x + s * (rr - len), V.y - c * (rr - len));
-        if (a % 30 === 0) this.text(FI.pad3(a), V.x + s * (rr + 11 / z), V.y - c * (rr + 11 / z), '#8fb3d1', 10);
+      const nv = FI.nav, n = FI.navOut, s0 = FI.state;
+      const m = 30 / z, inV = (x, y, r) => x > v.x0 - m - (r || 0) && x < v.x1 + m + (r || 0) && y > v.y0 - m - (r || 0) && y < v.y1 + m + (r || 0);
+      const pxNm = NM * z, labels = pxNm >= 7;
+      const tuned = n && n.station, tunedLoc = n && n.loc;
+
+      // --- runways ---
+      for (const a of FI.airports) {
+        if (!inV(a.x, a.y, 3 * NM)) continue;
+        for (const r of a.runways) {
+          const dx = r.b.x - r.a.x, dy = r.b.y - r.a.y, L = Math.hypot(dx, dy) || 1, hw = Math.max(r.width, 4 / z) / 2;
+          const nx = -dy / L * hw, ny = dx / L * hw;
+          g.fillStyle(0x6a7684, 1);
+          g.fillPoints([{ x: r.a.x + nx, y: r.a.y + ny }, { x: r.b.x + nx, y: r.b.y + ny }, { x: r.b.x - nx, y: r.b.y - ny }, { x: r.a.x - nx, y: r.a.y - ny }], true);
+          if (pxNm > 150) {
+            this.text(r.ends[0], r.a.x - dx / L * 14 / z, r.a.y - dy / L * 14 / z, '#8fb3d1', 10);
+            if (r.ends[1]) this.text(r.ends[1], r.b.x + dx / L * 14 / z, r.b.y + dy / L * 14 / z, '#8fb3d1', 10);
+          }
+        }
+        if (labels) this.text(a.code, a.x, a.y + 14 / z, a === FI.home.apt ? '#e6f1ff' : '#8fb3d1', a === FI.home.apt ? 12 : 10, 0.5, 0);
       }
-      // station symbol: hexagon with a dot
-      g.lineStyle(1.5 / z, 0xe6f1ff, 1);
-      const hex = []; for (let i = 0; i < 6; i++) hex.push({ x: V.x + Math.cos(i * Math.PI / 3) * 9 / z, y: V.y + Math.sin(i * Math.PI / 3) * 9 / z });
-      g.strokePoints(hex, true);
-      g.fillStyle(0xe6f1ff, 1); g.fillCircle(V.x, V.y, 2 / z);
-      this.text(`${V.id} VOR/DME ${V.freq}`, V.x, V.y + rr + 24 / z, '#e6f1ff', 11, 0.5, 0);
-      // reception range
-      g.lineStyle(1 / z, 0x233244, 1); g.strokeCircle(V.x, V.y, V.range * NM);
-      // the selected OBS course through the station, dashed, radial labelled
-      if (nv.source === 'VOR') {
-        const a = nv.obs * D2R, s = Math.sin(a), c = Math.cos(a), L = V.range * NM;
-        g.lineStyle(1.5 / z, 0x4da3ff, 0.9);
-        this.dashed(g, V.x - s * L, V.y + c * L, V.x + s * L, V.y - c * L, 18 / z, 10 / z);
-        this.text(`R-${FI.pad3(nv.obs)}`, V.x + s * (rr + 46 / z), V.y - c * (rr + 46 / z), '#4da3ff', 11);
-        this.text(`R-${FI.pad3(nv.obs + 180)}`, V.x - s * (rr + 46 / z), V.y + c * (rr + 46 / z), '#4da3ff', 11);
-        // the radial the aircraft is on
-        const ra = n.radial * D2R;
-        g.lineStyle(1 / z, 0xffb547, 0.5);
-        g.lineBetween(V.x, V.y, V.x + Math.sin(ra) * n.dist * NM, V.y - Math.cos(ra) * n.dist * NM);
+
+      // --- localizer feathers ---
+      for (const L of FI.ilsList) {
+        const act = L === tunedLoc;
+        if (!act && (!labels || Math.hypot(L.thr.x - s0.x, L.thr.y - s0.y) > 60 * NM)) continue;
+        const c = L.course * D2R, dx = Math.sin(c), dy = -Math.cos(c), rx = Math.cos(c), ry = Math.sin(c);
+        const fl = (act ? 18 : 10) * NM, half = Math.tan(L.locFull * D2R) * fl;
+        const tip = { x: L.loc.x - dx * fl, y: L.loc.y - dy * fl };
+        if (!inV(L.loc.x, L.loc.y, fl)) continue;
+        const pts = [{ x: L.loc.x, y: L.loc.y }, { x: tip.x + rx * half, y: tip.y + ry * half }, { x: tip.x - rx * half, y: tip.y - ry * half }];
+        g.lineStyle((act ? 1.5 : 1) / z, act ? 0x4da3ff : 0x3a5470, act ? 0.9 : 0.7);
+        g.strokePoints(pts, true);
+        if (act) {
+          g.fillStyle(0x4da3ff, 0.15); g.fillPoints(pts, true);
+          g.lineStyle(1 / z, 0x4da3ff, 0.9);
+          this.dashed(g, L.thr.x, L.thr.y, tip.x, tip.y, 18 / z, 10 / z);
+          // glideslope check altitudes every 2 nm from the threshold
+          if (L.hasGs) {
+            for (let d = 2; d <= 10; d += 2) {
+              const x = L.thr.x - dx * d * NM, y = L.thr.y - dy * d * NM;
+              const gd = Math.hypot(x - L.gs.x, y - L.gs.y), alt = Math.round((L.elev + gd * Math.tan(L.gsAngle * D2R)) / 10) * 10;
+              g.lineBetween(x - rx * 6 / z, y - ry * 6 / z, x + rx * 6 / z, y + ry * 6 / z);
+              this.text(`${d} nm\n${alt.toLocaleString('en-US')} ft`, x + rx * 10 / z, y + ry * 10 / z, '#4da3ff', 10, 0, 0.5);
+            }
+          }
+          g.fillStyle(0xe6f1ff, 1);
+          g.fillCircle(L.loc.x, L.loc.y, 2.5 / z);
+          this.text('LOC', L.loc.x + dx * 10 / z, L.loc.y + dy * 10 / z, '#8fb3d1', 10);
+          if (L.gs) { g.fillCircle(L.gs.x, L.gs.y, 2.5 / z); this.text('GS', L.gs.x + rx * 12 / z, L.gs.y + ry * 12 / z, '#8fb3d1', 10); }
+          this.text(`${L.apt.code} ${L.name}\n${L.id} ${FI.fmtMhz(L.mhz)}  ${FI.pad3(L.crsM)}°`, tip.x, tip.y - 8 / z, '#e6f1ff', 11, 0.5, 1);
+        } else if (pxNm >= 25) this.text(`${L.id} ${FI.fmtMhz(L.mhz)}`, tip.x, tip.y, '#3a5470', 10);
       }
-      // --- airport and ILS ---
-      g.fillStyle(0x6a7684, 1);
-      g.fillRect(R.end.x, R.y - Math.max(R.width, 6 / z) / 2, R.len, Math.max(R.width, 6 / z));
-      this.text('27', R.thr.x + 14 / z, R.y, '#e6f1ff', 11, 0, 0.5);
-      this.text('09', R.end.x - 14 / z, R.y, '#8fb3d1', 10, 1, 0.5);
-      // localizer feather: ±2.5° from the antenna, 18 nm out the approach side
-      const fl = 18 * NM, half = Math.tan(R.locFull * D2R) * fl;
-      const act = nv.source === 'ILS';
-      g.lineStyle(1.5 / z, act ? 0x4da3ff : 0x3a5470, act ? 0.9 : 0.8);
-      g.strokePoints([{ x: R.loc.x, y: R.y }, { x: R.loc.x + fl, y: R.y - half }, { x: R.loc.x + fl, y: R.y + half }], true);
-      g.fillStyle(act ? 0x4da3ff : 0x3a5470, 0.15);
-      g.fillPoints([{ x: R.loc.x, y: R.y }, { x: R.loc.x + fl, y: R.y - half }, { x: R.loc.x + fl, y: R.y + half }], true);
-      // centerline and glideslope check altitudes every 2 nm from the threshold
-      g.lineStyle(1 / z, act ? 0x4da3ff : 0x3a5470, 0.9);
-      this.dashed(g, R.thr.x, R.y, R.loc.x + fl, R.y, 18 / z, 10 / z);
-      if (act) {
-        for (let d = 2; d <= 10; d += 2) {
-          const x = R.thr.x + d * NM, alt = Math.round(((x - R.gs.x) * Math.tan(R.gsAngle * D2R) + R.tch) / 10) * 10;
-          g.lineBetween(x, R.y - 6 / z, x, R.y + 6 / z);
-          this.text(`${d} nm\n${alt.toLocaleString('en-US')} ft`, x, R.y - 10 / z, '#4da3ff', 10, 0.5, 1);
+
+      // --- navaids ---
+      for (const st of FI.stations) {
+        if (!inV(st.x, st.y)) continue;
+        const on = st === tuned || (n.adf.valid && st === n.adf.st);
+        this.symbol(g, st, z, on);
+        if (labels || on) {
+          const f = st.ndb ? `${st.khz}` : st.vor ? FI.fmtMhz(st.mhz) : `${FI.fmtMhz(st.mhz)} ${st.chan}`;
+          const ch = st.tacan && st.vor ? ` ${st.chan}` : '';
+          this.text(`${st.id} ${f}${ch}`, st.x, st.y + 13 / z, on ? '#e6f1ff' : st.ndb ? '#b98ac9' : '#8fb3d1', on ? 11 : 10, 0.5, 0);
         }
       }
-      // antennas
-      g.fillStyle(0xe6f1ff, 1);
-      g.fillCircle(R.loc.x, R.y, 2.5 / z);
-      g.fillCircle(R.gs.x, R.gs.y, 2.5 / z);
-      this.text('LOC', R.loc.x, R.y - 8 / z, '#8fb3d1', 10, 0.5, 1);
-      this.text('GS', R.gs.x, R.gs.y - 8 / z, '#8fb3d1', 10, 0.5, 1);
-      this.text(`${R.name}  I${R.id} ${R.freq}`, R.end.x + R.len / 2, R.y + 16 / z, act ? '#e6f1ff' : '#8fb3d1', 11, 0.5, 0);
+
+      // --- the tuned VOR or TACAN: rose, range, selected course, current radial ---
+      if (tuned && (n.kind === 'VOR' || n.kind === 'TACAN')) {
+        const V = tuned, rr = 70 / z, vr = V.varE;
+        g.lineStyle(1.5 / z, 0x8fb3d1, 0.9);
+        g.strokeCircle(V.x, V.y, rr);
+        for (let a = 0; a < 360; a += 10) {
+          const t = (a + vr) * D2R, s = Math.sin(t), c = Math.cos(t), len = a % 30 ? 5 / z : 10 / z;
+          g.lineBetween(V.x + s * rr, V.y - c * rr, V.x + s * (rr - len), V.y - c * (rr - len));
+          if (a % 30 === 0) this.text(FI.pad3(a), V.x + s * (rr + 11 / z), V.y - c * (rr + 11 / z), '#8fb3d1', 10);
+        }
+        const R = FI.vhfRange(V.vorCls || V.dmeCls, FI.state.alt - V.elev) * NM;
+        g.lineStyle(1 / z, 0x233244, 1); g.strokeCircle(V.x, V.y, R);
+        const a = (nv.obs + vr) * D2R, s = Math.sin(a), c = Math.cos(a);
+        g.lineStyle(1.5 / z, 0x4da3ff, 0.9);
+        this.dashed(g, V.x - s * R, V.y + c * R, V.x + s * R, V.y - c * R, 18 / z, 10 / z);
+        this.text(`R-${FI.pad3(nv.obs)}`, V.x + s * (rr + 46 / z), V.y - c * (rr + 46 / z), '#4da3ff', 11);
+        this.text(`R-${FI.pad3(nv.obs + 180)}`, V.x - s * (rr + 46 / z), V.y + c * (rr + 46 / z), '#4da3ff', 11);
+        if (n.radial != null) {
+          const ra = (n.radial + vr) * D2R;
+          g.lineStyle(1 / z, 0xffb547, 0.5);
+          g.lineBetween(V.x, V.y, V.x + Math.sin(ra) * n.dist * NM, V.y - Math.cos(ra) * n.dist * NM);
+        }
+      }
+      // the ADF bearing: a thin line from the aircraft to the NDB
+      if (n.adf.valid) {
+        g.lineStyle(1 / z, 0xb98ac9, 0.7);
+        this.dashed(g, s0.x, s0.y, n.adf.st.x, n.adf.st.y, 8 / z, 6 / z);
+      }
+    }
+
+    // Chart-style navaid symbols at a fixed screen size.
+    symbol(g, st, z, on) {
+      const k = 1 / z, x = st.x, y = st.y, col = on ? 0xe6f1ff : st.ndb ? 0xb98ac9 : 0x8fb3d1;
+      g.lineStyle(1.5 * k, col, 1); g.fillStyle(col, 1);
+      if (st.ndb) {
+        for (let i = 0; i < 16; i++) { const a = i * Math.PI / 8; g.fillCircle(x + Math.cos(a) * 9 * k, y + Math.sin(a) * 9 * k, 0.9 * k); }
+        for (let i = 0; i < 10; i++) { const a = i * Math.PI / 5 + 0.3; g.fillCircle(x + Math.cos(a) * 5.5 * k, y + Math.sin(a) * 5.5 * k, 0.8 * k); }
+        g.fillCircle(x, y, 2 * k);
+        if (st.dme) g.strokeRect(x - 11 * k, y - 11 * k, 22 * k, 22 * k);
+        return;
+      }
+      const hex = []; for (let i = 0; i < 6; i++) hex.push({ x: x + Math.cos(i * Math.PI / 3) * 7 * k, y: y + Math.sin(i * Math.PI / 3) * 7 * k });
+      if (st.vor) { g.strokePoints(hex, true); g.fillCircle(x, y, 1.5 * k); }
+      if (st.tacan) {
+        // three blocks on alternate sides of the hexagon
+        for (const i of [0, 2, 4]) {
+          const a = hex[i], b = hex[(i + 1) % 6], mx = (a.x + b.x) / 2 - x, my = (a.y + b.y) / 2 - y, L = Math.hypot(mx, my), ox = mx / L * 4 * k, oy = my / L * 4 * k;
+          g.fillPoints([a, b, { x: b.x + ox, y: b.y + oy }, { x: a.x + ox, y: a.y + oy }], true);
+        }
+        if (!st.vor) g.strokePoints(hex, true);
+      } else if (st.dme) g.strokeRect(x - 9 * k, y - 9 * k, 18 * k, 18 * k);
+      if (!st.vor && !st.tacan) g.fillCircle(x, y, 1.5 * k);
     }
 
     dashed(g, x0, y0, x1, y1, on, off) {
@@ -322,7 +385,7 @@
       g.fillStyle(0xffd166, 1); g.fillPoints(pts, true);
       g.lineStyle(1 / z, 0x0a0e13, 1); g.strokePoints(pts, true);
       // data block
-      this.text(`${FI.pad3(s.hdg)}° ${Math.round(s.ias)} kt\n${Math.round(s.alt).toLocaleString('en-US')} ft`, s.x + 22 / z, s.y + 14 / z, '#e6edf3', 11, 0, 0);
+      this.text(`${FI.pad3(FI.toMag(s.hdg))}° ${Math.round(s.ias)} kt\n${Math.round(s.alt).toLocaleString('en-US')} ft`, s.x + 22 / z, s.y + 14 / z, '#e6edf3', 11, 0, 0);
     }
 
     // wind arrow in the top-left corner of the map

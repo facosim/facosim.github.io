@@ -176,6 +176,11 @@
     const dmeHdr = txt('', 805, 742, 14, C.green);
     const dmeTxt = txt('', 805, 772, 22, C.white);
     const radTxt = txt('', 805, 808, 15, C.white);
+    // BRG1 box above the wind box
+    side.fillRect(20, 610, 150, 100); side.strokeRect(20, 610, 150, 100);
+    const brgHdr = txt('', 95, 626, 13, C.cyan);
+    const brgId = txt('', 95, 656, 15, C.white);
+    const brgTxt = txt('', 95, 688, 20, C.cyan);
 
     // ---------- frame: top bar and bottom bar ----------
     {
@@ -333,7 +338,8 @@
       const hg = hsi; hg.clear();
       hg.fillStyle(0x1a1f26, 0.82); hg.fillCircle(HX, HY, HR);
       hg.lineStyle(2, 0x56636f, 1); hg.strokeCircle(HX, HY, HR);
-      const rot = a => a - s.hdg;                     // card angle to screen angle
+      const hdgM = FI.toMag(s.hdg);
+      const rot = a => a - hdgM;                      // card angle (magnetic) to screen angle
       hg.lineStyle(2, WHITE, 1);
       for (let a = 0; a < 360; a += 5) {
         const q = rot(a), len = a % 10 ? 8 : 16;
@@ -349,7 +355,7 @@
       const bug = [[-6, HR + 1], [6, HR + 1], [6, HR - 10], [2, HR - 6], [-2, HR - 6], [-6, HR - 10]].map(([d, rr]) => ({ x: HX + px(rr, bq + d * 0.6), y: HY + py(rr, bq + d * 0.6) }));
       hg.fillStyle(CYAN, 1); hg.fillPoints(bug, true);
       // ground track: a magenta diamond on the rose
-      const tq = rot(s.trk);
+      const tq = rot(FI.toMag(s.trk));
       hg.fillStyle(MAGENTA, 1);
       hg.fillPoints([{ x: HX + px(HR - 4, tq), y: HY + py(HR - 4, tq) }, { x: HX + px(HR - 12, tq - 3), y: HY + py(HR - 12, tq - 3) },
         { x: HX + px(HR - 20, tq), y: HY + py(HR - 20, tq) }, { x: HX + px(HR - 12, tq + 3), y: HY + py(HR - 12, tq + 3) }], true);
@@ -380,11 +386,26 @@
         hg.fillStyle(GREEN, 1);
         hg.fillPoints([P(k * 92, 0), P(k * 78, -10), P(k * 78, 10)], true);
       }
-      const vor = nv.source === 'VOR';
-      navLbl.setText(vor ? 'VOR1' : 'LOC1');
-      navFlag.setText(n.flag ? (vor && n.cone ? 'OVER STN' : 'NO SIG') : (!vor && !n.front ? 'BC' : ''));
+      // BRG1: the ADF bearing pointer, a cyan line through the rose
+      const adf = n.adf;
+      if (adf.valid) {
+        const bq = rot(adf.brgM), bs = Math.sin(bq * D2R), bc = -Math.cos(bq * D2R);
+        const Q = r => ({ x: HX + bs * r, y: HY + bc * r });
+        hg.lineStyle(3, CYAN, 1);
+        const t0 = Q(HR - 8), t1 = Q(HR - 60), b0 = Q(-(HR - 60)), b1 = Q(-(HR - 8));
+        hg.lineBetween(t0.x, t0.y, t1.x, t1.y); hg.lineBetween(b0.x, b0.y, b1.x, b1.y);
+        const w0 = { x: -bc * 10, y: bs * 10 }, h0 = Q(HR - 30);
+        hg.lineBetween(t0.x, t0.y, h0.x + w0.x, h0.y + w0.y); hg.lineBetween(t0.x, t0.y, h0.x - w0.x, h0.y - w0.y);
+      }
+      brgHdr.setText('BRG1 ADF');
+      brgId.setText(nv.khz ? `${nv.khz} ${adf.valid ? adf.id : ''}` : 'OFF');
+      brgTxt.setText(adf.valid ? `${pad3(adf.brgM)}°` : nv.khz ? 'NO SIG' : '').setColor(adf.valid ? C.cyan : C.dim);
+
+      const vor = n.kind !== 'LOC', az = n.kind === 'VOR' || n.kind === 'TACAN';
+      navLbl.setText(n.kind === 'LOC' ? 'LOC1' : n.kind === 'TACAN' || n.src === 'TCN' ? 'TCN1' : 'VOR1');
+      navFlag.setText(n.flag ? (az && n.cone ? 'OVER STN' : n.kind === 'DME' ? 'DME ONLY' : 'NO SIG') : (!vor && !n.front ? 'BC' : ''));
       toFromTxt.setText(n.toFrom || '');
-      hdgBoxTxt.setText(`${pad3(s.hdg)}°`);
+      hdgBoxTxt.setText(`${pad3(hdgM)}°`);
       hdgSel.setText(`HDG ${pad3(nv.bug)}°`);
       crsSel.setText(`CRS ${pad3(n.course)}°`);
 
@@ -400,31 +421,32 @@
       } else windTxt.setText('NO WIND');
       windTxt.setY(FI.wind.kt > 0 ? 822 : 790);
 
-      dmeHdr.setText(vor ? `DME  ${FI.VOR.id}` : `DME  I${FI.RWY.id}`);
-      dmeTxt.setText(`${n.dme.toFixed(1)}NM`);
-      radTxt.setText(`RAD ${pad3(n.radial)}° FR`);
+      dmeHdr.setText(`DME  ${n.dmeId || ''}`);
+      dmeTxt.setText(n.dmeValid ? `${n.dme.toFixed(1)}NM` : '---.-NM');
+      radTxt.setText(az && n.radial != null ? `RAD ${pad3(n.radial)}° FR` : '');
 
       // ----- top bar: nav frequencies and the autopilot annunciator -----
-      nav1.setText(`NAV1 ${FI.VOR.freq} ${FI.VOR.id}`).setColor(vor ? C.green : C.white);
-      nav2.setText(`NAV2 ${FI.RWY.freq} I${FI.RWY.id}`).setColor(vor ? C.white : C.green);
+      const tcn = n.src === 'TCN';
+      nav1.setText(`NAV1 ${FI.fmtMhz(nv.mhz)} ${!tcn && n.ident ? n.ident : ''}`).setColor(tcn ? C.white : C.green);
+      nav2.setText(`TCN  ${(nv.chan || '---').padStart(4)}   ${tcn && n.ident ? n.ident : ''}`).setColor(tcn ? C.green : C.white);
       let lat = '', lArm = '', vert = '', vArm = '';
       const anyAp = ap.hdg || ap.alt || ap.nav || !!run;
       if (run) {
-        lat = run.track ? (vor ? 'VOR' : 'LOC') : run.hdg != null ? 'HDG' : 'ROL';
+        lat = run.track ? (run.mode || (n.kind === 'LOC' ? 'LOC' : n.kind === 'TACAN' ? 'TCN' : 'VOR')) : run.hdg != null ? 'HDG' : 'ROL';
         vert = ap.gsCap ? 'GS' : run.alt != null ? 'ALT' : run.vs != null ? 'VS' : 'PIT';
         if (run.gs && !ap.gsCap) vArm = 'GS';
       } else if (anyAp) {
-        lat = ap.nav ? (vor ? 'VOR' : 'LOC') : ap.hdg ? 'HDG' : 'ROL';
+        lat = ap.nav ? (n.kind === 'LOC' ? 'LOC' : n.kind === 'TACAN' ? 'TCN' : 'VOR') : ap.hdg ? 'HDG' : 'ROL';
         vert = ap.gsCap ? 'GS' : ap.alt ? 'ALT' : 'PIT';
-        if (ap.nav && !vor && !ap.gsCap) vArm = 'GS';
+        if (ap.nav && n.kind === 'LOC' && !ap.gsCap) vArm = 'GS';
       }
       apLbl.setText(anyAp ? 'AP' : '');
       latTxt.setText(lat); armTxt.setText(lArm); vertTxt.setText(vert); vArmTxt.setText(vArm);
-      topRight.setText(`DIS ${n.dist.toFixed(1)}NM`);
+      topRight.setText(n.dist != null ? `DIS ${n.dist.toFixed(1)}NM` : 'DIS ---.-NM');
 
       // ----- bottom bar -----
       const wca = FI.norm180(s.trk - s.hdg);
-      bottom.setText(`TRK ${pad3(s.trk)}°   GS ${Math.round(s.gs)}KT   CRAB ${Math.abs(wca) < 0.5 ? '0°' : Math.abs(Math.round(wca)) + '°' + (wca < 0 ? 'R' : 'L')}   XPDR 1200 ALT   OAT 15°C`);
+      bottom.setText(`TRK ${pad3(FI.toMag(s.trk))}°   GS ${Math.round(s.gs)}KT   CRAB ${Math.abs(wca) < 0.5 ? '0°' : Math.abs(Math.round(wca)) + '°' + (wca < 0 ? 'R' : 'L')}   XPDR 1200 ALT   OAT 15°C`);
     }
 
     return { root, update };

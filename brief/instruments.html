@@ -8,7 +8,7 @@
 <meta property="og:title" content="Flight Instruments — FACO">
 <meta property="og:url" content="https://facosim.com/brief/instruments.html">
 <meta property="og:type" content="website">
-<meta property="og:description" content="Fly around a VOR and down an ILS on a top-down map and watch what the six-pack or a G1000-style glass cockpit shows.">
+<meta property="og:description" content="Fly real US VORs, TACANs, NDBs and ILS approaches on a top-down map and watch what the six-pack or a G1000-style glass cockpit shows.">
 <meta property="og:image" content="https://facosim.com/img/icon_instruments.jpg">
 <meta property="og:image:width" content="1500">
 <meta property="og:image:height" content="1500">
@@ -64,6 +64,16 @@
   .bug .v { font-family: Menlo, Consolas, monospace; font-size: 12.5px; min-width: 42px; text-align: center; }
   .bug button.icon { width: 30px; }
   .ap { font-weight: 600; letter-spacing: .04em; min-width: 50px; }
+  .freq { width: 62px; height: 30px; background: #0d141c; color: #26e05a; border: 1px solid var(--line); border-radius: 6px; padding: 0 6px;
+    font: 12.5px Menlo, Consolas, monospace; text-align: center; }
+  .freq:focus { outline: none; border-color: var(--accent); }
+  .radio { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+  .radio small { font-size: 9.5px; color: var(--dim); letter-spacing: .05em; line-height: 1; }
+  #r-tune { max-width: 150px; }
+  #apt { width: 64px; height: 30px; background: #0d141c; color: #e6edf3; border: 1px solid var(--line); border-radius: 6px; padding: 0 6px;
+    font: 600 12.5px Menlo, Consolas, monospace; text-transform: uppercase; text-align: center; }
+  #apt:focus { outline: none; border-color: var(--accent); }
+  #app { max-width: 170px; }
 
   #status { position: fixed; left: 0; right: 0; bottom: 0; height: 28px; display: flex; align-items: center; gap: 16px;
     padding: 0 12px; background: var(--bar); border-top: 1px solid var(--line); color: var(--dim); font-size: 12px; z-index: 10; white-space: nowrap; }
@@ -106,6 +116,7 @@
   body.touch input[type=range]::-moz-range-track { height: 6px; border-radius: 3px; background: #2a3c50; }
   body.touch input[type=range]::-moz-range-thumb { width: 24px; height: 24px; border-radius: 50%; background: var(--accent); border: 2px solid #e6f1ff; }
   body.touch input[type=number] { height: 40px; font-size: 16px; }
+  body.touch .freq, body.touch #apt { height: 40px; font-size: 16px; width: 76px; }
   body.map-gesture #bar, body.map-gesture #ctl, body.map-gesture #status { pointer-events: none; }
 
   @media (max-width: 720px) {
@@ -113,6 +124,7 @@
     #bar::-webkit-scrollbar, #ctl::-webkit-scrollbar { display: none; }
     #bar h1, #st-brief, #scale, .zoom-step { display: none; }
     #scn { max-width: 170px; }
+    .radio small { display: none; }
     #st-mode { max-width: none; }
     .sl input[type=range] { width: 90px; }
     .grid2 { grid-template-columns: 1fr; }
@@ -125,6 +137,12 @@
 <div id="bar">
   <a id="btn-home" href="../index.html" title="Back to the FACO website">← Back to FACO</a>
   <h1>FLIGHT INSTRUMENTS</h1>
+  <div class="grp" title="Home airport and approach: the map, the scenarios and the magnetic variation are set around it">
+    <input id="apt" list="apt-list" maxlength="4" spellcheck="false" autocomplete="off" aria-label="Home airport">
+    <datalist id="apt-list"></datalist>
+    <select id="app" aria-label="Approach"></select>
+  </div>
+  <div class="sep"></div>
   <div class="grp">
     <select id="scn" title="Pick a scenario for the autopilot to fly, or fly it yourself">
       <option value="free">Free flight</option>
@@ -139,7 +157,7 @@
   <div class="grp">
     <button id="btn-follow" class="on" title="Keep the aircraft centered on the map (F)">Follow</button>
     <button id="btn-zout" class="icon zoom-step" title="Zoom out">−</button>
-    <button id="btn-fit" title="Fit the VOR, the airport and the aircraft (0)">Fit</button>
+    <button id="btn-fit" title="Fit the aircraft, the home airport and the tuned stations (0)">Fit</button>
     <button id="btn-zin" class="icon zoom-step" title="Zoom in">+</button>
   </div>
   <div class="sep"></div>
@@ -167,7 +185,11 @@
   <button id="ap-alt" class="ap" title="Hold the current altitude (A)">ALT</button>
   <div class="sep"></div>
   <span class="ctl-h">Nav</span>
-  <div class="seg" title="Nav receiver source (V)"><button data-src="VOR" class="on">VOR</button><button data-src="ILS">ILS</button></div>
+  <div class="seg" title="What drives the nav indicator: the NAV1 radio (VOR or ILS) or the TACAN receiver (V)"><button data-src="NAV" class="on">NAV1</button><button data-src="TCN">TCN</button></div>
+  <label class="radio"><input id="r-nav" class="freq" inputmode="decimal" spellcheck="false" title="NAV1 frequency in MHz, 108.00 to 117.95: VOR, localizer, and the DME paired with them"><small>NAV1 MHz</small></label>
+  <label class="radio"><input id="r-tcn" class="freq" spellcheck="false" title="TACAN channel, 1X to 126Y: azimuth and DME from a TACAN or VORTAC"><small>TACAN CH</small></label>
+  <label class="radio"><input id="r-adf" class="freq" inputmode="numeric" spellcheck="false" title="ADF frequency in kHz, 190 to 1750: the NDB the ADF needle points at"><small>ADF kHz</small></label>
+  <select id="r-tune" title="Tune a station near the aircraft"><option value="">Tune nearby…</option></select>
   <div class="bug" title="OBS course ([ and ])"><button id="obs-dec" class="icon">−</button><span class="v" id="obs-v"></span><button id="obs-inc" class="icon">+</button></div>
   <button id="ap-nav" class="ap" title="Track the selected course: the OBS radial, or the localizer and glideslope (N)">NAV</button>
 </div>
@@ -197,13 +219,15 @@
 <div id="help" class="modal">
   <div class="dialog">
     <h2>Flight Instruments</h2>
-    <p class="note" style="color:var(--text)">The map on the left shows the aircraft, a VOR/DME (FCO) and an airport with an ILS to runway 27. The panel shows what the pilot sees at that moment. Pick a <b>scenario</b> and the autopilot flies it; touch any control and you have the aircraft.</p>
+    <p class="note" style="color:var(--text)">The map shows the aircraft over a real US area: the airports with instrument approaches, their localizers, and the VORs, VORTACs, TACANs, DMEs and NDBs around them, from FAA data. Pick a home <b>airport</b> (type its code, such as KDAB or KOSH) and an <b>approach</b> at the top; the scenarios are built around it and its nearest VOR, TACAN and NDB. The panel shows what the pilot sees. Pick a <b>scenario</b> and the autopilot flies it; touch any control and you have the aircraft.</p>
     <h3>Controls</h3>
     <ul>
       <li><b>Fly:</b> the Bank, Pitch and Power sliders, or <kbd>←</kbd> <kbd>→</kbd> bank, <kbd>↑</kbd> <kbd>↓</kbd> pitch, <kbd>W</kbd> <kbd>S</kbd> power, <kbd>L</kbd> wings level. Hold <kbd>Shift</kbd> for finer steps.</li>
       <li><b>Map:</b> drag the aircraft to move it and drag the yellow dot ahead of it to point the nose (<kbd>Shift</kbd> snaps to 15°). Drag empty map to pan, wheel or pinch to zoom, <b>Follow</b> (<kbd>F</kbd>) keeps the aircraft centered, <b>Fit</b> (<kbd>0</kbd>) shows everything.</li>
       <li><b>Autopilot:</b> set the heading bug with − and + (<kbd>,</kbd> <kbd>.</kbd>) and press <b>HDG</b> (<kbd>H</kbd>) to fly it; <b>ALT</b> (<kbd>A</kbd>) holds the current altitude; <b>NAV</b> (<kbd>N</kbd>) tracks the OBS course through the VOR, or the localizer and glideslope with the ILS selected. Moving the bank slider releases HDG and NAV, moving pitch releases ALT.</li>
-      <li><b>Nav:</b> <b>VOR</b> or <b>ILS</b> (<kbd>V</kbd>) picks what the nav indicator shows; − and + (<kbd>[</kbd> <kbd>]</kbd>) turn the OBS. On the map the selected course is the dashed blue line and the thin orange line is the radial you are on.</li>
+      <li><b>Radios:</b> type a frequency in <b>NAV1</b> (a VOR such as 112.60, or a localizer such as 109.70), a channel in <b>TACAN</b> (such as 73X), or a kHz in <b>ADF</b>, or pick a station from <b>Tune nearby</b>. <b>NAV1</b> or <b>TCN</b> (<kbd>V</kbd>) picks which one drives the nav indicator; − and + (<kbd>[</kbd> <kbd>]</kbd>) turn the OBS. On the map the tuned station's compass rose is turned to its magnetic north, the selected course is the dashed blue line and the thin orange line is the radial you are on.</li>
+      <li><b>What each station gives:</b> a VOR gives a radial; VOR/DME and VORTAC add DME on NAV1. The aircraft has a military TACAN receiver, so a TACAN or VORTAC gives a radial and DME by channel. A standalone TACAN tuned on NAV1 (its paired VHF frequency) gives DME only, as in a civil aircraft. A DME gives distance only. An ILS gives the localizer and glideslope, and DME where the approach has it. An NDB gives a bearing on the ADF. A station only comes in within its published service volume (25 to 130 nm by class and height) and radio line of sight; out of range the flag shows.</li>
+      <li><b>Magnetic:</b> headings, courses, radials and bearings are magnetic, like in the airplane. Each VOR's radials use that station's own variation, so they can differ by a few degrees from the area's. The wind is in degrees true, like a winds-aloft forecast.</li>
       <li><b>Panel:</b> <b>Six-pack</b> or <b>Glass</b> (<kbd>G</kbd>) switches between the analog gauges and a G1000-style glass cockpit. Both show the same aircraft, so you can switch mid-flight and compare.</li>
       <li><b>Scenarios:</b> <b>Play</b> (<kbd>Space</kbd>) pauses and resumes, <b>↺ Restart</b> starts the scenario over, 1× 2× 4× sets the speed. The status bar says what the autopilot is doing.</li>
     </ul>
@@ -215,9 +239,14 @@
       <li><b>Turn coordinator:</b> the airplane banks to show the rate of turn. Wings on the lower marks mean a standard rate of 3° per second, a full circle in two minutes. The ball shows coordination (the model always flies coordinated).</li>
       <li><b>Heading indicator:</b> the card turns so your heading is under the line at the top. The orange bug is the autopilot's heading.</li>
       <li><b>Vertical speed:</b> climb or descent in hundreds of feet per minute.</li>
+      <li><b>ADF:</b> a fixed card with 0 at the nose: the needle points at the NDB, so it shows the relative bearing. Magnetic bearing to the station = heading + relative bearing. With no signal the needle parks at 90°. On the glass cockpit the cyan BRG1 pointer on the HSI points at the NDB against the compass rose, and the box on the left gives the magnetic bearing.</li>
       <li><b>VOR/ILS:</b> turn the OBS so the course is at the top. The needle shows which side the course is on: each dot is 2° for a VOR and ½° for a localizer. With a VOR the triangle says whether that course takes you <b>TO</b> or <b>FROM</b> the station, and the OFF flag shows out of range or right over it. With the ILS the horizontal needle is the glideslope (each dot 0.14°): needle below center means fly down. Flying away from the runway on a back course the needle reads backwards.</li>
       <li><b>Glass cockpit:</b> the same information on one screen. The attitude fills the background with the yellow aircraft symbol in the middle; airspeed is the tape on the left (TAS below it), altitude on the right with vertical speed beside it, the selected altitude in cyan above and the altimeter setting below. Magenta bars on the tapes show where airspeed and altitude will be in 6 seconds. The HSI at the bottom combines the heading indicator and the nav indicator: cyan is the heading bug, the green arrow is the course with the deviation bar in its middle (2 dots each side, full scale), the small green triangle points TO or FROM, the magenta diamond is the ground track and the magenta arc on top is where the heading will be in 6 seconds. With the ILS the green diamond left of the altitude tape is the glideslope. The top bar shows the nav frequencies (green is the one feeding the HSI) and the autopilot modes, active in green and armed in white; the boxes beside the HSI show the wind and DME.</li>
-      <li><b>Readout:</b> the lower right box lists the receiver, course, the radial you are on, DME distance, the flags, heading and bug, ground track and groundspeed, and the wind.</li>
+      <li><b>Readout:</b> the lower right box lists the NAV1 frequency and TACAN channel with the station they hear (green drives the nav indicator), the course, the radial you are on, DME distance and station, the flags, the ADF station and bearing, heading and bug, ground track and groundspeed, and the wind.</li>
+    </ul>
+    <h3>Data</h3>
+    <ul>
+      <li>Navaids and approaches: FAA NASR, cycle <span id="data-cycle"></span> (public domain, via the @squawk data packages). No terrain: the ground is the home airport's elevation. <b>For training only, not for navigation.</b></li>
     </ul>
     <div class="actions"><button id="help-close" class="primary">Close</button></div>
   </div>
@@ -225,7 +254,9 @@
 
 <!-- Local Phaser build next to this file. Classic scripts so the page opens by double-click. -->
 <script src="phaser.min.js"></script>
+<script src="inst/navdata.js"></script>
 <script src="inst/sim.js"></script>
+<script src="inst/navdb.js"></script>
 <script src="inst/map.js"></script>
 <script src="inst/glass.js"></script>
 <script src="inst/panel.js"></script>
@@ -234,6 +265,11 @@
   // ?s=<scenario id> opens that scenario, ?t=<seconds> starts it that far in,
   // so a link can land on, say, the ILS halfway down the glideslope.
   const q = new URLSearchParams(location.search);
+  // ?apt=KOSH&rwy=36 picks the home airport and approach; otherwise the last one used, or Daytona Beach
+  let savedHome = null;
+  try { savedHome = JSON.parse(localStorage.getItem('fi-home') || 'null'); } catch (e) { /* private mode */ }
+  FI.setHome(q.get('apt') || (savedHome && savedHome.apt) || 'KDAB', q.get('rwy') || (savedHome && !q.get('apt') ? savedHome.rwy : null));
+  document.getElementById('data-cycle').textContent = FI.dataCycle;
   let scnIndex = Math.max(0, FI.SCENARIOS.findIndex(s => s.id === q.get('s')));
   FI.loadScenario(FI.SCENARIOS[scnIndex]);
   for (let t = (+q.get('t') || 0) * 4; t > 0; t--) FI.advance(250);
@@ -250,7 +286,7 @@
     scale: { mode: Phaser.Scale.RESIZE, width: '100%', height: '100%' },
     scene: [FI.MapScene, FI.PanelScene],
   });
-  FI.ui.refresh();
+  FI.ui.refresh(true);
 </script>
 </body>
 </html>

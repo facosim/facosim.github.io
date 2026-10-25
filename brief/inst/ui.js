@@ -23,10 +23,33 @@
     dragging: null,         // slider being dragged, so the sim does not move it back
 
     init() {
-      // scenarios
+      // scenarios, rebuilt when the home airport changes
       const sel = $('scn');
-      FI.SCENARIOS.forEach((s, i) => { const o = document.createElement('option'); o.value = i; o.textContent = s.name; sel.appendChild(o); });
+      ui.fillScenarios();
       sel.addEventListener('change', () => { ui.start(sel.value); sel.blur(); });
+      // home airport and approach
+      const dl = $('apt-list');
+      for (const a of FI.airportCodes()) { const o = document.createElement('option'); o.value = a.code; o.label = a.name; dl.appendChild(o); }
+      $('apt').addEventListener('change', () => {
+        const code = $('apt').value.trim().toUpperCase();
+        if (FI.findAirport(code)) ui.setHome(code); else { $('apt').value = FI.home.apt.code; }
+        $('apt').blur();
+      });
+      $('apt').addEventListener('focus', () => $('apt').select());
+      $('app').addEventListener('change', () => { ui.setHome(FI.home.apt.code, $('app').value); $('app').blur(); });
+      ui.fillApproaches();
+      // radios: type a frequency or channel, or pick a nearby station
+      $('r-nav').addEventListener('change', () => ui.tune('nav', $('r-nav').value));
+      $('r-tcn').addEventListener('change', () => ui.tune('tcn', $('r-tcn').value));
+      $('r-adf').addEventListener('change', () => ui.tune('adf', $('r-adf').value));
+      for (const id of ['r-nav', 'r-tcn', 'r-adf']) {
+        $(id).addEventListener('keydown', e => { if (e.key === 'Enter') $(id).blur(); if (e.key === 'Escape') { ui.refresh(true); $(id).blur(); } });
+        $(id).addEventListener('focus', () => $(id).select());
+      }
+      const tl = $('r-tune');
+      tl.addEventListener('focus', () => ui.fillTune());
+      tl.addEventListener('pointerdown', () => ui.fillTune());
+      tl.addEventListener('change', () => { ui.pickStation(tl.value); tl.value = ''; tl.blur(); });
       $('btn-play').addEventListener('click', () => { FI.paused = !FI.paused; ui.refresh(); });
       $('btn-restart').addEventListener('click', () => ui.start($('scn').value));
       document.querySelectorAll('[data-speed]').forEach(b => b.addEventListener('click', () => { FI.speed = +b.dataset.speed; ui.refresh(); }));
@@ -85,7 +108,79 @@
       if (FI.panel && FI.panel.glass) FI.panel.setMode(FI.panelMode);
       ui.refresh();
     },
-    setSource(src) { FI.nav.source = src; FI.ap.gsCap = false; FI.computeNav(); ui.refresh(); },
+    setSource(src) { FI.nav.src = src === 'TCN' ? 'TCN' : 'NAV'; FI.ap.gsCap = false; FI.computeNav(); ui.refresh(); },
+
+    fillScenarios() {
+      const sel = $('scn');
+      while (sel.options.length > 1) sel.remove(1);
+      FI.SCENARIOS.forEach((s, i) => { const o = document.createElement('option'); o.value = i; o.textContent = s.name; sel.appendChild(o); });
+    },
+    fillApproaches() {
+      const sel = $('app'); sel.innerHTML = '';
+      for (const L of FI.home.apt.ils) {
+        const o = document.createElement('option'); o.value = L.rwy; o.textContent = `${L.name} ${L.id}`; sel.appendChild(o);
+      }
+      sel.value = FI.home.ils ? FI.home.ils.rwy : '';
+      $('apt').value = FI.home.apt.code;
+      $('apt').title = `${FI.home.apt.code} ${FI.home.apt.name}: type an airport code (any US airport with an ILS or localizer)`;
+    },
+    // Move to another airport: reload the area and the scenarios, and fly
+    // the same scenario there if it exists, otherwise free flight.
+    setHome(code, rwy) {
+      const sc = FI.scn ? FI.scn.def.id : null;
+      FI.setHome(code, rwy);
+      try { localStorage.setItem('fi-home', JSON.stringify({ apt: FI.home.apt.code, rwy: FI.home.ils && FI.home.ils.rwy })); } catch (e) { /* private mode */ }
+      ui.fillScenarios(); ui.fillApproaches();
+      const i = FI.SCENARIOS.findIndex(s => s.id === sc);
+      ui.start(i >= 0 ? String(i) : 'free');
+      if (FI.map) FI.map.fit();
+    },
+
+    // Tune a radio from typed text. Bad input puts the old value back.
+    tune(which, text) {
+      const nv = FI.nav, t = String(text).trim().toUpperCase();
+      if (which === 'nav') {
+        const f = Math.round(parseFloat(t) * 20) / 20;
+        if (f >= 108 && f <= 117.95) { nv.mhz = f; nv.src = 'NAV'; }
+      } else if (which === 'tcn') {
+        const m = /^(\d{1,3})\s*([XY])?$/.exec(t);
+        if (m && +m[1] >= 1 && +m[1] <= 126) { nv.chan = +m[1] + (m[2] || 'X'); nv.src = 'TCN'; }
+      } else if (which === 'adf') {
+        const k = Math.round(parseFloat(t));
+        if (k >= 190 && k <= 1750) nv.khz = k;
+        else if (t === '' || t === '0' || t === 'OFF') nv.khz = 0;
+      }
+      FI.ap.gsCap = false;
+      FI.computeNav();
+      ui.refresh(true);
+    },
+    // The nearby list: stations within 80 nm of the aircraft, nearest first.
+    fillTune() {
+      const sel = $('r-tune'), s = FI.state;
+      ui.tuneList = FI.nearby(s.x, s.y, 80).slice(0, 40);
+      sel.innerHTML = '<option value="">Tune nearby…</option>';
+      ui.tuneList.forEach(({ s: st, d }, i) => {
+        let t;
+        if (st.kind === 'LOC') t = `${st.id}  ${st.apt.code} ${st.name}  ${FI.fmtMhz(st.mhz)}`;
+        else if (st.ndb) t = `${st.id}  ${st.type}  ${st.khz} kHz`;
+        else if (st.vor) t = `${st.id}  ${st.type}  ${FI.fmtMhz(st.mhz)}${st.tacan ? ' / ' + st.chan : ''}`;
+        else t = `${st.id}  ${st.type}  ${st.chan}${st.mhz ? ' (' + FI.fmtMhz(st.mhz) + ')' : ''}`;
+        const o = document.createElement('option'); o.value = i; o.textContent = `${t}  ·  ${Math.round(d)} nm`; sel.appendChild(o);
+      });
+    },
+    pickStation(i) {
+      const e = ui.tuneList && ui.tuneList[+i];
+      if (!e) return;
+      const st = e.s, nv = FI.nav;
+      if (st.kind === 'LOC') { nv.mhz = st.mhz; nv.src = 'NAV'; nv.obs = Math.round(st.crsM); }
+      else if (st.ndb) nv.khz = st.khz;
+      else if (st.vor) { nv.mhz = st.mhz; nv.src = 'NAV'; if (st.chan) nv.chan = st.chan; }
+      else if (st.tacan) { nv.chan = st.chan; nv.src = 'TCN'; }
+      else if (st.chan) { nv.chan = st.chan; if (st.mhz) nv.mhz = st.mhz; }
+      FI.ap.gsCap = false;
+      FI.computeNav();
+      ui.refresh(true);
+    },
 
     start(idx) {
       if (idx === 'free' || idx === '') FI.freeFlight();
@@ -118,7 +213,7 @@
       else if (k === 'a' || k === 'A') FI.setAp('alt', !FI.ap.alt);
       else if (k === 'n' || k === 'N') FI.setAp('nav', !FI.ap.nav);
       else if (k === 'g' || k === 'G') ui.setPanel(FI.panelMode === 'glass' ? 'analog' : 'glass');
-      else if (k === 'v' || k === 'V') ui.setSource(FI.nav.source === 'VOR' ? 'ILS' : 'VOR');
+      else if (k === 'v' || k === 'V') ui.setSource(FI.nav.src === 'NAV' ? 'TCN' : 'NAV');
       else if (k === ' ') FI.paused = !FI.paused;
       else if (k === 'f' || k === 'F') FI.map.setFollow(!FI.map.follow);
       else if (k === '0') FI.map.fit();
@@ -159,14 +254,19 @@
     },
 
     // Buttons and sliders reflect the state. Called after any input.
-    refresh() {
+    refresh(radios) {
       const s = FI.state, ap = FI.ap, nv = FI.nav;
       $('btn-play').textContent = FI.paused ? '▶ Play' : '❚❚ Pause';
       document.querySelectorAll('[data-speed]').forEach(b => b.classList.toggle('on', +b.dataset.speed === FI.speed));
       document.querySelectorAll('[data-panel]').forEach(b => b.classList.toggle('on', b.dataset.panel === FI.panelMode));
       $('btn-follow').classList.toggle('on', !!(FI.map && FI.map.follow));
       $('ap-hdg').classList.toggle('on', ap.hdg); $('ap-alt').classList.toggle('on', ap.alt); $('ap-nav').classList.toggle('on', ap.nav);
-      document.querySelectorAll('[data-src]').forEach(b => b.classList.toggle('on', b.dataset.src === nv.source));
+      document.querySelectorAll('[data-src]').forEach(b => b.classList.toggle('on', b.dataset.src === nv.src));
+      // radio boxes, unless the student is typing in one
+      const act = document.activeElement;
+      if (radios || act !== $('r-nav')) $('r-nav').value = FI.fmtMhz(nv.mhz);
+      if (radios || act !== $('r-tcn')) $('r-tcn').value = nv.chan || '';
+      if (radios || act !== $('r-adf')) $('r-adf').value = nv.khz ? String(nv.khz) : '';
       $('bug-v').textContent = FI.pad3(nv.bug) + '°';
       $('obs-v').textContent = FI.pad3(nv.obs) + '°';
       $('ap-alt').title = ap.alt ? `Holding ${Math.round(ap.altTgt).toLocaleString('en-US')} ft (A)` : 'Hold the current altitude (A)';
@@ -190,7 +290,7 @@
       ui.lastTick = now;
       const s = FI.state, n = FI.navOut;
       $('st-mode').textContent = (FI.paused ? 'Paused · ' : '') + FI.statusText();
-      $('st-data').textContent = `HDG ${FI.pad3(s.hdg)}  TRK ${FI.pad3(s.trk)}  ${Math.round(s.ias)} kt  ${Math.round(s.alt).toLocaleString('en-US')} ft  ${s.vs >= 0 ? '+' : ''}${Math.round(s.vs / 10) * 10} fpm  RAD ${FI.pad3(n.radial)}  DME ${n.dme.toFixed(1)}`;
+      $('st-data').textContent = `HDG ${FI.pad3(FI.toMag(s.hdg))}  TRK ${FI.pad3(FI.toMag(s.trk))}  ${Math.round(s.ias)} kt  ${Math.round(s.alt).toLocaleString('en-US')} ft  ${s.vs >= 0 ? '+' : ''}${Math.round(s.vs / 10) * 10} fpm  ${n.ident || '---'} ${n.radial != null ? 'R-' + FI.pad3(n.radial) : ''}  DME ${n.dmeValid ? n.dme.toFixed(1) : '---'}`;
       const sc = FI.scn;
       $('st-brief').textContent = sc ? sc.def.brief : 'Free flight: fly with the sliders or the keyboard, or pick a scenario.';
       $('st-brief').title = $('st-brief').textContent;

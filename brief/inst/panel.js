@@ -61,7 +61,7 @@
       this.inst = {};
       this.buildASI(0, 0); this.buildAI(1, 0); this.buildALT(2, 0);
       this.buildTC(0, 1); this.buildHI(1, 1); this.buildVSI(2, 1);
-      this.buildCDI(0, 2); this.buildReadout(1.5, 2);
+      this.buildCDI(0, 2); this.buildADF(1, 2); this.buildReadout(2, 2);
       // the glass cockpit shares the design size and the layout; only one shows
       this.glass = FI.Glass(this);
       this.setMode(FI.panelMode);
@@ -280,25 +280,40 @@
       return k;
     }
 
+    // ---------- ADF (fixed card) ----------
+    // The card is fixed with 0 at the nose; the needle points at the NDB, so
+    // it reads relative bearing. Magnetic bearing to the station is heading
+    // plus relative bearing.
+    buildADF(col, row) {
+      const c = this.cell(col, row); this.bezel(c);
+      const g = this.add.graphics(); g.lineStyle(2, WHITE, 1);
+      for (let a = 0; a < 360; a += 5) tick(g, a, R - (a % 10 ? 7 : 14), R - 2);
+      c.add(g);
+      for (let i = 0; i < 12; i++) this.txt(c, String(i * 3), px(R - 30, i * 30), py(R - 30, i * 30), i % 3 ? 14 : 18).setRotation(i * 30 * D2R);
+      const f = this.add.graphics(); f.lineStyle(3, 0xffb547, 1);
+      f.lineBetween(0, -40, 0, 26); f.lineBetween(-30, -6, 30, -6); f.lineBetween(-12, 22, 12, 22);     // little airplane
+      c.add(f);
+      this.txt(c, 'ADF', -R + 26, R - 18, 10, '#aeb9c4', SANS);
+      const id = this.txt(c, '', 0, 52, 12, '#e6edf3', MONO);
+      const n = this.add.graphics(); c.add(n); this.hub(c);
+      this.inst.adf = { n, id };
+    }
+
     // ---------- nav readout ----------
     buildReadout(col, row) {
-      // two cells wide: the receiver on the left, the aircraft on the right
-      const c = this.cell(col, row), w = 572, h = 272;
+      const c = this.cell(col, row), w = 272, h = 272;
       const g = this.add.graphics();
       g.fillStyle(0x0b0f14, 1); g.fillRoundedRect(-w / 2, -h / 2, w, h, 12);
       g.lineStyle(2, RING, 1); g.strokeRoundedRect(-w / 2, -h / 2, w, h, 12);
-      g.lineStyle(1, RING, 1); g.lineBetween(0, -h / 2 + 40, 0, h / 2 - 16);
       c.add(g);
-      this.txt(c, 'NAV RECEIVER', -w / 4, -h / 2 + 20, 11, '#8fb3d1', SANS);
-      this.txt(c, 'AIRCRAFT', w / 4, -h / 2 + 20, 11, '#8fb3d1', SANS);
-      const cols = [['src', 'crs', 'rad', 'dme', 'flag'], ['hdg', 'trk', 'gs', 'wind', 'wca']];
-      const labels = { src: 'NAV', crs: 'COURSE', rad: 'RADIAL', dme: 'DME', flag: 'FLAGS', hdg: 'HDG / BUG', trk: 'TRACK', gs: 'GROUNDSPEED', wind: 'WIND', wca: 'CRAB' };
+      const keys = ['nav', 'tcn', 'crs', 'rad', 'dme', 'flag', 'adf', 'hdg', 'trk', 'wind'];
+      const labels = { nav: 'NAV1', tcn: 'TACAN', crs: 'COURSE', rad: 'RADIAL', dme: 'DME', flag: 'FLAGS', adf: 'ADF', hdg: 'HDG/BUG', trk: 'TRK/GS', wind: 'WIND' };
       const t = {};
-      cols.forEach((keys, ci) => keys.forEach((k, i) => {
-        const y = -h / 2 + 62 + i * 40, x0 = ci ? 16 : -w / 2 + 16, x1 = ci ? w / 2 - 16 : -16;
-        this.txt(c, labels[k], x0, y, 11, '#7d8a96', SANS, 0, 0.5);
-        t[k] = this.txt(c, '', x1, y, 17, '#e6edf3', MONO, 1, 0.5);
-      }));
+      keys.forEach((k, i) => {
+        const y = -h / 2 + 22 + i * 25.5;
+        this.txt(c, labels[k], -w / 2 + 12, y, 10, '#7d8a96', SANS, 0, 0.5);
+        t[k] = this.txt(c, '', w / 2 - 12, y, 13, '#e6edf3', MONO, 1, 0.5);
+      });
       this.inst.ro = t;
     }
 
@@ -335,7 +350,8 @@
       // TC
       I.tc.plane.setRotation(clamp(s.turnRate / 3, -1.6, 1.6) * 20 * D2R);
       // HI
-      I.hi.card.setRotation(-s.hdg * D2R);
+      const hdgM = FI.toMag(s.hdg);
+      I.hi.card.setRotation(-hdgM * D2R);
       const bg2 = I.hi.bug; bg2.clear(); bg2.fillStyle(0xff8c1a, 1);
       const b = nv.bug;
       bg2.fillPoints([{ x: px(R - 2, b - 5), y: py(R - 2, b - 5) }, { x: px(R - 2, b + 5), y: py(R - 2, b + 5) }, { x: px(R - 14, b + 5), y: py(R - 14, b + 5) },
@@ -344,36 +360,45 @@
       I.vsi.n.clear(); needle(I.vsi.n, I.vsi.ang(clamp(s.vs, -2000, 2000)), R - 22, 9, WHITE, 18);
       // CDI
       const cd = I.cdi;
-      cd.card.setRotation(-(nv.source === 'VOR' ? nv.obs : nv.obs) * D2R);
+      const az = n.kind === 'VOR' || n.kind === 'TACAN';
+      cd.card.setRotation(-nv.obs * D2R);
       cd.navFlag.setVisible(n.flag);
       cd.gsFlag.setVisible(n.gsShow && n.gsFlag);
       cd.gsDots.setVisible(n.gsShow);
-      cd.toTxt.setVisible(nv.source === 'VOR');
+      cd.toTxt.setVisible(n.kind !== 'LOC');
       cd.toFrom.clear();
       if (n.toFrom) {
         cd.toFrom.fillStyle(WHITE, 1);
         const up = n.toFrom === 'TO';
         cd.toFrom.fillPoints(up ? [{ x: 42, y: 34 }, { x: 32, y: 50 }, { x: 52, y: 50 }] : [{ x: 42, y: 50 }, { x: 32, y: 34 }, { x: 52, y: 34 }], true);
         cd.toTxt.setText(n.toFrom);
-      } else cd.toTxt.setText(nv.source === 'VOR' ? 'OFF' : '');
+      } else cd.toTxt.setText(n.kind !== 'LOC' ? 'OFF' : '');
       const nd = cd.n; nd.clear();
       if (n.gsShow && !n.gsFlag) { const y = n.gsDots * 14; nd.fillStyle(WHITE, 1); nd.fillRect(-92, y - 2, 184, 4); }
       const x = n.dots * 14; nd.fillStyle(WHITE, 1); nd.fillRect(x - 2, -78, 4, 156);
+      // ADF needle: relative bearing, parked at 90° with no signal
+      const ad = I.adf, A = n.adf;
+      ad.n.clear(); needle(ad.n, A.valid ? A.rel : 90, R - 24, 9, A.valid ? 0xffd166 : 0x6a7684, 40);
+      ad.id.setText(nv.khz ? `${nv.khz} kHz\n${A.valid ? A.id : 'NO SIG'}` : 'OFF');
       // readout
-      const ro = I.ro, R_ = FI.RWY, V = FI.VOR;
-      const vor = nv.source === 'VOR';
-      ro.src.setText(vor ? `VOR ${V.id} ${V.freq}` : `ILS 27 I${R_.id} ${R_.freq}`);
-      ro.crs.setText(vor ? `OBS ${FI.pad3(nv.obs)}°` : `LOC ${FI.pad3(R_.course)}°`);
-      ro.rad.setText(`${FI.pad3(n.radial)}° from ${V.id}`);
-      ro.dme.setText(`${n.dme.toFixed(1)} nm`);
-      ro.flag.setText(vor ? (n.flag ? (n.cone ? 'OFF, over station' : 'OFF, no signal') : n.toFrom) : (n.flag ? 'NAV OFF' : (n.front ? 'LOC' : 'BACK CRS') + (n.gsFlag ? ', GS OFF' : ', GS')));
-      ro.flag.setColor(n.flag || (!vor && n.gsFlag) ? '#ffb547' : '#e6edf3');
-      ro.hdg.setText(`${FI.pad3(s.hdg)}° / ${FI.pad3(nv.bug)}°`);
-      ro.trk.setText(`${FI.pad3(s.trk)}°`);
-      ro.gs.setText(`${Math.round(s.gs)} kt`);
-      ro.wind.setText(FI.wind.kt > 0 ? `${FI.pad3(FI.wind.dir)}° / ${Math.round(FI.wind.kt)} kt` : 'calm');
-      const wca = FI.norm180(s.trk - s.hdg);
-      ro.wca.setText(Math.abs(wca) < 0.5 ? 'none' : `${Math.abs(Math.round(wca))}° ${wca < 0 ? 'right' : 'left'}`);
+      const ro = I.ro, nm = v => v == null ? '---' : `${v.toFixed(1)} nm`;
+      const tcnSt = n.src === 'TCN' ? n.ident : null;
+      ro.nav.setText(`${FI.fmtMhz(nv.mhz)} ${n.src === 'NAV' ? (n.ident || '---') : ''}`).setColor(n.src === 'NAV' ? '#26e05a' : '#e6edf3');
+      ro.tcn.setText(`${nv.chan || '---'} ${tcnSt || ''}`).setColor(n.src === 'TCN' ? '#26e05a' : '#e6edf3');
+      ro.crs.setText(n.kind === 'LOC' ? `LOC ${FI.pad3(n.course)}°` : `OBS ${FI.pad3(nv.obs)}°`);
+      ro.rad.setText(n.radial != null && az ? `${FI.pad3(n.radial)}° FR ${n.ident}` : '---');
+      ro.dme.setText(n.dmeValid ? `${nm(n.dme)} ${n.dmeId}` : 'no DME');
+      let fl;
+      if (!n.station) fl = 'no station';
+      else if (az) fl = n.flag ? (n.cone ? 'OFF, over stn' : 'OFF, no signal') : n.toFrom;
+      else if (n.kind === 'LOC') fl = n.flag ? 'NAV OFF' : (n.front ? 'LOC' : 'BACK CRS') + (n.loc.hasGs ? (n.gsFlag ? ', GS OFF' : ', GS') : ', no GS');
+      else fl = 'DME only';
+      ro.flag.setText(fl);
+      ro.flag.setColor(n.flag || (n.kind === 'LOC' && n.gsFlag) ? '#ffb547' : '#e6edf3');
+      ro.adf.setText(A.valid ? `${A.id} ${FI.pad3(A.brgM)}° TO` : nv.khz ? `${nv.khz} no sig` : 'off');
+      ro.hdg.setText(`${FI.pad3(hdgM)}° / ${FI.pad3(nv.bug)}°`);
+      ro.trk.setText(`${FI.pad3(FI.toMag(s.trk))}° ${Math.round(s.gs)} kt`);
+      ro.wind.setText(FI.wind.kt > 0 ? `${FI.pad3(FI.wind.dir)}°T ${Math.round(FI.wind.kt)} kt` : 'calm');
     }
   }
 
