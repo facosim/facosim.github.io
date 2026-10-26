@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script src="../js/theme.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E6B Flight Computer</title>
+<meta property="og:site_name" content="FACO">
+<meta property="og:title" content="E6B Flight Computer — FACO">
+<meta property="og:url" content="https://facosim.com/brief/e6b.html">
+<meta property="og:type" content="website">
+<meta property="og:description" content="An easy E6B for student pilots: wind correction, true airspeed, density altitude, time-speed-distance, fuel, crosswind, climb and descent, unit and coordinate conversion.">
+<meta property="og:image" content="https://facosim.com/img/icon_e6b.jpg">
+<meta property="og:image:width" content="1500">
+<meta property="og:image:height" content="1500">
+<meta name="twitter:card" content="summary">
+<link rel="icon" type="image/png" href="../img/favicon.png">
+<style>
+  :root {
+    --bg: #0a0e13; --bar: #111821; --panel: #121a24; --line: #233244; --text: #c9d4df;
+    --dim: #7d8a96; --accent: #4da3ff; --warn: #ffb547; --on: #1d3a5a;
+    --out: #26e05a; --field: #0d141c; --head: #8fb3d1; --bad: #ff6b6b;
+    --strong: #e6edf3; --on-text: #e6f1ff; --on-dim: #a9c4de; --out-dim: #7fcf95;
+    --btn: #18222e; --btn-hover: #1c2938; --line-hover: #3a5470; --nav-hover: #151f2b;
+    --unit: #101820; --placeholder: #4a5866; --faint: #5d6b78; --rwy: #2a333d; --rwy-edge: #4a5866;
+    color-scheme: dark;
+  }
+  /* Light mode (js/theme.js sets data-theme on <html>) */
+  html[data-theme="light"] {
+    --bg: #f3f5f8; --bar: #ffffff; --panel: #ffffff; --line: #d3dbe4; --text: #27313b;
+    --dim: #5f6b77; --accent: #1a73d1; --warn: #b86a00; --on: #dcebfb;
+    --out: #13853a; --field: #f7f9fb; --head: #2f5f8a; --bad: #d23b3b;
+    --strong: #10171e; --on-text: #0d3c6b; --on-dim: #3f6487; --out-dim: #3c8f57;
+    --btn: #f1f4f7; --btn-hover: #e6ecf2; --line-hover: #9fb3c8; --nav-hover: #e9eef4;
+    --unit: #eef2f6; --placeholder: #9aa5b0; --faint: #7c8792; --rwy: #c9ced4; --rwy-edge: #9aa3ad;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--bg); }
+  body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text);
+    font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  .mono, input, .val { font-family: Menlo, Consolas, monospace; }
+
+  /* Title bar, as on the other training tools */
+  #bar { position: sticky; top: 0; min-height: 48px; display: flex; align-items: center; gap: 8px; padding: 6px 10px;
+    background: var(--bar); border-bottom: 1px solid var(--line); z-index: 10; white-space: nowrap; }
+  #bar h1 { font: 600 13px Menlo, Consolas, monospace; letter-spacing: .08em; color: var(--head); margin: 0 6px 0 0; }
+  #btn-home { display: inline-flex; align-items: center; height: 30px; padding: 0 10px; border: 1px solid var(--line);
+    border-radius: 6px; background: var(--btn); color: var(--text); text-decoration: none; font-size: 13px; }
+  #btn-home:hover { border-color: var(--line-hover); background: var(--btn-hover); }
+  #bar .hint { color: var(--dim); font-size: 12px; margin-left: auto; overflow: hidden; text-overflow: ellipsis; }
+  /* Light/dark switch (added by js/theme.js) */
+  #theme-spot { display: flex; margin-left: 4px; }
+  #bar .theme-toggle { width: 30px; height: 30px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+  .theme-toggle svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+  .theme-toggle .theme-icon-moon, .theme-toggle .theme-icon-sun circle { fill: currentColor; stroke: none; }
+  .theme-toggle .theme-icon-sun, html[data-theme="dark"] .theme-toggle .theme-icon-moon { display: none; }
+  html[data-theme="dark"] .theme-toggle .theme-icon-sun { display: block; }
+
+  /* Tool list on the left, the open tool on the right */
+  #wrap { display: grid; grid-template-columns: 230px minmax(0, 1fr); max-width: 1180px; margin: 0 auto; }
+  #nav { position: sticky; top: 48px; align-self: start; padding: 14px 10px 14px 14px; max-height: calc(100vh - 48px); overflow-y: auto; }
+  #nav .grp { color: var(--dim); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; margin: 12px 8px 4px; }
+  #nav .grp:first-child { margin-top: 0; }
+  #nav a { display: block; padding: 7px 10px; border-radius: 7px; color: var(--text); text-decoration: none; border: 1px solid transparent; }
+  #nav a small { display: block; color: var(--dim); font-size: 11.5px; line-height: 1.3; }
+  #nav a:hover { background: var(--nav-hover); }
+  #nav a.on { background: var(--on); border-color: var(--accent); color: var(--on-text); }
+  #nav a.on small { color: var(--on-dim); }
+  main { padding: 18px 18px 40px; min-width: 0; }
+
+  .tool { display: none; }
+  .tool.on { display: block; }
+  .tool > h2 { margin: 0 0 2px; font-size: 20px; color: var(--strong); font-weight: 600; }
+  .lead { margin: 0 0 14px; color: var(--dim); }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-bottom: 14px; }
+  .card > h3 { margin: 0 0 12px; font-size: 12px; color: var(--head); text-transform: uppercase; letter-spacing: .06em; }
+  .io { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 18px; }
+
+  /* Inputs */
+  .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; align-content: start; }
+  .fields .wide { grid-column: 1 / -1; }
+  .f { min-width: 0; }
+  .f > span { display: block; color: var(--dim); font-size: 12px; margin-bottom: 3px; }
+  .in { display: flex; align-items: stretch; height: 38px; background: var(--field); border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
+  .in:focus-within { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(77,163,255,.18); }
+  .in input { flex: 1 1 auto; width: 100%; min-width: 0; border: 0; background: transparent; color: var(--strong); font-size: 16px; padding: 0 10px; outline: none; }
+  .in input::placeholder { color: var(--placeholder); }
+  .in i { display: flex; align-items: center; padding: 0 10px; color: var(--dim); font-style: normal; font-size: 12.5px; border-left: 1px solid var(--line); background: var(--unit); }
+  .in select { border: 0; border-left: 1px solid var(--line); border-radius: 0; height: auto; background: var(--unit); color: var(--text); padding: 0 6px; font-size: 13px; }
+  .in.bad { border-color: var(--bad); }
+  select, button { font: inherit; color: var(--text); background: var(--btn); border: 1px solid var(--line); border-radius: 6px; height: 32px; padding: 0 9px; cursor: pointer; }
+  select:hover, button:hover { border-color: var(--line-hover); background: var(--btn-hover); }
+  .seg { display: inline-flex; margin-bottom: 12px; flex-wrap: wrap; }
+  .seg button { border-radius: 0; margin-left: -1px; height: 32px; }
+  .seg button:first-child { border-radius: 7px 0 0 7px; margin-left: 0; }
+  .seg button:last-child { border-radius: 0 7px 7px 0; }
+  .seg button.on { background: var(--on); border-color: var(--accent); color: var(--on-text); position: relative; }
+  .segrow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .segrow > span { color: var(--dim); font-size: 12px; margin-bottom: 12px; }
+  .hidden { display: none !important; }
+
+  /* Results */
+  .res { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-content: start; }
+  .r { background: var(--field); border: 1px solid var(--line); border-radius: 9px; padding: 8px 11px; min-width: 0; }
+  .r > span { display: block; color: var(--dim); font-size: 11.5px; }
+  .r .val { display: block; color: var(--out); font-size: 20px; line-height: 1.3; overflow-wrap: anywhere; }
+  .r.big { grid-column: 1 / -1; }
+  .r.big .val { font-size: 28px; }
+  .r .val small { font-size: 13px; color: var(--out-dim); }
+  .r .sub { display: block; color: var(--dim); font-size: 11.5px; }
+  .msg { grid-column: 1 / -1; color: var(--warn); font-size: 13px; }
+  .msg:empty { display: none; }
+  .note { color: var(--dim); font-size: 12px; margin: 10px 0 0; }
+  svg.dia { display: block; width: 100%; max-width: 300px; height: auto; margin: 10px auto 0; }
+  svg.dia text { font: 11px Menlo, Consolas, monospace; }
+
+  /* How it works */
+  details.how { background: transparent; border: 1px solid var(--line); border-radius: 10px; padding: 0 14px; margin-bottom: 14px; }
+  details.how summary { cursor: pointer; padding: 10px 0; color: var(--head); font-weight: 600; font-size: 13px; }
+  details.how[open] { padding-bottom: 12px; }
+  details.how p, details.how li { color: var(--text); font-size: 13.5px; }
+  details.how ul, details.how ol { padding-left: 20px; margin: 6px 0; }
+  details.how code { font: 12.5px Menlo, Consolas, monospace; background: var(--field); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; color: var(--strong); }
+  .tip { border-left: 3px solid var(--accent); padding: 4px 0 4px 10px; color: var(--on-dim) !important; }
+
+  /* Coordinate output rows */
+  .rows { display: grid; gap: 8px; }
+  .row { display: grid; grid-template-columns: 130px minmax(0, 1fr) auto; align-items: center; gap: 10px; background: var(--field); border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px; }
+  .row > span { color: var(--dim); font-size: 12px; line-height: 1.25; }
+  .row > span small { display: block; font-size: 11px; color: var(--faint); }
+  .row .val { color: var(--out); font-size: 16px; overflow-wrap: anywhere; }
+  .row button { height: 30px; font-size: 12px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; }
+  .chips button { height: 28px; border-radius: 14px; font-size: 12px; padding: 0 10px; font-family: Menlo, Consolas, monospace; }
+  .chips > span { color: var(--dim); font-size: 12px; align-self: center; }
+  .conv { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+
+  @media (max-width: 860px) {
+    .io { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 760px) {
+    #wrap { grid-template-columns: 1fr; }
+    #bar .hint { display: none; }
+    #theme-spot { margin-left: auto; }
+    #nav { top: 48px; z-index: 9; max-height: none; display: flex; gap: 6px; overflow-x: auto; padding: 8px 10px; background: var(--bg);
+      border-bottom: 1px solid var(--line); scrollbar-width: none; }
+    #nav::-webkit-scrollbar { display: none; }
+    #nav .grp { display: none; }
+    #nav a { flex: none; padding: 6px 12px; border: 1px solid var(--line); border-radius: 16px; white-space: nowrap; }
+    #nav a small { display: none; }
+    main { padding: 14px 12px 40px; }
+    .row { grid-template-columns: minmax(0, 1fr) auto; }
+    .row > span { grid-column: 1 / -1; }
+  }
+  @media (max-width: 340px) {
+    .fields { grid-template-columns: 1fr; }
+    #bar h1 { font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div id="bar">
+  <a id="btn-home" href="../index.html" title="Back to the FACO website">← Back to FACO</a>
+  <h1>E6B FLIGHT COMPUTER</h1>
+  <span class="hint">Answers update as you type. Your last entries are kept on this device.</span>
+  <span id="theme-spot" data-theme-toggle></span>
+</div>
+
+<div id="wrap">
+<nav id="nav" aria-label="Calculators">
+  <div class="grp">Navigation</div>
+  <a href="#wind">Wind correction<small>Heading and groundspeed</small></a>
+  <a href="#findwind">Find the wind<small>From heading and groundspeed</small></a>
+  <a href="#tsd">Time, speed, distance<small>Solve for any one</small></a>
+  <a href="#fuel">Fuel<small>Needed, endurance, burn rate</small></a>
+  <a href="#climb">Climb &amp; descent<small>Rates and top of descent</small></a>
+  <div class="grp">Performance</div>
+  <a href="#tas">True airspeed<small>From CAS, altitude, temperature</small></a>
+  <a href="#alt">Density altitude<small>Pressure and density altitude</small></a>
+  <a href="#xwind">Crosswind<small>Runway wind components</small></a>
+  <div class="grp">Conversions</div>
+  <a href="#units">Units<small>Distance, speed, fuel, temp…</small></a>
+  <a href="#coords">Coordinates<small>Lat/long, MGRS, UTM</small></a>
+  <a href="#gc">Distance &amp; course<small>Between two points</small></a>
+</nav>
+
+<main>
+
+<!-- ================= Wind correction ================= -->
+<section class="tool" id="t-wind">
+  <h2>Wind correction</h2>
+  <p class="lead">The heading to fly to stay on your course, and how fast you will cover the ground.</p>
+  <div class="card io">
+    <div class="fields">
+      <label class="f"><span>True course</span><div class="in"><input id="w-tc" data-save inputmode="decimal" value="090"><i>°T</i></div></label>
+      <label class="f"><span>True airspeed</span><div class="in"><input id="w-tas" data-save inputmode="decimal" value="110"><i>kt</i></div></label>
+      <label class="f"><span>Wind from</span><div class="in"><input id="w-wd" data-save inputmode="decimal" value="030"><i>°T</i></div></label>
+      <label class="f"><span>Wind speed</span><div class="in"><input id="w-ws" data-save inputmode="decimal" value="20"><i>kt</i></div></label>
+      <label class="f"><span>Magnetic variation (optional)</span><div class="in"><input id="w-var" data-save inputmode="decimal" value="6"><select id="w-varh" data-save><option>W</option><option>E</option></select></div></label>
+      <label class="f"><span>Distance (optional)</span><div class="in"><input id="w-dist" data-save inputmode="decimal" placeholder="—"><i>nm</i></div></label>
+      <p class="note wide">Winds aloft forecasts give the wind in degrees true, so use your true course from the chart.</p>
+    </div>
+    <div>
+      <div class="res">
+        <div class="r big"><span>True heading</span><b class="val" id="w-th">—</b><span class="sub" id="w-wca"></span></div>
+        <div class="r"><span>Groundspeed</span><b class="val" id="w-gs">—</b></div>
+        <div class="r"><span>Magnetic heading</span><b class="val" id="w-mh">—</b></div>
+        <div class="r hidden" id="w-ete-box"><span>Time en route</span><b class="val" id="w-ete">—</b></div>
+        <div class="r"><span>Head / tailwind</span><b class="val" id="w-hw">—</b></div>
+        <div class="msg" id="w-msg"></div>
+      </div>
+      <svg class="dia" id="w-dia" viewBox="0 0 300 220" aria-label="Wind triangle diagram"></svg>
+    </div>
+  </div>
+  <details class="how">
+    <summary>How it works</summary>
+    <p>The wind pushes the airplane sideways, so you point the nose a little into the wind. That angle is the <b>wind correction angle (WCA)</b>.</p>
+    <ul>
+      <li><code>WCA = asin( wind speed × sin(wind direction − course) ÷ TAS )</code></li>
+      <li><code>True heading = true course + WCA</code> (wind from the right means a right correction)</li>
+      <li><code>Groundspeed = TAS × cos(WCA) − wind speed × cos(wind direction − course)</code></li>
+    </ul>
+    <p>Then apply variation to get the magnetic heading: <b>East is least, West is best</b> (subtract east variation, add west). Add compass deviation from the card in the airplane to get compass heading.</p>
+    <p class="tip">On a paper E6B: set the wind direction under the true index, mark the wind speed up from the grommet, turn the true course to the index, slide the TAS under the grommet, and read the WCA off the mark and the groundspeed under the grommet.</p>
+  </details>
+</section>
+
+<!-- ================= Find the wind ================= -->
+<section class="tool" id="t-findwind">
+  <h2>Find the wind</h2>
+  <p class="lead">Work out the actual wind in flight from what you are flying and what you are making good over the ground.</p>
+  <div class="card io">
+    <div class="fields">
+      <label class="f"><span>True course (track made good)</span><div class="in"><input id="fw-tc" data-save inputmode="decimal" value="090"><i>°T</i></div></label>
+      <label class="f"><span>Groundspeed</span><div class="in"><input id="fw-gs" data-save inputmode="decimal" value="98"><i>kt</i></div></label>
+      <label class="f"><span>True heading flown</span><div class="in"><input id="fw-th" data-save inputmode="decimal" value="080"><i>°T</i></div></label>
+      <label class="f"><span>True airspeed</span><div class="in"><input id="fw-tas" data-save inputmode="decimal" value="110"><i>kt</i></div></label>
+      <p class="note wide">Get groundspeed from GPS, or from two checkpoints with the Time, speed, distance tool. Convert the magnetic heading you are holding to true first (East is least, West is best, in reverse).</p>
+    </div>
+    <div class="res">
+      <div class="r big"><span>Wind</span><b class="val" id="fw-w">—</b></div>
+      <div class="r"><span>Wind correction angle</span><b class="val" id="fw-wca">—</b></div>
+      <div class="r"><span>Head / tailwind</span><b class="val" id="fw-hw">—</b></div>
+    </div>
+  </div>
+  <details class="how">
+    <summary>How it works</summary>
+    <p>The airplane moves through the air on its heading at TAS, and the air itself moves with the wind. What you see on the ground (course and groundspeed) is the two added together, so the wind is the difference between the ground vector and the air vector.</p>
+    <p class="tip">Use it to check the forecast winds: if the real wind is very different, your fuel and time estimates are too.</p>
+  </details>
+</section>
+
+<!-- ================= Time speed distance ================= -->
+<section class="tool" id="t-tsd">
+  <h2>Time, speed, distance</h2>
+  <p class="lead">Know any two and get the third.</p>
+  <div class="card">
+    <div class="segrow"><span>Find</span><div class="seg" id="tsd-mode" data-save-seg>
+      <button data-v="time" class="on">Time</button><button data-v="speed">Groundspeed</button><button data-v="dist">Distance</button></div></div>
+    <div class="io">
+      <div class="fields">
+        <label class="f" data-for="speed"><span>Groundspeed</span><div class="in"><input id="tsd-gs" data-save inputmode="decimal" value="120"><i>kt</i></div></label>
+        <label class="f" data-for="dist"><span>Distance</span><div class="in"><input id="tsd-d" data-save inputmode="decimal" value="45"><i>nm</i></div></label>
+        <label class="f" data-for="time"><span>Time</span><div class="in"><input id="tsd-t" data-save inputmode="text" value="0:25" placeholder="h:mm or min"><i>h:mm</i></div></label>
+        <p class="note wide">Type time as <b>h:mm</b> (1:15), <b>h:mm:ss</b>, or plain minutes (75).</p>
+      </div>
+      <div class="res">
+        <div class="r big"><span id="tsd-lbl">Time</span><b class="val" id="tsd-out">—</b><span class="sub" id="tsd-sub"></span></div>
+        <div class="r"><span>Miles per minute</span><b class="val" id="tsd-mpm">—</b></div>
+        <div class="r"><span>Minutes per 10 nm</span><b class="val" id="tsd-m10">—</b></div>
+        <div class="msg" id="tsd-msg"></div>
+      </div>
+    </div>
+  </div>
+  <details class="how">
+    <summary>How it works</summary>
+    <p><code>Distance = speed × time</code>, so <code>time = distance ÷ speed</code> and <code>speed = distance ÷ time</code>. Speed in knots is nautical miles per <b>hour</b>, so work with time in hours or divide by 60.</p>
+    <p class="tip">Quick mental math: at 120 kt you fly 2 nm a minute, at 90 kt 1.5 nm a minute, at 60 kt 1 nm a minute.</p>
+  </details>
+</section>
+
+<!-- ================= Fuel ================= -->
+<section class="tool" id="t-fuel">
+  <h2>Fuel</h2>
+  <p class="lead">How much fuel a leg takes, how long your fuel lasts, or what you actually burned.</p>
+  <div class="card">
+    <div class="segrow"><span>Find</span><div class="seg" id="fuel-mode" data-save-seg>
+      <button data-v="fuel" class="on">Fuel needed</button><button data-v="time">Endurance</button><button data-v="rate">Burn rate</button></div></div>
+    <div class="io">
+      <div class="fields">
+        <label class="f" data-for="rate"><span>Fuel burn</span><div class="in"><input id="fu-rate" data-save inputmode="decimal" value="8.5"><i class="fu-u">gal</i><i>/hr</i></div></label>
+        <label class="f" data-for="time"><span>Flight time</span><div class="in"><input id="fu-time" data-save inputmode="text" value="1:40" placeholder="h:mm or min"><i>h:mm</i></div></label>
+        <label class="f" data-for="fuel"><span>Fuel</span><div class="in"><input id="fu-fuel" data-save inputmode="decimal" value="40"><i class="fu-u">gal</i></div></label>
+        <label class="f"><span>Reserve</span><div class="in"><input id="fu-res" data-save inputmode="decimal" value="30"><i>min</i></div></label>
+        <label class="f"><span>Units</span><div class="in"><select id="fu-units" data-save style="flex:1;border-left:0"><option value="gal">US gallons</option><option value="L">Liters</option><option value="lb">Pounds</option><option value="kg">Kilograms</option></select></div></label>
+        <label class="f"><span>Fuel type</span><div class="in"><select id="fu-type" data-save style="flex:1;border-left:0"><option value="100LL">100LL avgas</option><option value="Jet A">Jet A</option></select></div></label>
+        <p class="note wide">VFR reserve (14 CFR 91.151): 30 minutes by day, 45 minutes at night. IFR (91.167): 45 minutes.</p>
+      </div>
+      <div class="res">
+        <div class="r big"><span id="fu-lbl">Fuel needed</span><b class="val" id="fu-out">—</b><span class="sub" id="fu-sub"></span></div>
+        <div class="r"><span id="fu-l2">Weight</span><b class="val" id="fu-o2">—</b></div>
+        <div class="r"><span id="fu-l3">Without reserve</span><b class="val" id="fu-o3">—</b></div>
+        <div class="msg" id="fu-msg"></div>
+      </div>
+    </div>
+  </div>
+  <details class="how">
+    <summary>How it works</summary>
+    <ul>
+      <li><code>Fuel = burn rate × time</code></li>
+      <li><code>Endurance = fuel ÷ burn rate</code></li>
+      <li><code>Burn rate = fuel used ÷ time</code></li>
+    </ul>
+    <p>Avgas weighs about <b>6 lb per US gallon</b> and Jet A about <b>6.7 lb</b>. You need the weight for weight and balance.</p>
+    <p class="tip">Plan with the reserve on top: fuel needed for the trip plus the reserve must be no more than your usable fuel.</p>
+  </details>
+</section>
+
+<!-- ================= Climb & descent ================= -->
+<section class="tool" id="t-climb">
+  <h2>Climb &amp; descent</h2>
+  <p class="lead">The vertical speed for a gradient or glidepath, and where to start down.</p>
+  <div class="card">
+    <h3>Rate for a gradient</h3>
+    <div class="io">
+      <div class="fields">
+        <label class="f"><span>Groundspeed</span><div class="in"><input id="cl-gs" data-save inputmode="decimal" value="90"><i>kt</i></div></label>
+        <label class="f"><span>Gradient</span><div class="in"><input id="cl-g" data-save inputmode="decimal" value="3"><select id="cl-gu" data-save><option value="deg">degrees</option><option value="ftnm">ft/nm</option><option value="pct">percent</option></select></div></label>
+        <p class="note wide">A normal approach glidepath is 3°. Departure procedures give climb gradients in ft/nm.</p>
+      </div>
+      <div class="res">
+        <div class="r big"><span>Vertical speed</span><b class="val" id="cl-fpm">—</b></div>
+        <div class="r"><span>Gradient</span><b class="val" id="cl-ftnm">—</b></div>
+        <div class="r"><span>Angle</span><b class="val" id="cl-deg">—</b></div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Top of descent</h3>
+    <div class="io">
+      <div class="fields">
+        <label class="f"><span>Cruise altitude</span><div class="in"><input id="td-a1" data-save inputmode="decimal" value="6500"><i>ft</i></div></label>
+        <label class="f"><span>Target altitude</span><div class="in"><input id="td-a2" data-save inputmode="decimal" value="1000"><i>ft</i></div></label>
+        <label class="f"><span>Groundspeed in descent</span><div class="in"><input id="td-gs" data-save inputmode="decimal" value="120"><i>kt</i></div></label>
+        <label class="f"><span>Descent rate</span><div class="in"><input id="td-fpm" data-save inputmode="decimal" value="500"><i>fpm</i></div></label>
+        <p class="note wide">Target altitude is often pattern altitude (about 1,000 ft above the field) or the altitude to cross a fix.</p>
+      </div>
+      <div class="res">
+        <div class="r big"><span>Start down this far out</span><b class="val" id="td-d">—</b></div>
+        <div class="r"><span>Time to descend</span><b class="val" id="td-t">—</b></div>
+        <div class="r"><span>Gradient</span><b class="val" id="td-g">—</b></div>
+      </div>
+    </div>
+  </div>
+  <details class="how">
+    <summary>How it works</summary>
+    <ul>
+      <li><code>Vertical speed (fpm) = groundspeed × gradient (ft/nm) ÷ 60</code></li>
+      <li>One degree is about 106 ft per nm, so a 3° path is about 318 ft/nm.</li>
+      <li><code>Descent time = altitude to lose ÷ descent rate</code>, and <code>distance = groundspeed × time</code>.</li>
+    </ul>
+    <p class="tip">Rules of thumb: on a 3° glidepath, descent rate ≈ groundspeed × 5 (90 kt → about 450 fpm). For a 3° descent, start down about 3 nm for every 1,000 ft to lose.</p>
+  </details>
+</section>
+
+<!-- ================= True airspeed ================= -->
+<section class="tool" id="t-tas">
+  <h2>True airspeed</h2>
+  <p class="lead">How fast you are really moving through the air, which is faster than the airspeed indicator shows as you climb.</p>
+  <div class="card io">
+    <div class="fields">
+      <label class="f"><span>Calibrated airspeed</span><div class="in"><input id="ta-cas" data-save inputmode="decimal" value="105"><i>kt</i></div></label>
+      <label class="f"><span>Pressure altitude</span><div class="in"><input id="ta-pa" data-save inputmode="decimal" value="6500"><i>ft</i></div></label>
+      <label class="f"><span>Outside air temperature</span><div class="in"><input id="ta-oat" data-save inputmode="decimal" value="5"><select id="ta-ou" data-save><option value="C">°C</option><option value="F">°F</option></select></div></label>
+      <p class="note wide">Pressure altitude is what the altimeter reads set to 29.92 (see Density altitude). Calibrated airspeed is indicated airspeed corrected with the table in the POH.</p>
+    </div>
+    <div class="res">
+      <div class="r big"><span>True airspeed</span><b class="val" id="ta-tas">—</b><span class="sub" id="ta-sub"></span></div>
+      <div class="r"><span>Density altitude</span><b class="val" id="ta-da">—</b></div>
+      <div class="r"><span>Mach</span><b class="val" id="ta-m">—</b></div>
+      <div class="r"><span>Standard temperature</span><b class="val" id="ta-isa">—</b></div>
+      <div class="r"><span>Rule of thumb</span><b class="val" id="ta-rot">—</b></div>
+    </div>
+  </div>
+  <details class="how">
+    <summary>How it works</summary>
+    <p>The airspeed indicator measures air pressure ramming into the pitot tube. Higher up, the air is thinner, so the same indicated airspeed means you are moving faster. True airspeed corrects for the air's density (from pressure altitude and temperature), and for compressibility at higher speeds.</p>
+    <p class="tip">Rule of thumb: TAS is about 2% higher than CAS for every 1,000 ft of altitude. On a paper E6B, set the temperature over the pressure altitude in the airspeed window, then read TAS on the outer scale over CAS on the inner scale.</p>
+  </details>
+</section>
+
+<!-- ================= Density altitude ================= -->
+<section class="tool" id="t-alt">
+  <h2>Density altitude</h2>
+  <p class="lead">The altitude the airplane "feels". Hot, high and low-pressure days make it climb and take off like it is much higher.</p>
+  <div class="card io">
+    <div class="fields">
+      <label class="f"><span>Field elevation or indicated altitude</span><div class="in"><input id="da-el" data-save inputmode="decimal" value="5000"><i>ft</i></div></label>
+      <label class="f"><span>Altimeter setting</span><div class="in"><input id="da-alt" data-save inputmode="decimal" value="29.92"><select id="da-au" data-save><option value="inHg">inHg</option><option value="hPa">hPa</option></select></div></label>
+      <label class="f"><span>Outside air temperature</span><div class="in"><input id="da-oat" data-save inputmode="decimal" value="30"><select id="da-ou" data-save><option value="C">°C</option><option value="F">°F</option></select></div></label>
+      <p class="note wide">Use the altimeter setting and temperature from the ATIS, AWOS or METAR.</p>
+    </div>
+    <div class="res">
+      <div class="r big"><span>Density altitude</span><b class="val" id="da-da">—</b><span class="sub" id="da-sub"></span></div>
+      <div class="r"><span>Pressure altitude</span><b class="val" id="da-pa">—</b></div>
+      <div class="r"><span>Standard temperature</span><b class="val" id="da-isa">—</b></div>
+      <div class="r"><span>Difference from standard</span><b class="val" id="da-dev">—</b></div>
+      <div class="r"><span>Rule of thumb</span><b class="val" id="da-rot">—</b></div>
+      <div class="msg" id="da-msg"></div>
+    </div>
+  </div>
+  <details class="how">
+    <summary>How it works</summary>
+    <ol>
+      <li><b>Pressure altitude</b> corrects for non-standard pressure: <code>PA ≈ elevation + (29.92 − altimeter) × 1,000</code>.</li>
+      <li><b>Standard temperature</b> is 15 °C at sea level, dropping about 2 °C per 1,000 ft.</li>
+      <li><b>Density altitude</b> then corrects for temperature: <code>DA ≈ PA + 120 × (OAT − standard temp)</code>.</li>
+    </ol>
+    <p>The big answer uses the exact standard-atmosphere formulas; the rule of thumb is shown so you can check your own math.</p>
+    <p class="tip">Use density altitude with the takeoff, climb and landing charts in your POH. High density altitude means longer takeoff rolls and weaker climbs.</p>
+  </details>
+</section>
+
+<!-- ================= Crosswind ================= -->
+<section class="tool" id="t-xwind">
+  <h2>Crosswind</h2>
+  <p class="lead">How much of the wind is across the runway and how much is down it.</p>
+  <div class="card io">
+    <div class="fields">
+      <label class="f"><span>Runway</span><div class="in"><input id="xw-rwy" data-save inputmode="text" value="25" placeholder="e.g. 25 or 07L"></div></label>
+      <label class="f"><span>Wind from</span><div class="in"><input id="xw-wd" data-save inputmode="decimal" value="210"><i>°</i></div></label>
+      <label class="f"><span>Wind speed</span><div class="in"><input id="xw-ws" data-save inputmode="decimal" value="15"><i>kt</i></div></label>
+      <label class="f"><span>Gusts (optional)</span><div class="in"><input id="xw-g" data-save inputmode="decimal" placeholder="—"><i>kt</i></div></label>
+      <label class="f wide"><span>Your crosswind limit (optional, e.g. max demonstrated)</span><div class="in"><input id="xw-max" data-save inputmode="decimal" value="15"><i>kt</i></div></label>
+      <p class="note wide">Tower and ATIS winds are magnetic, like runway numbers. METAR and TAF winds are true; near large variation, convert first.</p>
+    </div>
+    <div>
+      <div class="res">
+        <div class="r big"><span>Crosswind</span><b class="val" id="xw-x">—</b><span class="sub" id="xw-xs"></span></div>
+        <div class="r big"><span id="xw-hl">Headwind</span><b class="val" id="xw-h">—</b><span class="sub" id="xw-hs"></span></div>
+        <div class="msg" id="xw-msg"></div>
+      </div>
+      <svg class="dia" id="xw-dia" viewBox="0 0 300 220" aria-label="Runway wind diagram"></svg>
+    </div>
+  </div>
+  <details class="how">
+    <summary>How it works</summary>
+    <ul>
+      <li><code>Crosswind = wind speed × sin(angle between wind and runway)</code></li>
+      <li><code>Headwind = wind speed × cos(angle)</code> (negative means a tailwind)</li>
+    </ul>
+    <p class="tip">Clock rule: 15° off the runway ≈ ¼ of the wind is crosswind, 30° ≈ ½, 45° ≈ ¾, 60° or more ≈ all of it.</p>
+  </details>
+</section>
+
+<!-- ================= Units ================= -->
+<section class="tool" id="t-units">
+  <h2>Unit conversion</h2>
+  <p class="lead">Type a value and see it in every unit.</p>
+  <div class="card">
+    <div class="segrow"><div class="seg" id="un-cat" data-save-seg>
+      <button data-v="distance" class="on">Distance</button><button data-v="speed">Speed</button><button data-v="temp">Temperature</button><button data-v="volume">Volume</button><button data-v="weight">Weight</button><button data-v="pressure">Pressure</button><button data-v="fuel">Fuel weight</button></div></div>
+    <div class="fields" style="max-width:520px">
+      <label class="f"><span>Value</span><div class="in"><input id="un-v" data-save inputmode="decimal" value="100"><select id="un-from"></select></div></label>
+      <label class="f hidden" id="un-ft-box"><span>Fuel type</span><div class="in"><select id="un-ft" data-save style="flex:1;border-left:0"></select></div></label>
+    </div>
+    <div class="conv" id="un-out" style="margin-top:14px"></div>
+  </div>
+  <details class="how">
+    <summary>Handy numbers</summary>
+    <ul>
+      <li>1 nautical mile = 1.15 statute miles = 1.852 km = 6,076 ft (one minute of latitude)</li>
+      <li>1 knot = 1.15 mph = 1.852 km/h</li>
+      <li>°F = °C × 9/5 + 32</li>
+      <li>1 US gallon = 3.785 liters; avgas ≈ 6 lb/gal, Jet A ≈ 6.7 lb/gal</li>
+      <li>29.92 inHg = 1013.25 hPa (mb), standard sea-level pressure</li>
+      <li>1 kg = 2.205 lb; 1 m = 3.281 ft</li>
+    </ul>
+  </details>
+</section>
+
+<!-- ================= Coordinates ================= -->
+<section class="tool" id="t-coords">
+  <h2>Coordinates</h2>
+  <p class="lead">Paste a position in any format and get it in all the others.</p>
+  <div class="card">
+    <label class="f"><span>Position</span><div class="in" id="co-in-box"><input id="co-in" data-save inputmode="text" spellcheck="false" autocomplete="off" value="N29° 10.794' W081° 03.486'"></div></label>
+    <div class="chips"><span>Examples:</span>
+      <button data-ex="29.1799, -81.0581">29.1799, -81.0581</button>
+      <button data-ex="N29° 10.794' W081° 03.486'">N29° 10.794' W081° 03.486'</button>
+      <button data-ex="29 10 47.6N 81 03 29.2W">29 10 47.6N 81 03 29.2W</button>
+      <button data-ex="17R MN 94350 27918">17R MN 94350 27918</button>
+    </div>
+    <p class="note" id="co-msg"></p>
+    <div class="rows" id="co-out" style="margin-top:10px"></div>
+  </div>
+  <details class="how">
+    <summary>About the formats</summary>
+    <ul>
+      <li><b>Decimal degrees</b> (29.1799, -81.0581): latitude first; south and west are negative.</li>
+      <li><b>Degrees, decimal minutes</b> (N29° 10.794'): what Garmin units, ForeFlight and FAA charts use. 1 minute of latitude = 1 nm.</li>
+      <li><b>Degrees, minutes, seconds</b> (N29° 10' 47.6"): used in the Chart Supplement and many official documents.</li>
+      <li><b>MGRS</b> (17R MN 94350 27918): the military grid. Zone and band, a 100 km square, then easting and northing. 10 digits locate a 1 m square, 8 digits 10 m, 6 digits 100 m.</li>
+      <li><b>UTM</b>: the metric grid MGRS is built on, as zone, easting and northing in meters.</li>
+    </ul>
+    <p>All conversions use the WGS 84 datum, the same as GPS. MGRS and UTM do not cover the polar areas (north of 84° N or south of 80° S).</p>
+    <p class="tip">You can also paste compact forms like <code>2910.79N08103.49W</code> or <code>291048N0810329W</code>.</p>
+  </details>
+</section>
+
+<!-- ================= Great circle ================= -->
+<section class="tool" id="t-gc">
+  <h2>Distance &amp; course</h2>
+  <p class="lead">The straight-line distance and true course between two positions, in any format the Coordinates tool takes.</p>
+  <div class="card io">
+    <div class="fields">
+      <label class="f wide"><span>From</span><div class="in" id="gc-a-box"><input id="gc-a" data-save inputmode="text" spellcheck="false" autocomplete="off" value="29.1799, -81.0581"></div></label>
+      <label class="f wide"><span>To</span><div class="in" id="gc-b-box"><input id="gc-b" data-save inputmode="text" spellcheck="false" autocomplete="off" value="28.4294, -81.3090"></div></label>
+      <label class="f"><span>Magnetic variation (optional)</span><div class="in"><input id="gc-var" data-save inputmode="decimal" value="6"><select id="gc-varh" data-save><option>W</option><option>E</option></select></div></label>
+      <label class="f"><span>Groundspeed (optional)</span><div class="in"><input id="gc-gs" data-save inputmode="decimal" placeholder="—"><i>kt</i></div></label>
+      <p class="note wide">The example is Daytona Beach (KDAB) to Orlando International (KMCO).</p>
+    </div>
+    <div class="res">
+      <div class="r big"><span>Distance</span><b class="val" id="gc-nm">—</b><span class="sub" id="gc-other"></span></div>
+      <div class="r"><span>True course</span><b class="val" id="gc-tc">—</b></div>
+      <div class="r"><span>Magnetic course</span><b class="val" id="gc-mc">—</b></div>
+      <div class="r"><span>Reciprocal (true)</span><b class="val" id="gc-rc">—</b></div>
+      <div class="r hidden" id="gc-ete-box"><span>Time en route</span><b class="val" id="gc-ete">—</b></div>
+      <div class="msg" id="gc-msg"></div>
+    </div>
+  </div>
+  <details class="how">
+    <summary>How it works</summary>
+    <p>This is the great-circle (shortest) distance over the earth's surface, and the true course at the start point. On long legs the course changes along a great circle, but for typical training flights it is essentially the straight line on your sectional chart.</p>
+  </details>
+</section>
+
+</main>
+</div>
+
+<script src="e6b/calc.js"></script>
+<script src="e6b/ui.js"></script>
+</body>
+</html>

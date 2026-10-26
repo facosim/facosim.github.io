@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="en" data-theme-no-button>
+<head>
+<meta charset="utf-8">
+<script src="../js/theme.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flight Instruments</title>
+<meta property="og:site_name" content="FACO">
+<meta property="og:title" content="Flight Instruments — FACO">
+<meta property="og:url" content="https://facosim.com/brief/instruments.html">
+<meta property="og:type" content="website">
+<meta property="og:description" content="Fly real US VORs, TACANs, NDBs and ILS approaches on a top-down map and watch what the six-pack or a G1000-style glass cockpit shows.">
+<meta property="og:image" content="https://facosim.com/img/icon_instruments.jpg">
+<meta property="og:image:width" content="1500">
+<meta property="og:image:height" content="1500">
+<meta name="twitter:card" content="summary">
+<link rel="icon" type="image/png" href="../img/favicon.png">
+<style>
+  :root {
+    --bg: #0a0e13; --bar: #111821; --panel: #121a24; --line: #233244; --text: #c9d4df; --dim: #7d8a96;
+    --accent: #4da3ff; --warn: #ffb547; --on: #1d3a5a; --head: #8fb3d1; --line-hover: #3a5470; --on-text: #e6f1ff;
+    --field: #0d141c; --btn: #18222e; --btn-hover: #1c2938; --strong: #e6edf3; --track: #2a3c50; --out: #26e05a;
+    --hit: #2a5a8c; --primary: #1f4f80; --tip-bg: rgba(13,20,28,.96); --float-bg: rgba(18,26,36,.94);
+    --float-bg2: rgba(18,26,36,.96); --hub-bg: rgba(10,14,19,.8);
+    color-scheme: dark;
+  }
+  /* Light mode: set in Settings, shared with the rest of the site (js/theme.js) */
+  html[data-theme="light"] {
+    --bg: #eef1f5; --bar: #ffffff; --panel: #ffffff; --line: #cfd8e2; --text: #27313b; --dim: #5f6b77;
+    --accent: #1a73d1; --warn: #b86a00; --on: #dcebfb; --head: #2f5f8a; --line-hover: #9fb3c8; --on-text: #0d3c6b;
+    --field: #f7f9fb; --btn: #f1f4f7; --btn-hover: #e3eaf1; --strong: #10171e; --track: #c3cfdb; --out: #13853a;
+    --hit: #b9d6f5; --primary: #cfe3fa; --tip-bg: rgba(255,255,255,.97); --float-bg: rgba(255,255,255,.95);
+    --float-bg2: rgba(255,255,255,.97); --hub-bg: rgba(244,246,249,.9);
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 13px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow: hidden; }
+  .mono { font-family: Menlo, Consolas, monospace; }
+
+  /* Layout: title bar on top, the canvas (map and panel) in the middle, the
+     control strip and status bar at the bottom. */
+  #bar { position: fixed; top: 0; left: 0; right: 0; min-height: 48px; display: flex; align-items: center; gap: 4px; flex-wrap: wrap; row-gap: 5px; padding: 6px 10px;
+    background: var(--bar); border-bottom: 1px solid var(--line); z-index: 10; white-space: nowrap; }
+  #bar h1 { font: 600 13px Menlo, Consolas, monospace; letter-spacing: .08em; color: var(--head); margin: 0 6px 0 0; }
+  #btn-home { display: inline-flex; align-items: center; height: 30px; padding: 0 10px; margin-right: 6px; border: 1px solid var(--line);
+    border-radius: 6px; background: var(--btn); color: var(--text); text-decoration: none; }
+  #btn-home:hover { border-color: var(--line-hover); background: var(--btn-hover); }
+  #bar > * { flex: none; }
+  .spacer { flex: 1 1 auto; }
+  .grp { display: flex; align-items: center; gap: 4px; }
+  .sep { width: 1px; height: 26px; background: var(--line); margin: 0 4px; }
+  button, select { font: inherit; color: var(--text); background: var(--btn); border: 1px solid var(--line);
+    border-radius: 6px; height: 30px; padding: 0 8px; cursor: pointer; }
+  button:hover:not(:disabled), select:hover { border-color: var(--line-hover); background: var(--btn-hover); }
+  button.on { background: var(--on); border-color: var(--accent); color: var(--on-text); }
+  button.icon { width: 34px; padding: 0; font-size: 15px; }
+  #scn { max-width: 300px; }
+  #btn-play { min-width: 86px; }
+  .seg { display: inline-flex; }
+  .seg button { height: 30px; padding: 0 10px; border-radius: 0; margin-left: -1px; }
+  .seg button:first-child { border-radius: 6px 0 0 6px; margin-left: 0; }
+  .seg button:last-child { border-radius: 0 6px 6px 0; }
+
+  #game { position: fixed; top: 48px; left: 0; right: 0; bottom: 84px; }
+  #game canvas { display: block; touch-action: none; }
+
+  /* Control strip: stick and power on the left, bugs and autopilot on the right */
+  #ctl { position: fixed; left: 0; right: 0; bottom: 28px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; row-gap: 6px; padding: 6px 10px;
+    background: var(--bar); border-top: 1px solid var(--line); z-index: 10; white-space: nowrap; }
+  #ctl > * { flex: none; }
+  .ctl-h { color: var(--head); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; margin-right: 2px; }
+  .sl { display: flex; align-items: center; gap: 6px; }
+  .sl label { color: var(--dim); width: 44px; text-align: right; }
+  .sl input[type=range] { width: 120px; accent-color: var(--accent); }
+  .sl .v { font-family: Menlo, Consolas, monospace; font-size: 12px; min-width: 52px; }
+  .bug { display: flex; align-items: center; gap: 2px; }
+  .bug .v { font-family: Menlo, Consolas, monospace; font-size: 12.5px; min-width: 42px; text-align: center; }
+  .bug button.icon { width: 30px; }
+  .ap { font-weight: 600; letter-spacing: .04em; min-width: 50px; }
+  .freq { width: 62px; height: 30px; background: var(--field); color: var(--out); border: 1px solid var(--line); border-radius: 6px; padding: 0 6px;
+    font: 12.5px Menlo, Consolas, monospace; text-align: center; }
+  .freq:focus { outline: none; border-color: var(--accent); }
+  .radio { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+  .radio small { font-size: 9.5px; color: var(--dim); letter-spacing: .05em; line-height: 1; }
+  #r-tune { max-width: 150px; }
+  #apt { width: 64px; height: 30px; background: var(--field); color: var(--strong); border: 1px solid var(--line); border-radius: 6px; padding: 0 6px;
+    font: 600 12.5px Menlo, Consolas, monospace; text-transform: uppercase; text-align: center; }
+  #apt:focus { outline: none; border-color: var(--accent); }
+  #app { max-width: 170px; }
+
+  #status { position: fixed; left: 0; right: 0; bottom: 0; height: 28px; display: flex; align-items: center; gap: 16px;
+    padding: 0 12px; background: var(--bar); border-top: 1px solid var(--line); color: var(--dim); font-size: 12px; z-index: 10; white-space: nowrap; }
+  #st-mode { color: var(--strong); flex: none; max-width: 48%; overflow: hidden; text-overflow: ellipsis; }
+  #st-data { font-family: Menlo, Consolas, monospace; font-size: 11.5px; flex: none; }
+  #st-brief { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; text-align: right; }
+  #scale { display: flex; align-items: center; gap: 6px; flex: none; }
+  #scale-bar { height: 6px; border: 1px solid var(--head); border-top: 0; }
+
+  /* Steering tooltip and the quick menu around the aircraft */
+  #tip { position: fixed; display: none; z-index: 15; pointer-events: none; background: var(--tip-bg); border: 1px solid var(--line-hover);
+    border-radius: 6px; padding: 6px 9px; font-size: 12px; line-height: 1.45; max-width: 320px; }
+  #tip b { color: var(--on-text); font-weight: 600; }
+  #tip .dim { color: var(--dim); font-size: 11px; }
+  #quick { position: fixed; display: none; z-index: 16; width: 260px; user-select: none; -webkit-user-select: none; }
+  #quick.open { display: block; animation: q-in .12s ease-out; }
+  @keyframes q-in { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: none; } }
+  #quick svg { display: block; filter: drop-shadow(0 4px 14px rgba(0,0,0,.55)); }
+  #quick .wedge { cursor: pointer; outline: none; }
+  #quick .wedge path { fill: var(--float-bg); stroke: var(--line-hover); stroke-width: 1; transition: fill .08s; }
+  #quick .wedge:hover path, #quick .wedge:focus-visible path { fill: var(--on); stroke: var(--accent); }
+  #quick .wedge.hit path { fill: var(--hit); }
+  #quick text { fill: var(--text); font: 600 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; text-anchor: middle; pointer-events: none; }
+  #quick text.v { fill: var(--head); font: 11px Menlo, Consolas, monospace; }
+  #quick .hub { fill: var(--hub-bg); stroke: var(--line-hover); }
+  #quick text.ro { fill: var(--dim); font: 11px Menlo, Consolas, monospace; }
+  #quick text.ro.held { fill: var(--accent); }
+  #quick .pills { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin-top: 4px; }
+  #quick .pills button { height: 26px; padding: 0 9px; border-radius: 13px; font-size: 12px; background: var(--float-bg2); }
+  body.touch #quick .pills button { height: 36px; border-radius: 18px; padding: 0 12px; }
+
+  /* Dialogs */
+  .modal { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none; align-items: center; justify-content: center; z-index: 20; }
+  .modal.open { display: flex; }
+  .dialog { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; width: min(680px, calc(100% - 32px));
+    max-height: calc(100% - 40px); overflow: auto; }
+  .dialog h2 { margin: 0 0 12px; font-size: 15px; }
+  .dialog h3 { margin: 16px 0 6px; font-size: 12px; color: var(--head); text-transform: uppercase; letter-spacing: .06em; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; }
+  .grid2 label { display: block; color: var(--dim); font-size: 12px; margin-bottom: 3px; }
+  .check { display: flex; align-items: center; gap: 8px; color: var(--text) !important; font-size: 13px !important; }
+  input[type=number] { width: 100%; height: 28px; background: var(--field); color: var(--text); border: 1px solid var(--line); border-radius: 5px; padding: 0 7px; font: inherit; }
+  .dialog .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+  .primary { background: var(--primary); border-color: var(--accent); }
+  .note { font-size: 11.5px; color: var(--dim); margin-top: 8px; }
+  #help ul { margin: 0; padding-left: 18px; }
+  #help li { margin: 4px 0; }
+  kbd { font: 11px Menlo, Consolas, monospace; background: var(--field); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+
+  /* Touchscreen mode: finger-sized buttons and sliders, bars scroll sideways */
+  body.touch { touch-action: manipulation; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+  body.touch #bar, body.touch #ctl { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+  body.touch #bar::-webkit-scrollbar, body.touch #ctl::-webkit-scrollbar { display: none; }
+  body.touch button, body.touch select { height: 40px; font-size: 14px; padding: 0 12px; }
+  body.touch .seg button { height: 40px; }
+  body.touch button.icon, body.touch .bug button.icon { width: 42px; padding: 0; }
+  body.touch #btn-home { height: 40px; font-size: 14px; padding: 0 12px; }
+  body.touch input[type=checkbox] { width: 22px; height: 22px; }
+  body.touch .sl input[type=range] { -webkit-appearance: none; appearance: none; height: 36px; width: 140px; background: transparent; }
+  body.touch input[type=range]::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: var(--track); }
+  body.touch input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 26px; height: 26px; margin-top: -10px; border-radius: 50%; background: var(--accent); border: 2px solid var(--on-text); }
+  body.touch input[type=range]::-moz-range-track { height: 6px; border-radius: 3px; background: var(--track); }
+  body.touch input[type=range]::-moz-range-thumb { width: 24px; height: 24px; border-radius: 50%; background: var(--accent); border: 2px solid var(--on-text); }
+  body.touch input[type=number] { height: 40px; font-size: 16px; }
+  body.touch .freq, body.touch #apt { height: 40px; font-size: 16px; width: 76px; }
+  body.map-gesture #bar, body.map-gesture #ctl, body.map-gesture #status { pointer-events: none; }
+
+  @media (max-width: 720px) {
+    #bar, #ctl { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+    #bar::-webkit-scrollbar, #ctl::-webkit-scrollbar { display: none; }
+    #bar h1, #st-brief, #scale, .zoom-step { display: none; }
+    #scn { max-width: 170px; }
+    .radio small { display: none; }
+    #st-mode { max-width: none; }
+    .sl input[type=range] { width: 90px; }
+    .grid2 { grid-template-columns: 1fr; }
+  }
+  @media (max-height: 480px) { #status { display: none; } #ctl { bottom: 0; } }
+</style>
+</head>
+<body>
+
+<div id="bar">
+  <a id="btn-home" href="../index.html" title="Back to the FACO website">← Back to FACO</a>
+  <h1>FLIGHT INSTRUMENTS</h1>
+  <div class="grp" title="Home airport and approach: the map, the scenarios and the magnetic variation are set around it">
+    <input id="apt" list="apt-list" maxlength="4" spellcheck="false" autocomplete="off" aria-label="Home airport">
+    <datalist id="apt-list"></datalist>
+    <select id="app" aria-label="Approach"></select>
+  </div>
+  <div class="sep"></div>
+  <div class="grp">
+    <select id="scn" title="Pick a scenario for the autopilot to fly, or fly it yourself">
+      <option value="free">Free flight</option>
+    </select>
+    <button id="btn-play" title="Pause or resume (Space)">❚❚ Pause</button>
+    <button id="btn-restart" title="Restart the scenario from its start">↺ Restart</button>
+    <div class="seg" title="Simulation speed">
+      <button data-speed="1" class="on">1×</button><button data-speed="2">2×</button><button data-speed="4">4×</button>
+    </div>
+  </div>
+  <div class="sep"></div>
+  <div class="grp">
+    <button id="btn-follow" class="on" title="Keep the aircraft centered on the map (F)">Follow</button>
+    <button id="btn-zout" class="icon zoom-step" title="Zoom out">−</button>
+    <button id="btn-fit" title="Fit the aircraft, the home airport and the tuned stations (0)">Fit</button>
+    <button id="btn-zin" class="icon zoom-step" title="Zoom in">+</button>
+  </div>
+  <div class="sep"></div>
+  <div class="seg" title="Instrument panel: analog six-pack or G1000-style glass cockpit (G)">
+    <button data-panel="analog" class="on">Six-pack</button><button data-panel="glass">Glass</button>
+  </div>
+  <div class="spacer"></div>
+  <button id="btn-touch" title="Touchscreen mode: finger-sized buttons and sliders">Touch</button>
+  <button id="btn-help" class="icon" title="Controls and what the instruments show (?)">?</button>
+  <button id="btn-settings" class="icon" title="Wind and other settings">⚙</button>
+</div>
+
+<div id="game"></div>
+<div id="tip"></div>
+<div id="quick" role="menu" aria-label="Quick aircraft menu">
+  <div class="ring"></div>
+  <div class="pills">
+    <button data-q="level" title="Wings level on the current heading and hold the current altitude">Level off</button>
+    <button data-q="rev" title="Turn 180° at standard rate">Turn 180°</button>
+    <button data-q="spd" id="q-spd" title="Hold the current airspeed with power">Hold speed</button>
+    <button data-q="hand" title="Autopilot off, wings level: you fly with the sliders or keys">Hand-fly</button>
+    <button data-q="move" title="Your next drag on the aircraft moves it (same as Shift+drag)">Move</button>
+  </div>
+</div>
+
+<div id="ctl">
+  <span class="ctl-h">Fly</span>
+  <div class="sl"><label>Bank</label><input id="c-bank" type="range" min="-30" max="30" step="1" value="0" title="Bank: left or right (← →)"><span class="v" id="c-bank-v"></span></div>
+  <div class="sl"><label>Pitch</label><input id="c-pitch" type="range" min="-10" max="15" step="0.5" value="3" title="Pitch: nose up or down (↑ ↓)"><span class="v" id="c-pitch-v"></span></div>
+  <div class="sl"><label>Power</label><input id="c-power" type="range" min="0" max="100" step="1" value="65" title="Power (W / S)"><span class="v" id="c-power-v"></span></div>
+  <button id="c-level" title="Wings level (L)">Level</button>
+  <div class="sep"></div>
+  <span class="ctl-h">Autopilot</span>
+  <div class="bug" title="Heading bug (, and .)"><button id="bug-dec" class="icon">−</button><span class="v" id="bug-v"></span><button id="bug-inc" class="icon">+</button></div>
+  <button id="ap-hdg" class="ap" title="Fly the heading bug (H)">HDG</button>
+  <button id="ap-alt" class="ap" title="Hold the current altitude (A)">ALT</button>
+  <div class="sep"></div>
+  <span class="ctl-h">Nav</span>
+  <div class="seg" title="What drives the nav indicator: the NAV1 radio (VOR or ILS) or the TACAN receiver (V)"><button data-src="NAV" class="on">NAV1</button><button data-src="TCN">TCN</button></div>
+  <label class="radio"><input id="r-nav" class="freq" inputmode="decimal" spellcheck="false" title="NAV1 frequency in MHz, 108.00 to 117.95: VOR, localizer, and the DME paired with them"><small>NAV1 MHz</small></label>
+  <label class="radio"><input id="r-tcn" class="freq" spellcheck="false" title="TACAN channel, 1X to 126Y: azimuth and DME from a TACAN or VORTAC"><small>TACAN CH</small></label>
+  <label class="radio"><input id="r-adf" class="freq" inputmode="numeric" spellcheck="false" title="ADF frequency in kHz, 190 to 1750: the NDB the ADF needle points at"><small>ADF kHz</small></label>
+  <select id="r-tune" title="Tune a station near the aircraft"><option value="">Tune nearby…</option></select>
+  <div class="bug" title="OBS course ([ and ])"><button id="obs-dec" class="icon">−</button><span class="v" id="obs-v"></span><button id="obs-inc" class="icon">+</button></div>
+  <button id="ap-nav" class="ap" title="Track the selected course: the OBS radial, or the localizer and glideslope (N)">NAV</button>
+</div>
+
+<div id="status">
+  <span id="st-mode"></span>
+  <span id="st-data"></span>
+  <span id="st-brief"></span>
+  <span id="scale"><span id="scale-bar"></span><span id="scale-label" class="mono"></span></span>
+</div>
+
+<div id="settings" class="modal">
+  <div class="dialog">
+    <h2>Settings</h2>
+    <h3>Wind</h3>
+    <div class="grid2">
+      <div><label>From (degrees true)</label><input id="set-wdir" type="number" min="0" max="360" step="10"></div>
+      <div><label>Speed (knots)</label><input id="set-wkt" type="number" min="0" max="60" step="5"></div>
+    </div>
+    <p class="note">With wind the dashed blue line from the aircraft is its ground track and the yellow line is its heading. The crosswind scenario sets its own wind.</p>
+    <h3>Appearance</h3>
+    <div class="grid2">
+      <div><label for="set-theme">Theme</label><select style="width:100%" id="set-theme" aria-label="Colour theme"><option value="dark">Dark</option><option value="light">Light</option></select></div>
+      <div class="note" style="margin:0">Light or dark for the map and controls. The instruments keep their real colours. The choice is shared with the rest of the FACO site.</div>
+    </div>
+    <h3>Input</h3>
+    <label class="check"><input id="set-touch" type="checkbox"> Touchscreen mode</label>
+    <div class="actions"><button id="set-cancel">Cancel</button><button id="set-apply" class="primary">Apply</button></div>
+  </div>
+</div>
+
+<div id="help" class="modal">
+  <div class="dialog">
+    <h2>Flight Instruments</h2>
+    <p class="note" style="color:var(--text)">The map shows the aircraft over a real US area: the airports with instrument approaches, their localizers, and the VORs, VORTACs, TACANs, DMEs and NDBs around them, from FAA data. Pick a home <b>airport</b> (type its code, such as KDAB or KOSH) and an <b>approach</b> at the top; the scenarios are built around it and its nearest VOR, TACAN and NDB. The panel shows what the pilot sees. Pick a <b>scenario</b> and the autopilot flies it; touch any control and you have the aircraft.</p>
+    <h3>Controls</h3>
+    <ul>
+      <li><b>Fly:</b> the Bank, Pitch and Power sliders, or <kbd>←</kbd> <kbd>→</kbd> bank, <kbd>↑</kbd> <kbd>↓</kbd> pitch, <kbd>W</kbd> <kbd>S</kbd> power, <kbd>L</kbd> wings level. Hold <kbd>Shift</kbd> for finer steps.</li>
+      <li><b>Steer with the mouse:</b> press and hold on the aircraft and drag, like a stick. Left or right picks a new heading (5° for every 10 px, <kbd>Shift</kbd> for 1° steps) and the aircraft rolls into a standard-rate turn (3° a second) to fly it. Up climbs and down descends, 100 ft for every 4 px, at 500 fpm, the way Combat Lines sets climb by dragging its ticks. The blue line ahead shows the planned path, with Combat Lines' climb ticks across its middle: one tick level, two a gentle climb or descent, three a steep one, growing to climb and shrinking to descend. It uses the heading bug and the HDG and ALT holds, so the instruments show where you are going; let go and the aircraft finishes the turn and levels off by itself. Drag again mid-turn to add to it.</li>
+      <li><b>Quick menu:</b> right-click the aircraft (press and hold on a touchscreen) for a ring of quick changes laid out like the drag: climb or descend 500 ft, turn 30° or 90° either way, and 10 kt faster or slower (which holds the speed with power). Clicks add up, and <kbd>Shift</kbd>+click doubles a step. The middle shows the heading, altitude and speed, blue where they are being held. Below it: <b>Level off</b>, <b>Turn 180°</b>, <b>Hold speed</b>, <b>Hand-fly</b> (autopilot off) and <b>Move</b>. Click outside or press <kbd>Esc</kbd> to close.</li>
+      <li><b>Map:</b> <kbd>Shift</kbd>+drag the aircraft (or <b>Move</b> in the quick menu) to move it, and drag the yellow dot ahead of it to point the nose (<kbd>Shift</kbd> snaps to 15°). Drag empty map to pan, wheel or pinch to zoom, <b>Follow</b> (<kbd>F</kbd>) keeps the aircraft centered, <b>Fit</b> (<kbd>0</kbd>) shows everything.</li>
+      <li><b>Autopilot:</b> set the heading bug with − and + (<kbd>,</kbd> <kbd>.</kbd>) and press <b>HDG</b> (<kbd>H</kbd>) to fly it; <b>ALT</b> (<kbd>A</kbd>) holds the current altitude; <b>NAV</b> (<kbd>N</kbd>) tracks the OBS course through the VOR, or the localizer and glideslope with the ILS selected. Moving the bank slider releases HDG and NAV, moving pitch releases ALT, and moving power releases the speed hold.</li>
+      <li><b>Radios:</b> type a frequency in <b>NAV1</b> (a VOR such as 112.60, or a localizer such as 109.70), a channel in <b>TACAN</b> (such as 73X), or a kHz in <b>ADF</b>, or pick a station from <b>Tune nearby</b>. <b>NAV1</b> or <b>TCN</b> (<kbd>V</kbd>) picks which one drives the nav indicator; − and + (<kbd>[</kbd> <kbd>]</kbd>) turn the OBS. On the map the tuned station's compass rose is turned to its magnetic north, the selected course is the dashed blue line and the thin orange line is the radial you are on.</li>
+      <li><b>What each station gives:</b> a VOR gives a radial; VOR/DME and VORTAC add DME on NAV1. The aircraft has a military TACAN receiver, so a TACAN or VORTAC gives a radial and DME by channel. A standalone TACAN tuned on NAV1 (its paired VHF frequency) gives DME only, as in a civil aircraft. A DME gives distance only. An ILS gives the localizer and glideslope, and DME where the approach has it. An NDB gives a bearing on the ADF. A station only comes in within its published service volume (25 to 130 nm by class and height) and radio line of sight; out of range the flag shows.</li>
+      <li><b>Magnetic:</b> headings, courses, radials and bearings are magnetic, like in the airplane. Each VOR's radials use that station's own variation, so they can differ by a few degrees from the area's. The wind is in degrees true, like a winds-aloft forecast.</li>
+      <li><b>Panel:</b> <b>Six-pack</b> or <b>Glass</b> (<kbd>G</kbd>) switches between the analog gauges and a G1000-style glass cockpit. Both show the same aircraft, so you can switch mid-flight and compare.</li>
+      <li><b>Scenarios:</b> <b>Play</b> (<kbd>Space</kbd>) pauses and resumes, <b>↺ Restart</b> starts the scenario over, 1× 2× 4× sets the speed. The status bar says what the autopilot is doing.</li>
+    </ul>
+    <h3>The instruments</h3>
+    <ul>
+      <li><b>Airspeed:</b> indicated airspeed in knots. White arc: flap range. Green: normal. Yellow: smooth air only. Red line: never exceed.</li>
+      <li><b>Attitude:</b> blue sky over brown ground. The orange airplane is you; the horizon tilts with bank and drops as the nose rises. Pitch lines every 5°, bank marks at 10, 20, 30, 45 and 60°.</li>
+      <li><b>Altimeter:</b> the long hand reads hundreds, the short wide hand thousands, the thin hand with the triangle tens of thousands. The window shows the altimeter setting, fixed at 29.92.</li>
+      <li><b>Turn coordinator:</b> the airplane banks to show the rate of turn. Wings on the lower marks mean a standard rate of 3° per second, a full circle in two minutes. The ball shows coordination (the model always flies coordinated).</li>
+      <li><b>Heading indicator:</b> the card turns so your heading is under the line at the top. The orange bug is the autopilot's heading.</li>
+      <li><b>Vertical speed:</b> climb or descent in hundreds of feet per minute.</li>
+      <li><b>ADF:</b> a fixed card with 0 at the nose: the needle points at the NDB, so it shows the relative bearing. Magnetic bearing to the station = heading + relative bearing. With no signal the needle parks at 90°. On the glass cockpit the cyan BRG1 pointer on the HSI points at the NDB against the compass rose, and the box on the left gives the magnetic bearing.</li>
+      <li><b>VOR/ILS:</b> turn the OBS so the course is at the top. The needle shows which side the course is on: each dot is 2° for a VOR and ½° for a localizer. With a VOR the triangle says whether that course takes you <b>TO</b> or <b>FROM</b> the station, and the OFF flag shows out of range or right over it. With the ILS the horizontal needle is the glideslope (each dot 0.14°): needle below center means fly down. Flying away from the runway on a back course the needle reads backwards.</li>
+      <li><b>Glass cockpit:</b> the same information on one screen. The attitude fills the background with the yellow aircraft symbol in the middle; airspeed is the tape on the left (TAS below it), altitude on the right with vertical speed beside it, the selected altitude in cyan above and the altimeter setting below. Magenta bars on the tapes show where airspeed and altitude will be in 6 seconds. The HSI at the bottom combines the heading indicator and the nav indicator: cyan is the heading bug, the green arrow is the course with the deviation bar in its middle (2 dots each side, full scale), the small green triangle points TO or FROM, the magenta diamond is the ground track and the magenta arc on top is where the heading will be in 6 seconds. With the ILS the green diamond left of the altitude tape is the glideslope. The top bar shows the nav frequencies (green is the one feeding the HSI) and the autopilot modes, active in green and armed in white; the boxes beside the HSI show the wind and DME.</li>
+      <li><b>Readout:</b> the lower right box lists the NAV1 frequency and TACAN channel with the station they hear (green drives the nav indicator), the course, the radial you are on, DME distance and station, the flags, the ADF station and bearing, heading and bug, ground track and groundspeed, and the wind.</li>
+    </ul>
+    <h3>Data</h3>
+    <ul>
+      <li>Navaids and approaches: FAA NASR, cycle <span id="data-cycle"></span> (public domain, via the @squawk data packages). No terrain: the ground is the home airport's elevation. <b>For training only, not for navigation.</b></li>
+    </ul>
+    <div class="actions"><button id="help-close" class="primary">Close</button></div>
+  </div>
+</div>
+
+<!-- Local Phaser build next to this file. Classic scripts so the page opens by double-click. -->
+<script src="phaser.min.js"></script>
+<script src="inst/navdata.js"></script>
+<script src="inst/sim.js"></script>
+<script src="inst/navdb.js"></script>
+<script src="inst/map.js"></script>
+<script src="inst/glass.js"></script>
+<script src="inst/panel.js"></script>
+<script src="inst/ui.js"></script>
+<script>
+  // ?s=<scenario id> opens that scenario, ?t=<seconds> starts it that far in,
+  // so a link can land on, say, the ILS halfway down the glideslope.
+  const q = new URLSearchParams(location.search);
+  // ?apt=KOSH&rwy=36 picks the home airport and approach; otherwise the last one used, or Daytona Beach
+  let savedHome = null;
+  try { savedHome = JSON.parse(localStorage.getItem('fi-home') || 'null'); } catch (e) { /* private mode */ }
+  FI.setHome(q.get('apt') || (savedHome && savedHome.apt) || 'KDAB', q.get('rwy') || (savedHome && !q.get('apt') ? savedHome.rwy : null));
+  document.getElementById('data-cycle').textContent = FI.dataCycle;
+  let scnIndex = Math.max(0, FI.SCENARIOS.findIndex(s => s.id === q.get('s')));
+  FI.loadScenario(FI.SCENARIOS[scnIndex]);
+  for (let t = (+q.get('t') || 0) * 4; t > 0; t--) FI.advance(250);
+  FI.startZoom = +q.get('z') || 0;                 // map zoom, screen px per foot
+  let savedPanel = null;
+  try { savedPanel = localStorage.getItem('fi-panel'); } catch (e) { /* private mode */ }
+  FI.panelMode = (q.get('p') || savedPanel) === 'glass' ? 'glass' : 'analog';   // ?p=glass or ?p=analog
+  FI.ui.init();
+  document.getElementById('scn').value = String(scnIndex);
+  FI.game = new Phaser.Game({
+    type: Phaser.AUTO,
+    parent: 'game',
+    backgroundColor: '#0a0e13',
+    scale: { mode: Phaser.Scale.RESIZE, width: '100%', height: '100%' },
+    scene: [FI.MapScene, FI.PanelScene],
+  });
+  FI.ui.refresh(true);
+</script>
+</body>
+</html>

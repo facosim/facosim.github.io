@@ -1,0 +1,144 @@
+/* Links page (links.html): local and Zulu clocks across the top, then a
+   grid of app icons, one per link. */
+.efb {
+  box-sizing: border-box;
+  max-width: 1040px;
+  min-height: 55vh;
+  /* the site header is fixed and sits over the top of the page */
+  margin: calc(var(--header-height, 80px) + 2rem) auto 3rem;
+  padding: 0 1.5rem;
+  color: #272727;
+  font-family: "Public Sans", sans-serif;
+}
+
+.efb-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Clocks: local time on the left, Zulu time on the right */
+.efb-clock {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.efb-time-label {
+  margin-right: 6px;
+  color: #6b6f76;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* App grid */
+.efb-apps {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 28px 12px;
+  margin: 0;
+  padding: 36px 0 0;
+  list-style: none;
+}
+
+.efb-apps li {
+  margin: 0;
+  padding: 0;
+}
+
+.efb-apps li::before {
+  content: none;
+}
+
+.efb-app {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: inherit;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.efb-icon {
+  display: block;
+  width: 76px;
+  height: 76px;
+  overflow: hidden;
+  border-radius: 18px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+  transition: transform 0.15s ease;
+}
+
+.efb-icon img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+}
+
+.efb-app:hover .efb-icon {
+  transform: translateY(-2px) scale(1.05);
+}
+
+.efb-app:active .efb-icon {
+  transform: scale(0.95);
+}
+
+.efb-app:focus-visible {
+  outline: none;
+}
+
+.efb-app:focus-visible .efb-icon {
+  outline: 3px solid #1b6ca8;
+  outline-offset: 3px;
+}
+
+.efb-label {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .efb {
+    margin-top: calc(var(--header-height, 80px) + 1rem);
+    padding: 0 1rem;
+  }
+
+  .efb-clock {
+    font-size: 16px;
+  }
+
+  .efb-apps {
+    grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+    gap: 22px 8px;
+    padding-top: 26px;
+  }
+
+  .efb-icon {
+    width: 62px;
+    height: 62px;
+    border-radius: 15px;
+  }
+
+  .efb-label {
+    font-size: 12px;
+  }
+}
