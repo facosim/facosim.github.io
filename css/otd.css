@@ -9,7 +9,9 @@
   --otd-shadow: 0 12px 32px rgba(16, 24, 40, 0.16);
   --otd-off-bg: #f4f6f8;
   max-width: 1180px;
-  margin: 2.5rem auto 4rem;
+  /* The site header floats over the page, so start below it plus a small gap.
+     Its height is about 38px plus 1vw on desktop, 37px plus 7.4vw on phones. */
+  margin: calc(38px + 1vw + 1.5rem) auto 4rem;
   padding: 0 1.5rem;
   color: var(--otd-text);
   font-family: "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -128,7 +130,10 @@ html[data-theme="dark"] .otd {
 @media (prefers-reduced-motion: reduce) {
   .otd-card, .otd-pop { transition: none; }
 }
+@media (max-width: 799px) {
+  .otd { margin-top: calc(37px + 7.4vw + 1.5rem); }
+}
 @media (max-width: 480px) {
-  .otd { padding: 0 1rem; margin-top: 1.5rem; }
+  .otd { padding: 0 1rem; }
   .otd-grid { grid-template-columns: 1fr; }
 }

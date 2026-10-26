@@ -5,7 +5,7 @@
 
   const NM = FI.NM, D2R = FI.D2R, clamp = FI.clamp;
   const MIN_ZOOM = 0.002, MAX_ZOOM = 0.5;
-  // top-down outline of a light single, screen px at zoom 1 (from Combat Lines)
+  // top-down outline of a light single, screen px at zoom 1 (from Briefing Lines)
   const GA = [[0,-11],[2,-9],[2,-5],[13,-5],[13,-2],[2,-2],[1.5,7],[5,8],[5,10],[-5,10],[-5,8],[-1.5,7],[-2,-2],[-13,-2],[-13,-5],[-2,-5],[-2,-9]];
   const touch = () => !!(FI.ui && FI.ui.touch);
 
@@ -112,7 +112,7 @@
 
     // Press on the aircraft and drag to steer it, like a stick: left and
     // right set a new heading flown with a standard-rate turn, up and down a
-    // new altitude (as Combat Lines' climb ticks: drag up to climb). Shift+drag
+    // new altitude (as Briefing Lines' climb ticks: drag up to climb). Shift+drag
     // moves it, the yellow dot points the nose. Right-click (or press and
     // hold on a touchscreen) opens the quick menu.
     onDown(p) {
@@ -462,7 +462,7 @@
     // The planned flight path while the mouse or the quick menu is steering
     // (bright) or a turn or altitude change it set is still under way (dim):
     // a standard-rate turn to the new heading, then straight. Climb ticks
-    // across its middle read like Combat Lines': one tick level, two a
+    // across its middle read like Briefing Lines': one tick level, two a
     // gentle climb or descent, three a steep one; growing ticks climb and
     // shrinking ticks descend.
     drawPlan(z) {

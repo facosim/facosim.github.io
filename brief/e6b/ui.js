@@ -514,7 +514,7 @@
       if (on && window.innerWidth <= 760) a.scrollIntoView({ block: 'nearest', inline: 'center' });
     });
     var name = document.querySelector('#nav a.on');
-    document.title = (name ? name.firstChild.textContent.trim() + ' — ' : '') + 'E6B Flight Computer';
+    document.title = (name ? name.firstChild.textContent.trim() + ' — ' : '') + 'Flight Calculator';
   }
 
   load();

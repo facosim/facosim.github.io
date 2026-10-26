@@ -4,9 +4,9 @@
   // from pages in subfolders too.
   var learningPages = [
     { path: 'learning/od.html', label: 'Of The Day' },
-    { path: 'brief/lines.html', label: 'Combat Lines Debrief' },
+    { path: 'brief/lines.html', label: 'Briefing Lines' },
     { path: 'brief/instruments.html', label: 'Flight Instruments' },
-    { path: 'brief/e6b.html', label: 'E6B Calculator' }
+    { path: 'brief/e6b.html', label: 'Flight Calculator' }
   ];
 
   var scriptUrl = document.currentScript && document.currentScript.src;
