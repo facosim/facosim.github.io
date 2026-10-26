@@ -55,11 +55,7 @@ html[data-theme="dark"] .sim-task-trainer-details {
 }
 html[data-theme="dark"] .sim-task-trainer-details__eyebrow { color: #5aaef0; }
 
-html[data-theme="dark"] .wod-list { color: var(--faco-dark-text); }
-html[data-theme="dark"] .wod-list article {
-  background: var(--faco-dark-raised);
-  border-color: var(--faco-dark-line);
-}
+/* Of The Day grid: css/otd.css carries its own dark colours */
 
 /* Contact page (css/contact.css) */
 html[data-theme="dark"] .contact-page { color: var(--faco-dark-text); }
