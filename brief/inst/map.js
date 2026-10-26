@@ -475,8 +475,8 @@
       const w = FI.wind, wx = -w.kt * Math.sin(w.dir * D2R), wy = w.kt * Math.cos(w.dir * D2R);
       let x = s.x, y = s.y, h = s.hdg, left = ap.hdg && !ap.nav ? turn : 0;
       const pts = [{ x, y }], dt = 1, rate = 3;
-      const T = Math.abs(left) / rate + Math.max(20, 140 / (Math.max(s.tas, 40) * FI.KT * z));
-      for (let t = 0; t < Math.min(T, 240); t += dt) {
+      const dur = Math.abs(left) / rate + Math.max(20, 140 / (Math.max(s.tas, 40) * FI.KT * z));
+      for (let t = 0; t < Math.min(dur, 240); t += dt) {
         if (Math.abs(left) > 0.01) { const st = Math.sign(left) * Math.min(rate * dt, Math.abs(left)); h += st; left -= st; }
         const hr = h * D2R;
         x += (s.tas * Math.sin(hr) + wx) * FI.KT * dt;
