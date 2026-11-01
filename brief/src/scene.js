@@ -316,13 +316,18 @@
       document.body.classList.add('map-gesture');
       if (this.startPinch() || this.pinch) return;
       if (touch()) DL.ui.hideTip();
+      clearTimeout(this.pressTimer);
+      if (touch() && (DL.ui.tool === 'select' || DL.ui.tool === 'path')) {
+        this.pressStart = { x: p.x, y: p.y };
+        this.pressTimer = setTimeout(() => this.longPress(), 550);
+      }
       const ev = p.event || {};
       const w = this.toWorld(p);
       const tool = DL.ui.tool;
       const ctl = ev.ctrlKey || ev.metaKey;
 
       if (p.button === 1 || tool === 'pan' || this.spaceDown || (p.button === 2 && !ctl)) {
-        this.drag = { mode: 'pan', sx: p.x, sy: p.y, scx: this.cam.scrollX, scy: this.cam.scrollY };
+        this.drag = { mode: 'pan', sx: p.x, sy: p.y, scx: this.cam.scrollX, scy: this.cam.scrollY, menu: p.button === 2 && tool !== 'pan' };
         return;
       }
       if (tool === 'zoom') {
@@ -393,6 +398,7 @@
       if (this.pinch) { this.movePinch(); return; }
       const d = this.drag;
       if (!d) { if (!touch()) this.hoverInfo(p, w); return; }
+      if (this.pressStart && Math.hypot(p.x - this.pressStart.x, p.y - this.pressStart.y) > slopPx()) clearTimeout(this.pressTimer);
       if (d.mode === 'climb') {
         if (!d.moved && Math.hypot(p.x - d.sx, p.y - d.sy) < (touch() ? 10 : 5)) return;
         d.moved = true;
@@ -403,8 +409,8 @@
         return;
       }
       if (d.mode === 'pan') {
-        if (d.tap && Math.hypot(p.x - d.sx, p.y - d.sy) < slopPx()) return;
-        d.tap = false;
+        if ((d.tap || d.menu) && Math.hypot(p.x - d.sx, p.y - d.sy) < slopPx()) return;
+        d.tap = d.menu = false;
         this.cam.scrollX = d.scx - (p.x - d.sx) / this.cam.zoom;
         this.cam.scrollY = d.scy - (p.y - d.sy) / this.cam.zoom;
       } else if (d.mode === 'move') {
@@ -443,6 +449,16 @@
       DL.ui.hideTip();
     }
 
+    longPress() {
+      const q = this.lastPointer;
+      if (!q || this.pinch || !this.pressing) return;
+      const d = this.drag;
+      if (d && (d.moved || d.live)) return;
+      this.drag = null;
+      const w = this.toWorld(q);
+      DL.ui.openWheel(q, w, this.hitAircraft(w));
+    }
+
     onUp(p) {
       if (!this.touchesDown().length) {
         this.pressing = false;
@@ -455,6 +471,11 @@
         return;
       }
       const d = this.drag;
+      clearTimeout(this.pressTimer);
+      if (d && d.menu) {
+        const q = p || this.lastPointer, w = this.toWorld(q);
+        DL.ui.openWheel(q, w, this.hitAircraft(w));
+      }
       if (d && d.tap) {
         const q = p || this.lastPointer, w = this.toWorld(q);
         const fr = this.hitFrame(w), eh = !fr && this.hitEvent(w);

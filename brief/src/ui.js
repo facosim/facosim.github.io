@@ -110,7 +110,7 @@
           case 'ArrowRight': case '.': this.next(); break;
           case 'ArrowLeft': case ',': this.prev(); break;
           case 'Delete': case 'Backspace': this.removeSelected(); break;
-          case 'Escape': this.closeVertical(); if (DL.advWin) DL.advWin.close(); this.setTool('select'); this.select(null); $('help').classList.remove('open'); $('settings').classList.remove('open'); break;
+          case 'Escape': this.closeWheel(); this.closeVertical(); if (DL.advWin) DL.advWin.close(); this.setTool('select'); this.select(null); $('help').classList.remove('open'); $('settings').classList.remove('open'); break;
           case 'v': case 'V': this.setTool('select'); break;
           case 'a': case 'A': this.setTool('place'); break;
           case 'f': case 'F': this.setTool('path'); break;
@@ -148,6 +148,7 @@
       this.setTouch(saved === '1' || saved === '0' ? saved === '1' : detected, false);
 
       this.buildSettings();
+      this.buildWheel();
       $('set-ac').onchange = () => this.showAircraftForm();
       $('set-ac-reset').onclick = () => { this.acDraft[$('set-ac').value] = Object.assign({}, this.acDefaults[$('set-ac').value]); this.showAircraftForm(); };
       this.watchBar();
@@ -245,6 +246,99 @@
       DL.editControls(this.selected, patch);
       this.refresh();
     },
+
+    wheelOpen: false,
+
+    buildWheel() {
+      const box = $('wheel');
+      box.addEventListener('contextmenu', e => e.preventDefault());
+      document.addEventListener('pointerdown', e => { if (this.wheelOpen && !box.contains(e.target)) this.closeWheel(); }, true);
+    },
+
+    wheelItems(hit, w) {
+      const cur = DL.tl.current;
+      if (hit) {
+        const t = DL.TYPES[DL.tl.aircraft[hit].type], sb = DL.cur()[hit].ctl.sb;
+        return {
+          title: $('p-callsign').value || 'Aircraft',
+          items: [
+            { a: 0, t: 'Vertical…', go: () => this.openVertical(cur, hit) },
+            { a: 45, t: 'Wings level', v: '1 g', go: () => $('p-level').click() },
+            { a: 90, t: 'Hold speed', go: () => $('p-trim').click() },
+            { a: 135, t: 'Speedbrake', v: sb ? 'in' : 'out', off: !t.brake, go: () => this.setControl('sb', !sb) },
+            { a: 180, t: 'Remove', go: () => this.removeSelected() },
+            { a: 225, t: '3D view', go: () => $('btn-3d').click() },
+            { a: 270, t: 'Immelmann', go: () => this.applyPreset(cur, hit, 'immelmann', false) },
+            { a: 315, t: 'Split-S', go: () => this.applyPreset(cur, hit, 'splitS', false) },
+          ],
+          pills: [
+            { t: 'Pitchback R', go: () => this.applyPreset(cur, hit, 'pitchback', false) },
+            { t: 'Pitchback L', go: () => this.applyPreset(cur, hit, 'pitchback', true) },
+            { t: 'Sliceback R', go: () => this.applyPreset(cur, hit, 'sliceback', false) },
+            { t: 'Sliceback L', go: () => this.applyPreset(cur, hit, 'sliceback', true) },
+          ],
+        };
+      }
+      const frames = DL.tl.frames.length, playing = DL.view3d && DL.view3d.playing;
+      return {
+        title: 'Frame ' + cur,
+        items: [
+          { a: 0, t: 'Add here', v: DL.TYPES[this.placeType].name, go: () => { const id = DL.addAircraft(this.placeType, DL.scene.snap(w.x), DL.scene.snap(w.y), 0); this.select(id); this.setScrub(0); } },
+          { a: 45, t: 'Next frame', go: () => this.next() },
+          { a: 90, t: 'Zoom in', go: () => DL.scene.zoomAt(this.wheelAt, 1.5) },
+          { a: 135, t: 'Fit', go: () => DL.scene.fit() },
+          { a: 180, t: 'Zoom out', go: () => DL.scene.zoomAt(this.wheelAt, 1 / 1.5) },
+          { a: 225, t: playing ? 'Pause' : 'Play', go: () => this.togglePlay() },
+          { a: 270, t: 'Previous', v: 'frame', off: cur <= 0 && frames <= 1, go: () => this.prev() },
+          { a: 315, t: '3D view', go: () => $('btn-3d').click() },
+        ],
+        pills: [],
+      };
+    },
+
+    openWheel(p, w, hit) {
+      if (!this.tool || this.tool === 'place' || this.tool === 'zoom') return;
+      if (hit) this.select(hit); else this.select(null);
+      const NS = 'http://www.w3.org/2000/svg', box = $('wheel'), m = this.wheelItems(hit, w);
+      this.wheelAt = { x: p.x, y: p.y };
+      const C = 130, r0 = 50, r1 = 122, half = 22.5 - 1.2, d2r = Math.PI / 180;
+      const pt = (a, r) => [C + Math.sin(a * d2r) * r, C - Math.cos(a * d2r) * r];
+      const svg = document.createElementNS(NS, 'svg');
+      svg.setAttribute('viewBox', '0 0 260 260'); svg.setAttribute('width', '260'); svg.setAttribute('height', '260');
+      for (const it of m.items) {
+        const [x0, y0] = pt(it.a - half, r1), [x1, y1] = pt(it.a + half, r1), [x2, y2] = pt(it.a + half, r0), [x3, y3] = pt(it.a - half, r0);
+        const g = document.createElementNS(NS, 'g');
+        g.setAttribute('class', 'wedge' + (it.off ? ' off' : '')); g.setAttribute('role', 'menuitem'); g.setAttribute('tabindex', it.off ? '-1' : '0');
+        g.setAttribute('aria-label', it.t + (it.v ? ' ' + it.v : '')); if (it.off) g.setAttribute('aria-disabled', 'true');
+        const path = document.createElementNS(NS, 'path');
+        path.setAttribute('d', `M${x0},${y0} A${r1},${r1} 0 0 1 ${x1},${y1} L${x2},${y2} A${r0},${r0} 0 0 0 ${x3},${y3} Z`);
+        g.appendChild(path);
+        const [tx, ty] = pt(it.a, (r0 + r1) / 2);
+        const t1 = document.createElementNS(NS, 'text'); t1.setAttribute('x', tx); t1.setAttribute('y', it.v ? ty - 3 : ty + 4); t1.textContent = it.t; g.appendChild(t1);
+        if (it.v) { const t2 = document.createElementNS(NS, 'text'); t2.setAttribute('x', tx); t2.setAttribute('y', ty + 11); t2.setAttribute('class', 'v'); t2.textContent = it.v; g.appendChild(t2); }
+        const fire = e => { e.preventDefault(); e.stopPropagation(); if (it.off) return; this.closeWheel(); it.go(); this.refresh(); };
+        g.addEventListener('click', fire);
+        g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') fire(e); });
+        svg.appendChild(g);
+      }
+      const hub = document.createElementNS(NS, 'circle');
+      hub.setAttribute('cx', C); hub.setAttribute('cy', C); hub.setAttribute('r', r0 - 4); hub.setAttribute('class', 'hub'); svg.appendChild(hub);
+      const ro = document.createElementNS(NS, 'text'); ro.setAttribute('x', C); ro.setAttribute('y', C + 4); ro.setAttribute('class', 'ro'); ro.textContent = m.title; svg.appendChild(ro);
+      const ring = box.querySelector('.ring'); ring.innerHTML = ''; ring.appendChild(svg);
+      const pills = box.querySelector('.pills'); pills.innerHTML = '';
+      for (const pl of m.pills) {
+        const b = document.createElement('button'); b.textContent = pl.t;
+        b.onclick = e => { e.stopPropagation(); this.closeWheel(); pl.go(); this.refresh(); };
+        pills.appendChild(b);
+      }
+      this.hideTip();
+      box.classList.add('open'); this.wheelOpen = true;
+      const cr = document.querySelector('canvas').getBoundingClientRect(), bw = box.offsetWidth, bh = box.offsetHeight;
+      box.style.left = DL.clamp(cr.left + p.x - bw / 2, 4, window.innerWidth - bw - 4) + 'px';
+      box.style.top = DL.clamp(cr.top + p.y - 130, 4, window.innerHeight - bh - 4) + 'px';
+    },
+
+    closeWheel() { if (!this.wheelOpen) return; this.wheelOpen = false; $('wheel').classList.remove('open'); },
 
     removeSelected() {
       if (!this.selected) return;

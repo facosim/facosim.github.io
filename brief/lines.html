@@ -176,6 +176,24 @@
   #adv-events .ev button { height: 22px; padding: 0 7px; font-size: 11px; }
   #adv-events .ev select { height: 22px; font-size: 11px; padding: 0 4px; }
 
+  #wheel { position: fixed; display: none; z-index: 16; width: 260px; user-select: none; -webkit-user-select: none; }
+  #wheel.open { display: block; animation: w-in .12s ease-out; }
+  @keyframes w-in { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: none; } }
+  #wheel svg { display: block; filter: drop-shadow(0 4px 14px rgba(0,0,0,.55)); }
+  #wheel .wedge { cursor: pointer; outline: none; }
+  #wheel .wedge path { fill: var(--panel); stroke: var(--line-hover); stroke-width: 1; transition: fill .08s; }
+  #wheel .wedge:hover path, #wheel .wedge:focus-visible path { fill: var(--btn-hover); stroke: var(--accent); }
+  #wheel .wedge.hit path { fill: var(--primary); }
+  #wheel .wedge.off { cursor: default; opacity: .4; }
+  #wheel .wedge.off:hover path { fill: var(--panel); stroke: var(--line-hover); }
+  #wheel text { fill: var(--text); font: 600 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; text-anchor: middle; pointer-events: none; }
+  #wheel text.v { fill: var(--head); font: 11px Menlo, Consolas, monospace; }
+  #wheel .hub { fill: var(--panel); stroke: var(--line-hover); }
+  #wheel text.ro { fill: var(--head); font: 600 12px Menlo, Consolas, monospace; }
+  #wheel .pills { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin-top: 4px; }
+  #wheel .pills button { height: 26px; padding: 0 9px; border-radius: 13px; font-size: 12px; background: var(--panel); }
+  body.touch #wheel .pills button { height: 36px; border-radius: 18px; padding: 0 12px; }
+
   .modal { position: fixed; inset: 0; background: rgba(0,0,0,.55); display: none; align-items: center; justify-content: center; z-index: 20; }
   .modal.open { display: flex; }
   .dialog { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; width: min(640px, calc(100% - 32px));
@@ -320,6 +338,8 @@
 </div>
 
 <div id="game"></div>
+
+<div id="wheel" role="menu" aria-label="Quick menu"><div class="ring"></div><div class="pills"></div></div>
 
 <div id="panel">
   <h2><span id="p-swatch"></span><span id="p-type"></span><span class="spacer"></span><button id="p-min" class="icon" title="Fold the panel to its title">▾</button><button id="p-close" class="icon" title="Deselect (Esc)">×</button></h2>
@@ -516,6 +536,7 @@
       <li><b>Add:</b> pick a type, press <b>+ Add</b> (<kbd>A</kbd>), click the grid and drag to point the nose. <kbd>Shift</kbd> snaps heading to 15°. The named aircraft, from the T-6 trainer to the J-20, are drawn with their own top-down outline and carry public performance figures (stall and corner speed, sea-level top speed, g limit, thrust and drag), all editable on the Aircraft tab of Settings (⚙). <b>↺ Reset</b> (top right) clears the whole debrief.</li>
       <li><b>Shape the flight path:</b> click an aircraft and drag. The next frame's arc bends through the cursor, and g and bank are set to match. The <b>Flight path</b> tool (<kbd>F</kbd>) does the same from anywhere on the grid.</li>
       <li><b>Turn or move:</b> <kbd>Option</kbd>, <kbd>Ctrl</kbd> or <kbd>⌘</kbd> + drag points the nose at the cursor; the yellow handle does the same. <kbd>Shift</kbd> + drag moves the aircraft. After an aircraft's first frame these are locked to how it flew; press <b>Unlock</b> in the panel to correct a frame by hand.</li>
+      <li><b>Quick menu:</b> right-click an aircraft (or press and hold on a touchscreen) for a wheel of its most used actions: vertical profile, wings level, hold speed, speedbrake, Split-S, Immelmann, 3D view and remove, with pitchbacks and slicebacks below it. Right-click empty map for adding an aircraft there, stepping frames, play, zoom and fit. Dragging with the right button still pans.</li>
       <li><b>Name and color:</b> edit them at the top of the aircraft panel. A new color applies from the current frame on, so earlier frames keep the color they had. <kbd>Delete</kbd> removes the selected aircraft.</li>
       <li><b>Climb and descent:</b> lift tilts with bank. With wings level, more than 1 g pulls the nose up. In a bank, lift that doesn't hold the aircraft up lets it descend, and past 90° of bank the aircraft is <b>reversing</b>: it keeps pulling through the vertical until the nose is back on the horizon, then rolls wings level heading the opposite way (Split-S when rolled inverted, Immelmann when pulled over the top). From above, a pure Split-S or Immelmann draws out and back along the same line, so watch the altitude and the ticks. <b>Hold altitude</b> sets the bank that keeps the current climb angle at the current g, and dragging the flight path does the same automatically.</li>
       <li><b>Vertical ticks:</b> across the middle of each frame's path. The first tick is the reference. One tick means level, two mean a gentle climb or descent, and three mean a steep one. Ticks that grow mean climbing and ticks that shrink mean descending, and a bigger size step means more altitude change over the frame.</li>
