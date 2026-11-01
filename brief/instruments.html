@@ -10,11 +10,15 @@
 <meta property="og:url" content="https://facosim.com/brief/instruments.html">
 <meta property="og:type" content="website">
 <meta property="og:description" content="Fly real US VORs, TACANs, NDBs and ILS approaches on a top-down map and watch what the six-pack, a G1000-style glass cockpit, a T-6A panel or a head-up display shows.">
+<meta name="description" content="Fly real US VORs, TACANs, NDBs and ILS approaches on a top-down map and watch what the six-pack, a G1000-style glass cockpit, a T-6A panel or a head-up display shows.">
 <meta property="og:image" content="https://facosim.com/img/icon_instruments.jpg">
 <meta property="og:image:width" content="1500">
 <meta property="og:image:height" content="1500">
 <meta name="twitter:card" content="summary">
 <link rel="icon" type="image/png" href="../img/favicon.png">
+<link rel="manifest" href="../manifest.webmanifest">
+<meta name="theme-color" content="#111821">
+<link rel="apple-touch-icon" href="../img/icon-192.png">
 <style>
   :root {
     --bg: #0a0e13; --bar: #111821; --panel: #121a24; --line: #233244; --text: #c9d4df; --dim: #7d8a96;
@@ -363,7 +367,8 @@
     </ul>
     <h3>Data</h3>
     <ul>
-      <li>Navaids and approaches: FAA NASR, cycle <span id="data-cycle"></span> (public domain, via the @squawk data packages). No terrain: the ground is the home airport's elevation. <b>For training only, not for navigation.</b></li>
+      <li><b>Offline:</b> once this page has loaded with a connection, it works without one, and your browser can install it as an app. Your panel, aircraft and settings choices are kept on this device.</li>
+      <li>Navaids and approaches: FAA NASR, cycle <span id="data-cycle"></span> (public domain, via the @squawk data packages; see <a href="../attribution.html">Credits and licenses</a>). No terrain: the ground is the home airport's elevation. <b>For training only, not for navigation.</b></li>
     </ul>
     <div class="actions"><button id="help-close" class="primary">Close</button></div>
   </div>
@@ -407,5 +412,6 @@
   });
   FI.ui.refresh(true);
 </script>
+<script>if ('serviceWorker' in navigator) window.addEventListener('load', function () { navigator.serviceWorker.register('../sw.js').catch(function () { }); });</script>
 </body>
 </html>

@@ -1,0 +1,19 @@
+{
+  "name": "FACO Flight Tools",
+  "short_name": "FACO Tools",
+  "description": "Flight Instruments, Briefing Lines and the Flight Calculator: pilot training tools that work without a connection.",
+  "start_url": "/brief/instruments.html",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0a0e13",
+  "theme_color": "#111821",
+  "icons": [
+    { "src": "/img/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/img/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Flight Instruments", "url": "/brief/instruments.html", "icons": [{ "src": "/img/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Briefing Lines", "url": "/brief/lines.html", "icons": [{ "src": "/img/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Flight Calculator", "url": "/brief/e6b.html", "icons": [{ "src": "/img/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

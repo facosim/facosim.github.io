@@ -10,11 +10,15 @@
 <meta property="og:url" content="https://facosim.com/brief/lines.html">
 <meta property="og:type" content="website">
 <meta property="og:description" content="Rebuild a flight frame by frame, shape each turn, and step through the engagement for the debrief.">
+<meta name="description" content="Rebuild a flight frame by frame, shape each turn, and step through the engagement for the debrief.">
 <meta property="og:image" content="https://facosim.com/img/icon_combat_lines.jpg">
 <meta property="og:image:width" content="1500">
 <meta property="og:image:height" content="1500">
 <meta name="twitter:card" content="summary">
 <link rel="icon" type="image/png" href="../img/favicon.png">
+<link rel="manifest" href="../manifest.webmanifest">
+<meta name="theme-color" content="#111821">
+<link rel="apple-touch-icon" href="../img/icon-192.png">
 <style>
   :root {
     --bg: #0a0e13; --bar: #111821; --panel: #121a24; --line: #233244; --text: #c9d4df; --dim: #7d8a96;
@@ -349,6 +353,11 @@
     <button id="btn-adv" title="Advanced: radar sector, missile shots, guns and flares">Advanced</button>
   </div>
   <div class="spacer"></div>
+  <div class="grp">
+    <button id="btn-save" title="Save this debrief to a file on your computer (Ctrl/⌘+S)">Save</button>
+    <button id="btn-open" title="Open a debrief saved from this page, or drop the file on the page">Open</button>
+    <input id="file-open" type="file" accept=".json,application/json" hidden>
+  </div>
   <button id="btn-touch" title="Touchscreen mode: finger-sized buttons, one finger pans the map, two fingers pinch to zoom">Touch</button>
   <button id="btn-reset" title="Reset: clear every aircraft, frame and marker and start over">↺ Reset</button>
   <button id="btn-help" class="icon" title="Controls and layout (?)">?</button>
@@ -553,7 +562,7 @@
     <h2>Controls and layout</h2>
     <h3>Where things are</h3>
     <ul>
-      <li><b>Top bar:</b> add and remove aircraft, the mouse tools (Select, Path, <b>Move</b>, Pan, Zoom), zoom and Fit, the <b>3D view</b> and <b>Advanced</b> windows, and on the right <b>Touch</b>, <b>↺ Reset</b>, help and settings. When it is wider than the screen it scrolls sideways.</li>
+      <li><b>Top bar:</b> add and remove aircraft, the mouse tools (Select, Path, <b>Move</b>, Pan, Zoom), zoom and Fit, the <b>3D view</b> and <b>Advanced</b> windows, and on the right <b>Save</b> and <b>Open</b>, <b>Touch</b>, <b>↺ Reset</b>, help and settings. When it is wider than the screen it scrolls sideways.</li>
       <li><b>Bottom timeline:</b> previous and next frame, <b>Play</b> and the scrub slider for the upcoming frame, the current frame's length, and <b>Clear later frames</b>.</li>
       <li><b>Right:</b> the selected aircraft: name and color, where the frame starts, the controls for the next frame, the vertical window and maneuvers, and its turn numbers. The vertical window opens beside it.</li>
       <li><b>Left:</b> the Advanced window at the top (tabs for the radar sector and the debrief markers) and the 3D view at the bottom. With <b>Show sector</b> on, the <b>B-Scope</b> button opens a green radar scope that stays with the selected aircraft (select another aircraft and press it again for a second scope, close one with its × or by pressing the button for its aircraft; several can be open at once): bearing across, range up, with an elevation strip on the right. The beam only returns aircraft whose angle above or below the horizon is inside it, so scroll over the scope or drag it up and down (or use the slider) to point the beam up or down and find them. Drag any window by its title to move it.</li>
@@ -563,6 +572,7 @@
       <li><b>Add:</b> pick a type, press <b>+ Add</b> (<kbd>A</kbd>), click the grid and drag to point the nose. <kbd>Shift</kbd> snaps heading to 15°. The named aircraft, from the T-6 trainer to the J-20, are drawn with their own top-down outline and carry public performance figures (stall and corner speed, sea-level top speed, g limit, thrust and drag), all editable on the Aircraft tab of Settings (⚙). <b>↺ Reset</b> (top right) clears the whole debrief.</li>
       <li><b>Shape the flight path:</b> click an aircraft and drag. The next frame's arc bends through the cursor, and g and bank are set to match. The <b>Flight path</b> tool (<kbd>F</kbd>) does the same from anywhere on the grid.</li>
       <li><b>Turn or move:</b> <kbd>Option</kbd>, <kbd>Ctrl</kbd> or <kbd>⌘</kbd> + drag points the nose at the cursor; the yellow handle does the same. <kbd>Shift</kbd> + drag moves the aircraft. After an aircraft's first frame these are locked to how it flew; press <b>Unlock</b> in the panel to correct a frame by hand.</li>
+      <li><b>Save and open:</b> <b>Save</b> (<kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>S</kbd>) downloads the whole debrief to a <code>.json</code> file on your computer: every aircraft, frame, marker and altitude edit, plus your settings, aircraft performance numbers and the map view. <b>Open</b> (or dropping the file on the page) loads it back, after asking before it replaces what is on screen. Nothing is uploaded; the file stays with you, and a file that is not a Briefing Lines save is refused with a message.</li>
       <li><b>Move tool:</b> <b>Move</b> (<kbd>M</kbd>) drags an aircraft's whole flight: every frame, its history trail, its flight path and any markers shift together by the same amount, as if the flight had been flown somewhere else. It snaps to the grid when Snap is on. Drag a box on empty map to select several aircraft (hold <kbd>Shift</kbd>, <kbd>Ctrl</kbd> or <kbd>⌘</kbd> to add to the selection, or <kbd>Shift</kbd>+click one to toggle it), then drag any selected aircraft and they all move together. <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>A</kbd> selects every aircraft, <kbd>Delete</kbd> removes the selected ones and <kbd>Esc</kbd> clears the selection. With the Select tool, <kbd>Shift</kbd>+drag on empty map draws the selection box too.</li>
       <li><b>Quick altitude and speed:</b> the <b>Speed</b> and <b>Altitude</b> boxes in the aircraft panel change the selected aircraft at the current frame and re-fly the frames after it (scroll over a box to step it, <kbd>Shift</kbd> for bigger steps). The right-click wheel has <b>Alt ±1000</b> and <b>Speed ±50</b> buttons too.</li>
       <li><b>Quick menu:</b> right-click an aircraft (or press and hold on a touchscreen) for a wheel of its most used actions: vertical profile, wings level, hold speed, speedbrake, Split-S, Immelmann, 3D view and remove, with pitchbacks and slicebacks below it. Right-click empty map for adding an aircraft there, stepping frames, play, zoom and fit. Dragging with the right button still pans.</li>
@@ -602,10 +612,12 @@
 <script src="src/view3d.js"></script>
 <script src="src/advanced.js"></script>
 <script src="src/bscope.js"></script>
+<script src="src/save.js"></script>
 <script>  DL.ui.init();
   DL.ui.setTool('select');
   DL.view3d.init();
   DL.advWin.init();
+  DL.save.init();
   DL.game = new Phaser.Game({
     type: Phaser.AUTO,
     parent: 'game',
@@ -614,5 +626,6 @@
     scene: DL.DebriefScene,
   });
 </script>
+<script>if ('serviceWorker' in navigator) window.addEventListener('load', function () { navigator.serviceWorker.register('../sw.js').catch(function () { }); });</script>
 </body>
 </html>

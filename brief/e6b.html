@@ -10,11 +10,15 @@
 <meta property="og:url" content="https://facosim.com/brief/e6b.html">
 <meta property="og:type" content="website">
 <meta property="og:description" content="An easy E6B for student pilots: wind correction, true airspeed, density altitude, time-speed-distance, fuel, crosswind, climb and descent, unit and coordinate conversion.">
+<meta name="description" content="An easy E6B for student pilots: wind correction, true airspeed, density altitude, time-speed-distance, fuel, crosswind, climb and descent, unit and coordinate conversion.">
 <meta property="og:image" content="https://facosim.com/img/icon_e6b.jpg">
 <meta property="og:image:width" content="1500">
 <meta property="og:image:height" content="1500">
 <meta name="twitter:card" content="summary">
 <link rel="icon" type="image/png" href="../img/favicon.png">
+<link rel="manifest" href="../manifest.webmanifest">
+<meta name="theme-color" content="#111821">
+<link rel="apple-touch-icon" href="../img/icon-192.png">
 <style>
   :root {
     --bg: #0a0e13; --bar: #111821; --panel: #121a24; --line: #233244; --text: #c9d4df;
@@ -523,5 +527,6 @@
 
 <script src="e6b/calc.js"></script>
 <script src="e6b/ui.js"></script>
+<script>if ('serviceWorker' in navigator) window.addEventListener('load', function () { navigator.serviceWorker.register('../sw.js').catch(function () { }); });</script>
 </body>
 </html>
