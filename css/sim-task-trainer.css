@@ -56,3 +56,7 @@
 .sim-task-trainer-details li + li {
   margin-top: 0.45rem;
 }
+
+.sim-task-trainer-details__warning {
+  color: #ff0000;
+}
