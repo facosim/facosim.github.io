@@ -74,7 +74,6 @@
   .stick svg, .lever svg { display: block; width: 100%; height: 100%; overflow: visible; }
   .lever:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .s-plate, .l-plate { fill: var(--field); stroke: var(--line); stroke-width: 1.5; }
-  .stick.hold .s-plate { stroke: var(--warn); stroke-width: 2.5; }
   .s-screw { fill: var(--line-hover); }
   .s-gate { fill: var(--bg); stroke: var(--line-hover); stroke-width: 1.5; }
   .stick.active .s-gate, .lever.active .l-slot { stroke: var(--accent); }
@@ -267,7 +266,7 @@
 
 <div id="ctl">
   <div class="deck">
-    <div id="stick" class="stick" role="group" aria-label="Joystick" title="Joystick: drag left or right to bank, up or down to pitch (← → ↑ ↓). Let go and it springs back to center; Hold keeps it where you leave it."></div>
+    <div id="stick" class="stick" role="group" aria-label="Joystick" title="Joystick: drag left or right to bank, up or down to pitch (← → ↑ ↓). It stays where you leave it; Recenter brings it back to the middle."></div>
     <div id="throttle" class="lever" role="slider" tabindex="0" aria-label="Power" aria-orientation="vertical" aria-valuemin="0" aria-valuemax="100" aria-valuenow="65" title="Throttle: drag up for more power, down for less (W / S)"></div>
     <div class="deck-ro">
       <span class="k">Bank</span><span class="v mono" id="c-bank-v"></span>
@@ -276,7 +275,7 @@
     </div>
     <div class="deck-btns">
       <button id="c-level" title="Wings level (L)">Level</button>
-      <button id="c-hold" aria-pressed="false" title="Keep the joystick where you leave it instead of letting it spring back to center">Hold</button>
+      <button id="c-recenter" title="Put the joystick back in the middle: wings level and level-flight pitch">Recenter</button>
     </div>
   </div>
   <div class="ctl-col">
@@ -333,7 +332,7 @@
     <p class="note" style="color:var(--text)">The map shows the aircraft over a real US area: the airports with instrument approaches, their localizers, and the VORs, VORTACs, TACANs, DMEs and NDBs around them, from FAA data. Pick a home <b>airport</b> (type its code, such as KDAB or KOSH) and an <b>approach</b> at the top; the scenarios are built around it and its nearest VOR, TACAN and NDB. The panel shows what the pilot sees. Pick a <b>scenario</b> and the autopilot flies it; touch any control and you have the aircraft.</p>
     <h3>Controls</h3>
     <ul>
-      <li><b>Fly:</b> drag the red joystick: left or right banks, push up to lower the nose and pull down to raise it, like a real stick (<b>Settings</b> can swap that), and the further you push, the more you get. Let go and it springs back to center, which means wings level and level-flight pitch. Press <b>Hold</b> to keep it where you leave it, and <b>Level</b> to bring the wings back level. The throttle lever beside it sets the power and stays where you put it. The keys work too: <kbd>←</kbd> <kbd>→</kbd> bank, <kbd>↑</kbd> <kbd>↓</kbd> pitch, <kbd>W</kbd> <kbd>S</kbd> power, <kbd>L</kbd> wings level, with <kbd>Shift</kbd> for finer steps. While the autopilot flies, the stick and lever move on their own to show what it is commanding.</li>
+      <li><b>Fly:</b> drag the red joystick: left or right banks, push up to lower the nose and pull down to raise it, like a real stick (<b>Settings</b> can swap that), and the further you push, the more you get. It stays where you leave it, so a turn or climb carries on after you let go. <b>Recenter</b> puts it back in the middle (wings level and level-flight pitch) and <b>Level</b> levels only the wings. The throttle lever beside it sets the power and stays where you put it. The keys work too: <kbd>←</kbd> <kbd>→</kbd> bank, <kbd>↑</kbd> <kbd>↓</kbd> pitch, <kbd>W</kbd> <kbd>S</kbd> power, <kbd>L</kbd> wings level, with <kbd>Shift</kbd> for finer steps. While the autopilot flies, the stick and lever move on their own to show what it is commanding.</li>
       <li><b>Steer with the mouse:</b> press on the aircraft and drag left or right. That picks a new heading (5° for every 10 px, <kbd>Shift</kbd> for 1° steps) and the aircraft rolls into a standard-rate turn (3° a second) to fly it. The blue line ahead shows the planned path, and dragging does not change the climb. To climb or descend, drag the cross lines across the middle of that path, the way Briefing Lines sets climb by dragging its ticks: up climbs and down descends, 100 ft for every 4 px, at 500 fpm. One line is level, two a gentle climb or descent, three a steep one, growing to climb and shrinking to descend. Both use the heading bug and the HDG and ALT holds, so the instruments show where you are going; let go and the aircraft finishes the turn and levels off by itself. Drag again mid-turn to add to it.</li>
       <li><b>Quick menu:</b> right-click the aircraft (press and hold on a touchscreen) for a ring of quick changes laid out like the drag: climb or descend 500 ft, turn 30° or 90° either way, and 10 kt faster or slower (which holds the speed with power). Clicks add up, and <kbd>Shift</kbd>+click doubles a step. The middle shows the heading, altitude and speed, blue where they are being held. Below it: <b>Level off</b>, <b>Turn 180°</b>, <b>Hold speed</b>, <b>Hand-fly</b> (autopilot off) and <b>Move</b>. Click outside or press <kbd>Esc</kbd> to close.</li>
       <li><b>Map:</b> <kbd>Shift</kbd>+drag the aircraft (or <b>Move</b> in the quick menu) to move it, and click it once to select it: a yellow line with a dot at its end appears ahead of it, and dragging the dot points the nose (<kbd>Shift</kbd> snaps to 15°). The selected aircraft also shows its path and cross lines. Click empty map or press <kbd>Esc</kbd> to deselect. Drag empty map to pan, wheel or pinch to zoom, <b>Follow</b> (<kbd>F</kbd>) keeps the aircraft centered, <b>Fit</b> (<kbd>0</kbd>) shows everything.</li>

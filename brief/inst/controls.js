@@ -155,7 +155,6 @@
     return {
       set(x, y) { want.x = clamp(x, -1, 1); want.y = clamp(y, -1, 1); kick(); },
       setLabels(up, down) { top.textContent = up; bottom.textContent = down; },
-      setHold(on) { el.classList.toggle('hold', on); },
       get active() { return pointer.active; },
     };
   };

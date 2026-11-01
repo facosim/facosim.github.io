@@ -30,7 +30,6 @@
 
   const ui = FI.ui = {
     touch: false,
-    hold: false,
     invert: false,
 
     init() {
@@ -83,7 +82,7 @@
       ui.syncHash();
       window.addEventListener('hashchange', () => { const m = FI.panelFromHash(location.hash); if (m && m !== FI.panelMode) ui.setPanel(m); });
       $('c-level').addEventListener('click', () => { FI.setControl('bank', 0); ui.refresh(); });
-      $('c-hold').addEventListener('click', () => ui.setHold(!ui.hold));
+      $('c-recenter').addEventListener('click', () => { FI.setControl('bank', 0); FI.setControl('pitch', trim()); ui.refresh(); });
       $('ap-hdg').addEventListener('click', () => { FI.setAp('hdg', !FI.ap.hdg); ui.refresh(); });
       $('ap-alt').addEventListener('click', () => { FI.setAp('alt', !FI.ap.alt); ui.refresh(); });
       $('ap-nav').addEventListener('click', () => { FI.setAp('nav', !FI.ap.nav); ui.refresh(); });
@@ -101,13 +100,7 @@
       ui.stick = FI.Stick($('stick'), {
         axis(a, v) { if (a === 'x') FI.setControl('bank', bankOf(v)); else FI.setControl('pitch', pitchOf(v)); },
         changed() { ui.refresh(); },
-        release(used) {
-          if (!ui.hold) {
-            if (used.x) FI.setControl('bank', 0);
-            if (used.y) FI.setControl('pitch', trim());
-          }
-          ui.refresh();
-        },
+        release() { ui.refresh(); },
       });
       ui.bugKnob = FI.Knob($('bug-knob'), { change: d => ui.bump('bug', d) });
       ui.obsKnob = FI.Knob($('obs-knob'), { change: d => ui.bump('obs', d) });
@@ -116,15 +109,7 @@
         nudge(d) { FI.setControl('power', clamp(Math.round(FI.state.power) + d, 0, 100)); ui.refresh(); },
         release() { ui.refresh(); },
       });
-      ui.setHold(flag('fi-stick-hold'), false);
       ui.setInvert(flag('fi-stick-invert', true), false);
-    },
-    setHold(on, save = true) {
-      ui.hold = on;
-      if (save) saveFlag('fi-stick-hold', on);
-      $('c-hold').classList.toggle('on', on);
-      $('c-hold').setAttribute('aria-pressed', String(on));
-      ui.stick.setHold(on);
     },
     setInvert(on, save = true) {
       ui.invert = on;
