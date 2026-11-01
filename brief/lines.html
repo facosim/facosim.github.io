@@ -145,10 +145,9 @@
   .v3d-ctl button { height: 26px; font-size: 12px; }
   #v3d-time { font-size: 11px; color: var(--dim); min-width: 52px; }
 
-  #advwin { position: fixed; display: none; z-index: 11; width: 384px; max-height: calc(100% - 96px); overflow: auto; background: var(--panel);
+  #advwin { position: fixed; display: none; z-index: 11; width: 360px; max-height: calc(100% - 96px); overflow: auto; background: var(--panel);
     border: 1px solid var(--line-hover); border-radius: 10px; padding: 10px 12px 12px; box-shadow: 0 10px 34px rgba(0,0,0,.55); font-size: 12.5px; }
   #advwin.open { display: block; }
-  #advwin h3 { margin: 12px 0 6px; font-size: 11px; color: var(--head); text-transform: uppercase; letter-spacing: .06em; }
   .adv-row { display: flex; align-items: center; gap: 8px; margin: 6px 0; flex-wrap: wrap; }
   .adv-row select, .adv-row input { height: 26px; }
   .seg { display: inline-flex; }
@@ -164,10 +163,28 @@
   #adv-contacts tr.hit td { color: var(--strong); }
   #adv-contacts small { color: var(--dim); }
   .dim { color: var(--dim); font-size: 11.5px; margin: 4px 0; }
-  .adv-add div { display: flex; align-items: center; gap: 6px; margin: 5px 0; flex-wrap: wrap; }
-  .adv-add button { height: 26px; font-size: 12px; min-width: 118px; }
-  .adv-add input { width: 64px; height: 26px; }
-  .adv-add select { height: 26px; max-width: 120px; }
+  .adv-add { display: grid; grid-template-columns: 108px 1fr 78px; gap: 6px; align-items: center; margin: 6px 0; }
+  .adv-add button { height: 26px; font-size: 12px; padding: 0 6px; }
+  .adv-add select { height: 26px; min-width: 0; width: 100%; }
+  .adv-add label { display: flex; align-items: center; gap: 4px; }
+  .adv-add input { width: 100%; height: 26px; }
+  .adv-add i { font-style: normal; color: var(--dim); }
+  .adv-tabs { padding: 0; margin: 4px 0 6px; }
+  .adv-tabs button { height: 28px; padding: 0 12px; font-size: 12px; }
+  .adv-page { display: none; }
+  .adv-page.on { display: block; }
+  .adv-right { margin-left: auto; }
+  #adv-fov { width: 58px; }
+  .adv-sub { margin: 10px 0 4px; font-size: 11px; color: var(--head); text-transform: uppercase; letter-spacing: .06em; }
+  #bscope { position: fixed; display: none; z-index: 10; width: 380px; background: var(--panel); border: 1px solid var(--line-hover); border-radius: 10px;
+    padding: 8px 10px 10px; box-shadow: 0 10px 34px rgba(0,0,0,.55); font-size: 12px; }
+  #bscope.open { display: block; }
+  #bs-canvas { display: block; width: 100%; height: 300px; border-radius: 6px; margin-top: 6px; background: #020a02; cursor: ns-resize; touch-action: none; }
+  #bs-info { margin-top: 6px; font-size: 11px; color: var(--dim); min-height: 15px; }
+  .bs-ctl { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  .bs-ctl input[type=range] { flex: 1; min-width: 80px; accent-color: var(--accent); }
+  .bs-ctl select, .bs-ctl button { height: 26px; font-size: 12px; }
+  #bs-elev-v { min-width: 42px; text-align: right; }
   #adv-events .ev { display: flex; align-items: center; gap: 6px; padding: 3px 4px; border-radius: 5px; }
   #adv-events .ev.now { background: var(--row-now); }
   #adv-events .ev > span:not(.sw) { flex: 1; }
@@ -296,7 +313,7 @@
     #settings .dialog > h2, .tabs, .tab-body, #settings .actions { padding-left: 14px; padding-right: 14px; }
   }
   .brk { display: none; }
-  body.map-gesture #panel, body.map-gesture #vwin, body.map-gesture #advwin, body.map-gesture #v3d,
+  body.map-gesture #panel, body.map-gesture #vwin, body.map-gesture #advwin, body.map-gesture #bscope, body.map-gesture #v3d,
   body.map-gesture #bar, body.map-gesture #timeline, body.map-gesture #status { pointer-events: none; }
   @media (max-height: 560px) { #v3d-canvas { height: 150px; } }
   @media (max-height: 480px) { #status { display: none; } #timeline { bottom: 0; } }
@@ -384,29 +401,56 @@
 
 <div id="advwin">
   <div class="vw-h"><b>Advanced</b><button id="adv-close" class="icon" title="Close (Esc)">×</button></div>
-  <h3>Radar</h3>
-  <div class="adv-row">
-    <label class="check"><input id="adv-radar-on" type="checkbox"> Show sector</label>
-    <select id="adv-radar-who" title="Which aircraft show a radar sector"><option value="selected">selected aircraft</option><option value="all">all aircraft</option></select>
+  <div class="tabs adv-tabs" role="tablist">
+    <button role="tab" data-advtab="radar" class="on">Radar</button>
+    <button role="tab" data-advtab="events">Events</button>
   </div>
-  <div class="adv-row">
+  <section class="adv-page on" data-advpage="radar">
+    <div class="adv-row">
+      <label class="check"><input id="adv-radar-on" type="checkbox"> Show sector</label>
+      <select id="adv-radar-who" title="Which aircraft show a radar sector"><option value="selected">selected aircraft</option><option value="all">all aircraft</option></select>
+      <button id="adv-bscope" title="Open a B-scope display of the selected aircraft's radar (turn on Show sector first)">B-Scope</button>
+    </div>
+    <div class="adv-row">
+      <span class="dim">Range</span>
+      <div class="seg"><button data-range="5">5</button><button data-range="10">10</button><button data-range="20">20</button><button data-range="40">40</button></div>
+      <span class="dim">nm</span>
+      <span class="dim adv-right">FOV</span><input id="adv-fov" type="number" min="10" max="360" step="10"><span class="dim">°</span>
+    </div>
+    <div class="adv-own" id="adv-own"></div>
+    <div id="adv-contacts"></div>
+  </section>
+  <section class="adv-page" data-advpage="events">
+    <div class="dim" id="adv-at"></div>
+    <div class="adv-add">
+      <button id="adv-add-shot">+ Missile shot</button><select id="adv-shot-target" title="Target"></select><label><input id="adv-shot-tof" type="number" min="1" step="1" title="Time of flight, seconds"><i>s</i></label>
+      <button id="adv-add-gun">+ Gun burst</button><span class="dim">line length</span><label><input id="adv-gun-len" type="number" min="100" step="100" title="Length of the gun line, feet"><i>ft</i></label>
+      <button id="adv-add-flare">+ Flares</button><span class="dim">how many</span><label><input id="adv-flare-n" type="number" min="1" max="12" step="1" title="Number of flares"></label>
+    </div>
+    <div class="adv-sub">Timeline</div>
+    <div id="adv-events"></div>
+    <div class="note">Markers draw on the map from their frame on. A shot flies toward its target for its time of flight; set hit or miss once you know the result. Flares drop along the path flown during the next frame.</div>
+  </section>
+</div>
+
+<div id="bscope">
+  <div class="vw-h"><b>B-Scope</b><span id="bs-who" class="dim"></span><button id="bs-close" class="icon" title="Close">×</button></div>
+  <canvas id="bs-canvas" title="Scroll to change the elevation angle"></canvas>
+  <div id="bs-info" class="mono"></div>
+  <div class="bs-ctl">
+    <label for="bs-elev">Elevation</label>
+    <input id="bs-elev" type="range" min="-60" max="60" step="1" value="0">
+    <span id="bs-elev-v" class="mono"></span>
+    <button id="bs-level" title="Point the beam at the horizon">0°</button>
+  </div>
+  <div class="bs-ctl">
     <span class="dim">Range</span>
-    <div class="seg"><button data-range="5">5</button><button data-range="10">10</button><button data-range="20">20</button><button data-range="40">40</button></div>
+    <div class="seg"><button data-bsrange="5">5</button><button data-bsrange="10">10</button><button data-bsrange="20">20</button><button data-bsrange="40">40</button></div>
     <span class="dim">nm</span>
-    <span class="dim" style="margin-left:auto">FOV</span><input id="adv-fov" type="number" min="10" max="360" step="10" style="width:64px"><span class="dim">°</span>
+    <span class="dim adv-right">Beam</span>
+    <select id="bs-beam" title="Vertical beamwidth: contacts are returned only inside it"><option value="4">4°</option><option value="8">8°</option><option value="16">16°</option></select>
+    <label class="check"><input id="bs-labels" type="checkbox" checked> Tags</label>
   </div>
-  <div class="adv-own" id="adv-own"></div>
-  <div id="adv-contacts"></div>
-  <h3>Events</h3>
-  <div class="dim" id="adv-at"></div>
-  <div class="adv-add">
-    <div><button id="adv-add-shot">+ Missile shot</button> at <select id="adv-shot-target"></select> <input id="adv-shot-tof" type="number" min="1" step="1" title="Time of flight, seconds"> s</div>
-    <div><button id="adv-add-gun">+ Gun burst</button> line <input id="adv-gun-len" type="number" min="100" step="100" title="Length of the gun line, feet"> ft</div>
-    <div><button id="adv-add-flare">+ Flares</button> <input id="adv-flare-n" type="number" min="1" max="12" step="1" title="Number of flares"> flares</div>
-  </div>
-  <h3>Timeline</h3>
-  <div id="adv-events"></div>
-  <div class="note">Markers draw on the map from their frame on. A shot flies toward its target for its time of flight; set hit or miss once you know the result. Flares drop along the path flown during the next frame.</div>
 </div>
 
 <div id="v3d">
@@ -529,7 +573,7 @@
       <li><b>Top bar:</b> add and remove aircraft, the mouse tools (Select, Path, Pan, Zoom), zoom and Fit, the <b>3D view</b> and <b>Advanced</b> windows, and on the right <b>Touch</b>, <b>↺ Reset</b>, help and settings. When it is wider than the screen it scrolls sideways.</li>
       <li><b>Bottom timeline:</b> previous and next frame, <b>Play</b> and the scrub slider for the upcoming frame, the current frame's length, and <b>Clear later frames</b>.</li>
       <li><b>Right:</b> the selected aircraft: name and color, where the frame starts, the controls for the next frame, the vertical window and maneuvers, and its turn numbers. The vertical window opens beside it.</li>
-      <li><b>Left:</b> the Advanced window (radar and debrief markers) at the top and the 3D view at the bottom. Drag any window by its title to move it.</li>
+      <li><b>Left:</b> the Advanced window at the top (tabs for the radar sector and the debrief markers) and the 3D view at the bottom. With <b>Show sector</b> on, the <b>B-Scope</b> button opens a green radar scope for the selected aircraft: bearing across, range up, with an elevation strip on the right. The beam only returns aircraft whose angle above or below the horizon is inside it, so scroll over the scope or drag it up and down (or use the slider) to point the beam up or down and find them. Drag any window by its title to move it.</li>
     </ul>
     <h3>Controls</h3>
     <ul>
@@ -572,10 +616,12 @@
 <script src="src/ui.js"></script>
 <script src="src/view3d.js"></script>
 <script src="src/advanced.js"></script>
+<script src="src/bscope.js"></script>
 <script>  DL.ui.init();
   DL.ui.setTool('select');
   DL.view3d.init();
   DL.advWin.init();
+  DL.bscope.init();
   DL.game = new Phaser.Game({
     type: Phaser.AUTO,
     parent: 'game',

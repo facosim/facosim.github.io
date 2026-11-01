@@ -110,7 +110,7 @@
           case 'ArrowRight': case '.': this.next(); break;
           case 'ArrowLeft': case ',': this.prev(); break;
           case 'Delete': case 'Backspace': this.removeSelected(); break;
-          case 'Escape': this.closeWheel(); this.closeVertical(); if (DL.advWin) DL.advWin.close(); this.setTool('select'); this.select(null); $('help').classList.remove('open'); $('settings').classList.remove('open'); break;
+          case 'Escape': this.closeWheel(); this.closeVertical(); if (DL.advWin) DL.advWin.close(); if (DL.bscope) DL.bscope.close(); this.setTool('select'); this.select(null); $('help').classList.remove('open'); $('settings').classList.remove('open'); break;
           case 'v': case 'V': this.setTool('select'); break;
           case 'a': case 'A': this.setTool('place'); break;
           case 'f': case 'F': this.setTool('path'); break;
@@ -216,8 +216,10 @@
       const panelW = $('panel').offsetWidth || (this.touch ? 330 : 290);
       if (!one && window.innerWidth >= 384 + 300 + panelW + 48) return;
       if (which !== 'vwin' && this.vw) this.closeVertical();
+      if (which !== 'bscope' && one && DL.bscope && DL.bscope.isOpen()) DL.bscope.close();
       if (which === 'vwin' || one) {
         if (which !== 'adv' && DL.advWin && DL.advWin.isOpen()) DL.advWin.close();
+        if (which === 'bscope' && DL.advWin && DL.advWin.isOpen()) DL.advWin.close();
         if (which !== 'v3d' && DL.view3d && DL.view3d.visible) DL.view3d.setVisible(false);
       }
     },
@@ -573,24 +575,25 @@
       const W = window.innerWidth, H = window.innerHeight;
       const top = this.barH() + 12;
       const bottom = H - ($('timeline').offsetHeight || 44) - $('status').offsetHeight - 12;
-      const v3 = $('v3d'), adv = $('advwin'), vw = $('vwin'), panel = $('panel');
+      const v3 = $('v3d'), adv = $('advwin'), vw = $('vwin'), panel = $('panel'), bsw = $('bscope');
       if (this.narrow()) {
         const pr = panel.classList.contains('open') ? panel.getBoundingClientRect() : null;
         const y0 = this.barH() + 6, floor = (pr ? pr.top : bottom + 12) - 6;
-        for (const el of [v3, adv, vw]) {
+        for (const el of [v3, adv, vw, bsw]) {
           if (!el.offsetWidth || el.dataset.moved) continue;
           el.style.left = '6px'; el.style.width = (W - 12) + 'px'; el.style.top = y0 + 'px'; el.style.bottom = 'auto';
           el.style.maxHeight = Math.max(150, floor - y0) + 'px';
         }
         return;
       }
-      for (const el of [v3, adv, vw]) if (!el.dataset.moved) el.style.width = '';
+      for (const el of [v3, adv, vw, bsw]) if (!el.dataset.moved && el !== bsw) el.style.width = '';
       const place = (el, x, y) => { el.style.left = Math.max(8, x) + 'px'; el.style.top = Math.max(top, y) + 'px'; el.style.bottom = 'auto'; };
       const v3h = v3.offsetHeight;
       if (v3h && !v3.dataset.moved) place(v3, 12, bottom - v3h);
       if (!adv.dataset.moved) place(adv, 12, top);
       const advEnd = v3h && !v3.dataset.moved && !adv.dataset.moved ? bottom - v3h - 10 : bottom;
       adv.style.maxHeight = Math.max(180, advEnd - parseFloat(adv.style.top || top)) + 'px';
+      if (!bsw.dataset.moved) place(bsw, 12 + (adv.classList.contains('open') ? adv.offsetWidth + 10 : 0), top);
       const pw = panel.classList.contains('open') ? panel.offsetWidth + 10 : 0;
       if (!vw.dataset.moved) place(vw, W - 12 - pw - (vw.offsetWidth || 300), top);
       vw.style.maxHeight = Math.max(180, bottom - parseFloat(vw.style.top || top)) + 'px';
