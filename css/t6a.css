@@ -89,10 +89,6 @@
   height: 32%;
 }
 
-section[data-sqsp-section="gallery"] .gallery {
-  display: none;
-}
-
 .t6a-controls-info {
   display: grid;
   gap: clamp(1.5rem, 4vw, 4rem);
@@ -171,7 +167,6 @@ section[data-sqsp-section="gallery"] .gallery {
   .t6a-annotations {
     font-size: 0.8rem;
   }
-
   .t6a-controls-info {
     grid-template-columns: 1fr;
   }

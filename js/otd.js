@@ -1,6 +1,3 @@
-/* "Of The Day": one item per category, chosen by the calendar date, so
-   everyone sees the same set on a given day and it changes at midnight.
-   Each entry is { t: title, d: short description shown on hover, u: link }. */
 (function () {
   'use strict';
 
@@ -12,7 +9,6 @@
   var PCG = 'https://www.faa.gov/air_traffic/publications/atpubs/pcg_html/glossary-';
   var HANDBOOK = 'https://www.faa.gov/regulations_policies/handbooks_manuals/aviation/airplane_handbook';
 
-  // ---------- Emergency procedure ----------
   var EMERG = [
     { t: 'Aircraft Fires', d: 'Engine, electrical and cabin fires: what each one looks like, the memory items, and why getting on the ground fast matters.', u: AOPA + 'training-and-safety/students/flighttestprep/skills/aircraft-fires' },
     { t: 'Fire in Flight', d: 'Fighting a cockpit fire: cut the source, use the extinguisher, ventilate, and land as soon as possible.', u: AOPA + 'news-and-media/all-news/2020/february/24/aircraft-maintenance-fighting-a-cockpit-fire' },
@@ -54,7 +50,6 @@
     { t: 'Forced Landings', d: 'ASI Safety Spotlight: choosing a field, the pattern, and the touchdown that lets everyone walk away.', u: AOPA + 'training-and-safety/online-learning/safety-spotlights/emergency-procedures/forced-landings' }
   ];
 
-  // ---------- Mishap ----------
   var MISHAP = [
     { t: 'Tenerife, 1977', d: 'Two 747s collided on a fog-bound runway after a takeoff begun without clearance. 583 died, the deadliest accident in aviation.', u: SKY + 'B742_/_B741,_Tenerife_Canary_Islands_Spain,_1977' },
     { t: 'ATR 42, Lubbock, 2009', d: 'A cargo ATR 42 in icing conditions stalled short of the runway after a flap problem on approach. Both pilots survived.', u: SKY + 'AT43,_Lubbock_TX_USA,_2009' },
@@ -96,7 +91,6 @@
     { t: '747, Alaska, 1989', d: 'KLM 867 flew into the ash cloud from Mount Redoubt and lost all four engines. The crew relit them and landed at Anchorage.', u: SKY + 'B744,_Alaska_USA,_1989' }
   ];
 
-  // ---------- Aircraft (civil and general) ----------
   var AIRCRAFT = [
     { t: 'Aermacchi MB-339', d: 'Italian two-seat jet trainer and light attack aircraft, flown by the Frecce Tricolori display team.', u: SKY + 'M339' },
     { t: 'Airbus A320neo', d: 'The re-engined A320 with geared turbofans or LEAP engines, the best-selling airliner family in the world.', u: SKY + 'A20N' },
@@ -138,7 +132,6 @@
     { t: 'Aeritalia G.222', d: 'Italian twin-turboprop tactical transport, flown by the USAF as the C-27A.', u: SKY + 'G222' }
   ];
 
-  // ---------- Checklist procedure (a 172-class trainer) ----------
   var CHECKLIST = [
     { t: 'Preflight Inspection', d: 'Documents aboard (ARROW). Control lock out. Master on: fuel quantity, flaps down, lights. Master off. Walk-around: fuel sumps, oil, tires, control surfaces, pitot cover off, tie-downs off.', u: HANDBOOK },
     { t: 'Before Starting Engine', d: 'Preflight complete. Seats and belts adjusted and locked. Brakes test and set. Circuit breakers in. Avionics off. Fuel selector BOTH.', u: HANDBOOK },
@@ -160,7 +153,6 @@
     { t: 'Electrical Fire in Flight', d: 'Master off. All switches off (except mags). Vents and cabin heat closed. Fire extinguisher. Ventilate when out. If needed: master on, breakers checked, then switches on one at a time with a pause between.', u: HANDBOOK }
   ];
 
-  // ---------- Regulation ----------
   function far(sec, title, desc) { return { t: '§' + sec + ' ' + title, d: desc, u: CFR14 + sec }; }
   var REG = [
     far('91.3', 'Pilot in command', 'The PIC is directly responsible for, and the final authority as to, the operation of the aircraft. In an in-flight emergency you may deviate from any rule to the extent required, and must report it on ATC’s request.'),
@@ -214,7 +206,6 @@
     { t: 'NTSB 830.5 Immediate notification', d: 'Notify the nearest NTSB office immediately after an accident or any listed serious incident: flight control failure, crew incapacitation, in-flight fire, mid-air collision, damage over $25,000 to property, and more.', u: 'https://www.ecfr.gov/current/title-49/section-830.5' }
   ];
 
-  // ---------- Phraseology (Pilot/Controller Glossary) ----------
   function pcg(t, d) { return { t: t, d: d, u: PCG + t.charAt(0).toLowerCase() + '.html' }; }
   var PHRASE = [
     pcg('ABEAM', 'An aircraft is abeam a fix, point or object when that point is approximately 90 degrees to the right or left of the aircraft track. It indicates a general position rather than a precise point.'),
@@ -301,7 +292,6 @@
     pcg('WORDS TWICE', 'As a request: communication is difficult, please say every phrase twice. As information: since communication is difficult, every phrase in this message will be spoken twice.')
   ];
 
-  // ---------- Military aircraft (in service today) ----------
   function w(t, d, page) { return { t: t, d: d, u: WIKI + page }; }
   var MIL = [
     w('F-22 Raptor', 'US stealth air-superiority fighter with thrust vectoring and supercruise. Only 187 built.', 'Lockheed_Martin_F-22_Raptor'),
@@ -376,7 +366,6 @@
     w('Mil Mi-17', 'The world’s most widely used military transport helicopter, in service in 60 countries.', 'Mil_Mi-17')
   ];
 
-  // ---------- Historical aircraft ----------
   var HIST = [
     w('Wright Flyer', '17 December 1903: the first controlled, powered, sustained flight of a heavier-than-air machine. 12 seconds, 120 feet.', 'Wright_Flyer'),
     w('Blériot XI', 'Louis Blériot crossed the English Channel in it in 1909, the first flight between countries.', 'Bl%C3%A9riot_XI'),
@@ -452,7 +441,6 @@
     w('Northrop YB-49', 'Jet flying-wing bomber of 1947 whose shape returned as the B-2 forty years later.', 'Northrop_YB-49')
   ];
 
-  // ---------- Workout: Monday, Wednesday and Friday ----------
   var WORKOUT = [
     { t: 'Push Day', d: 'Push-ups 3 × 12 · Chair dips 3 × 10 · Pike push-ups 3 × 8 · Plank 3 × 45 s. Rest 60 to 90 seconds between sets.' },
     { t: 'Leg Day', d: 'Bodyweight squats 4 × 15 · Walking lunges 3 × 10 each leg · Glute bridges 3 × 15 · Calf raises 3 × 20.' },
@@ -480,20 +468,17 @@
     { id: 'workout', label: 'Workout', items: null, offset: 0 }
   ];
 
-  // Days since 1 January 1970 in the visitor's local calendar, so the set
-  // changes at local midnight and never repeats on New Year's Day.
   function dayNumber(d) {
     return Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000);
   }
 
-  // Monday, Wednesday and Friday train; the pool cycles over four weeks.
   function workoutFor(d) {
     var dow = d.getDay(), slot = { 1: 0, 3: 1, 5: 2 }[dow];
     if (slot == null) {
       var next = dow === 0 || dow === 6 ? 'Monday' : dow === 2 ? 'Wednesday' : 'Friday';
       return { t: 'Off day', off: true, d: 'No workout today. Rest, stretch, or take a walk. The next workout is ' + next + '. Training days are Monday, Wednesday and Friday.' };
     }
-    var week = Math.floor((dayNumber(d) + 3) / 7);           // weeks since epoch, Monday-based
+    var week = Math.floor((dayNumber(d) + 3) / 7);
     return WORKOUT[(week * 3 + slot) % WORKOUT.length];
   }
 
@@ -514,9 +499,6 @@
     node.appendChild(el('span', 'otd-cat', label));
     node.appendChild(el('span', 'otd-title', item.t));
     node.appendChild(el('span', 'otd-desc', item.d));
-    // The hover panel lays over the card so the grid does not reflow. It
-    // repeats the heading, and is hidden from screen readers, which get
-    // the inline description above.
     var pop = el('span', 'otd-pop');
     pop.setAttribute('aria-hidden', 'true');
     pop.appendChild(el('span', 'otd-cat', label));
@@ -548,7 +530,6 @@
 
   function init() {
     render();
-    // Roll over at local midnight if the page is left open.
     var now = new Date(), next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 5);
     setTimeout(function () { render(); setInterval(render, 86400000); }, next - now);
   }

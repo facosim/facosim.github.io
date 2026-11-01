@@ -1,4 +1,3 @@
-// DOM user interface: title bar, aircraft panel, settings, help, status bar.
 (function (DL) {
   'use strict';
 
@@ -6,8 +5,6 @@
   const fmt = n => (Math.round(n) + 0).toLocaleString('en-US');
   const hex = c => '#' + c.toString(16).padStart(6, '0');
 
-  // Reversal presets: roll to this bank and pull. The flight model keeps
-  // pulling past 90 degrees of bank until level and heading the other way.
   const MANEUVERS = {
     splitS:    { name: 'Split-S',   bank: 180 },
     immelmann: { name: 'Immelmann', bank: 0 },
@@ -19,13 +16,11 @@
     tool: 'select',
     placeType: 'fighter',
     selected: null,
-    touch: false,          // touchscreen mode (body.touch)
-    dragMode: 'path',      // touchscreen: what a drag from an aircraft does (path, nose, move)
+    touch: false,
+    dragMode: 'path',
 
     init() {
-      // Title bar
       $('btn-add').onclick = () => this.setTool(this.tool === 'place' ? 'select' : 'place');
-      // the type menu comes from the catalog, grouped by origin
       const groups = {};
       for (const k in DL.TYPES) { const g = DL.TYPES[k].group || 'Other'; (groups[g] = groups[g] || []).push(k); }
       $('add-type').innerHTML = Object.keys(groups).map(g => '<optgroup label="' + g + '">' +
@@ -51,7 +46,6 @@
       $('btn-help').onclick = () => $('help').classList.toggle('open');
       $('help-close').onclick = () => $('help').classList.remove('open');
 
-      // Aircraft panel
       $('p-close').onclick = () => this.select(null);
       $('p-callsign').oninput = e => { const a = this.ac(); if (a) a.callsign = e.target.value; };
       $('p-color').oninput = e => { if (this.selected && this.state()) { DL.setColorAt(DL.tl.current, this.selected, parseInt(e.target.value.slice(1), 16)); this.refresh(); } };
@@ -81,7 +75,6 @@
         this.applyPreset(DL.tl.current, this.selected, key, side === 'L');
       };
 
-      // Vertical window
       $('vw-close').onclick = () => this.closeVertical();
       $('vw-alt').onchange = e => { const v = this.vw; if (v) { DL.setAltAt(v.k, v.id, +e.target.value || 0); this.refresh(); } };
       $('vw-gam').onchange = e => { const v = this.vw; if (v) { DL.setClimb(v.k, v.id, +e.target.value || 0); this.refresh(); } };
@@ -107,12 +100,10 @@
       this.dragWindow($('vwin'), document.querySelector('#vwin .vw-h'));
       $('p-truncate').onclick = () => { DL.truncate(); this.refresh(); };
 
-      // Settings dialog
       $('set-cancel').onclick = () => $('settings').classList.remove('open');
       document.querySelectorAll('#settings [data-tab]').forEach(b => { b.onclick = () => this.setSettingsTab(b.dataset.tab); });
       $('set-apply').onclick = () => this.applySettings();
 
-      // Keyboard (ignored while typing in a field)
       window.addEventListener('keydown', e => {
         const tag = (e.target.tagName || '').toLowerCase();
         if (tag === 'input' || tag === 'select' || tag === 'textarea') return;
@@ -143,17 +134,14 @@
         e.preventDefault();
       });
       window.addEventListener('keyup', e => { if (e.code === 'Space' && DL.scene) DL.scene.spaceDown = false; });
-      // A map drag ends even if the finger or button is let go over a panel.
       const endGesture = e => {
         if (e.touches && e.touches.length) return;
         if (DL.scene) DL.scene.pressing = false;
         document.body.classList.remove('map-gesture');
       };
       for (const t of ['mouseup', 'touchend', 'touchcancel']) window.addEventListener(t, endGesture);
-      // Stop trackpad pinch (ctrl + wheel) from zooming the whole page.
       $('game').addEventListener('wheel', e => { e.preventDefault(); }, { passive: false });
 
-      // Touchscreen mode: on by itself on touch devices, or as the user last set it
       $('btn-touch').onclick = () => this.setTouch(!this.touch, true);
       document.querySelectorAll('[data-drag]').forEach(b => { b.onclick = () => this.setDragMode(b.dataset.drag); });
       $('p-min').onclick = () => { $('panel').classList.toggle('min'); this.refresh(); };
@@ -168,7 +156,6 @@
       this.refresh();
     },
 
-    // ---------- helpers ----------
     ac() { return this.selected ? DL.tl.aircraft[this.selected] : null; },
     state() { return this.selected ? DL.cur()[this.selected] : null; },
 
@@ -176,7 +163,6 @@
       const fresh = !!id && id !== this.selected;
       this.selected = id;
       this.refresh();
-      // keep the new selection out from under the panel (after the finger lifts)
       if (fresh && DL.scene && DL.scene.keepClear) {
         if (DL.scene.pressing) this.pendingClear = id; else DL.scene.keepClear(id);
       }
@@ -208,14 +194,11 @@
 
     bankMax() { return DL.settings.coordinated ? 85 : 160; },
 
-    // Touchscreen mode: bigger controls (CSS body.touch), finger gestures on
-    // the map (scene.js), and the panel's Drag buttons in place of Shift and
-    // Option. A choice made with the Touch button is remembered.
     setTouch(on, remember) {
       this.touch = !!on;
       document.body.classList.toggle('touch', this.touch);
       $('btn-touch').classList.toggle('on', this.touch);
-      if (remember) { try { localStorage.setItem('combatLines.touch', this.touch ? '1' : '0'); } catch (e) { /* storage blocked: keep it for this visit */ } }
+      if (remember) { try { localStorage.setItem('combatLines.touch', this.touch ? '1' : '0'); } catch (e) { } }
       this.setTool(this.tool);
       if (this.measure) this.measure();
     },
@@ -225,15 +208,9 @@
       document.querySelectorAll('[data-drag]').forEach(b => b.classList.toggle('on', b.dataset.drag === m));
     },
 
-    // Phone-width screens: the aircraft panel is a sheet above the timeline.
     narrow() { return window.innerWidth <= 720; },
-    // Phones and short screens (landscape phones) show one window at a time.
     small() { return this.narrow() || window.innerHeight < 560; },
 
-    // Opening a window closes the ones it would cover. Phones and short
-    // screens keep one window; screens too narrow for the Advanced/3D column,
-    // the vertical window and the panel side by side keep the vertical window
-    // apart from the other two.
     soloWindow(which) {
       const one = this.small();
       const panelW = $('panel').offsetWidth || (this.touch ? 330 : 290);
@@ -255,9 +232,8 @@
       const s = this.state();
       if (!s) return;
       const patch = { [key]: val };
-      if (key === 'bank') patch.maneuver = undefined;   // a manual roll cancels a preset
+      if (key === 'bank') patch.maneuver = undefined;
       if (DL.settings.coordinated) {
-        // keep g and bank consistent with a level turn
         if (key === 'g') {
           const dir = Math.sign(s.ctl.bank) || 1;
           patch.bank = val > 1.0001 ? dir * Math.round(DL.bankForG(val, s.gam)) : 0;
@@ -281,7 +257,6 @@
     next() { DL.nextFrame(); this.refresh(); },
     prev() { DL.prevFrame(); this.refresh(); },
 
-    // Start over: every aircraft, frame and marker goes; settings stay.
     resetAll() {
       const tl = DL.tl;
       const any = tl.frames.length > 1 || tl.frames.some(f => Object.keys(f).length) || tl.events.length;
@@ -296,9 +271,6 @@
       this.flash('Cleared. Add an aircraft to start a new debrief.');
     },
 
-    // ---------- scrubbing through the upcoming frame ----------
-    // The title-bar slider and the 3D view share one time, DL.view3d.t
-    // (seconds into the upcoming frame); the map draws every aircraft there.
     setScrub(t) {
       const v3 = DL.view3d;
       if (!v3) return;
@@ -307,8 +279,6 @@
       this.syncScrub();
     },
 
-    // Play the aircraft through the upcoming frame (the 3D view's play button
-    // does the same); it stops at the end of the frame.
     togglePlay() {
       const v3 = DL.view3d;
       if (!v3 || !Object.keys(DL.cur()).length) return;
@@ -318,8 +288,6 @@
       this.syncScrub(true);
     },
 
-    // Mirror the shared time in the timeline. Stepping to another frame
-    // puts the slider back at the frame start. Called every drawn frame.
     syncScrub(force) {
       const v3 = DL.view3d, tl = DL.tl, fs = DL.frameDur(tl.current);
       if (!v3) return;
@@ -341,7 +309,6 @@
       $('frame-time').textContent = 'T+' + (t > 0 ? (DL.timeAt(tl.current) + t).toFixed(1) : DL.fmtSec(DL.timeAt(tl.current))) + 's';
     },
 
-    // ---------- hover tooltip ----------
     tip(html, p) {
       const el = $('tip');
       el.innerHTML = html;
@@ -363,7 +330,6 @@
 
     setCursor(c) { $('game').style.cursor = c || 'default'; },
 
-    // Height of the title bar in px; it can wrap to two rows on narrow windows.
     barH() { return $('bar').offsetHeight || 48; },
 
     watchBar() {
@@ -373,7 +339,6 @@
         if (DL.game && DL.game.isBooted && DL.game.scale && DL.game.scale.canvas) DL.game.scale.refresh();
         this.layout();
       };
-      // a fade on the bar's right edge while more of it is off screen
       const bar = $('bar');
       const edge = () => bar.classList.toggle('more', bar.scrollWidth - bar.clientWidth - bar.scrollLeft > 4);
       bar.addEventListener('scroll', edge, { passive: true });
@@ -426,9 +391,6 @@
       this.setCursor('help');
     },
 
-    // ---------- reversal presets ----------
-    // Roll to the preset bank and pull; the flight model carries the pull
-    // through the following frames until the aircraft rolls out reversed.
     applyPreset(k, id, key, left) {
       const s = DL.tl.frames[k] && DL.tl.frames[k][id], a = DL.tl.aircraft[id];
       if (!s) return;
@@ -439,13 +401,12 @@
       this.refresh();
     },
 
-    // ---------- vertical window ----------
     openVertical(k, id) {
       this.soloWindow('vwin');
       this.vw = { k, id };
       this.selected = id;
       $('vwin').classList.add('open');
-      this.refresh();   // docks it beside the aircraft panel
+      this.refresh();
     },
 
     closeVertical() {
@@ -469,7 +430,6 @@
     refreshVertical() {
       const v = this.vw;
       if (!v) return;
-      // the window only edits the upcoming frame, so it follows the current one
       v.k = DL.tl.current;
       const s = this.vwState();
       if (!s || !DL.tl.aircraft[v.id]) { this.closeVertical(); return; }
@@ -516,16 +476,12 @@
         `<div><span>${k}</span><b class="${k === warn ? 'warn' : ''}">${val}</b></div>`).join('');
     },
 
-    // Dock the floating windows: Advanced top left, the 3D view bottom left,
-    // the vertical window beside the aircraft panel. A window the user has
-    // dragged stays where they put it until its title is double-clicked.
     layout() {
       const W = window.innerWidth, H = window.innerHeight;
       const top = this.barH() + 12;
       const bottom = H - ($('timeline').offsetHeight || 44) - $('status').offsetHeight - 12;
       const v3 = $('v3d'), adv = $('advwin'), vw = $('vwin'), panel = $('panel');
       if (this.narrow()) {
-        // full-width windows under the title bar, clear of the panel sheet
         const pr = panel.classList.contains('open') ? panel.getBoundingClientRect() : null;
         const y0 = this.barH() + 6, floor = (pr ? pr.top : bottom + 12) - 6;
         for (const el of [v3, adv, vw]) {
@@ -547,7 +503,6 @@
       vw.style.maxHeight = Math.max(180, bottom - parseFloat(vw.style.top || top)) + 'px';
     },
 
-    // Let a floating window be dragged by its header.
     dragWindow(el, handle) {
       handle.addEventListener('dblclick', e => {
         if (e.target.tagName === 'BUTTON') return;
@@ -568,7 +523,6 @@
         };
         const up = () => {
           window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up);
-          // a double tap on the title (touchscreens send no dblclick) puts it back
           if (moved || e.pointerType === 'mouse') return;
           const now = Date.now();
           if (now - lastTap < 400) { lastTap = 0; delete el.dataset.moved; this.layout(); } else lastTap = now;
@@ -590,7 +544,6 @@
       $('st-cursor').textContent = 'E ' + fmt(w.x) + " ft  N " + fmt(-w.y) + ' ft';
     },
 
-    // ---------- refresh all DOM readouts ----------
     refresh() {
       const tl = DL.tl, st = DL.settings;
       $('frame-num').textContent = tl.current;
@@ -608,7 +561,6 @@
         const z = DL.scene.cam.zoom;
         $('st-zoom').textContent = 'Zoom ' + (z >= 0.1 ? z.toFixed(2) : z.toFixed(3)) + '×';
         $('st-grid').textContent = '1 cell = ' + fmt(st.gridFt) + ' ft';
-        // scale bar: a round number of feet near 120 px
         const target = 120 / z;
         const p = Math.pow(10, Math.floor(Math.log10(target)));
         const nice = [1, 2, 5, 10].map(m => m * p).reduce((a, b) => Math.abs(b - target) < Math.abs(a - target) ? b : a);
@@ -674,9 +626,7 @@
       $('p-future').style.display = last ? '' : 'none';
     },
 
-    // ---------- settings ----------
     buildSettings() {
-      // one row per type, under a heading row per group (as in the add menu)
       let group = null;
       const rows = Object.keys(DL.TYPES).map(k => {
         const t = DL.TYPES[k];
@@ -688,7 +638,6 @@
       $('set-types').innerHTML = rows;
     },
 
-    // Settings pages: General, Display, Aircraft. The last page shown opens again.
     setSettingsTab(name) {
       this.settingsTab = name;
       document.querySelectorAll('#settings [data-tab]').forEach(b => { b.classList.toggle('on', b.dataset.tab === name); b.setAttribute('aria-selected', b.dataset.tab === name); });

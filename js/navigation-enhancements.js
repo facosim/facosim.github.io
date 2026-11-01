@@ -1,7 +1,4 @@
 (function () {
-  // Pages listed under Learning in the Training menu. Paths are relative to
-  // the site root; they are resolved from this script's URL so the links work
-  // from pages in subfolders too.
   var learningPages = [
     { path: 'learning/od.html', label: 'Of The Day' },
     { path: 'brief/lines.html', label: 'Briefing Lines' },
@@ -34,8 +31,6 @@
       return;
     }
 
-    // Pages that already have the submenu in their HTML get it rebuilt, so
-    // every page shows the same, correctly resolved links.
     var submenu = item.querySelector('.learning-submenu');
     if (!submenu) {
       submenu = document.createElement('div');

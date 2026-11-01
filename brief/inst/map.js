@@ -1,15 +1,11 @@
-// Phaser scene: the top-down map. World units are feet; symbols and labels
-// are drawn at a fixed screen size by dividing by the camera zoom.
 (function (FI) {
   'use strict';
 
   const NM = FI.NM, D2R = FI.D2R, clamp = FI.clamp;
   const MIN_ZOOM = 0.002, MAX_ZOOM = 0.5;
-  // top-down outline of a light single, screen px at zoom 1 (from Briefing Lines)
   const GA = [[0,-11],[2,-9],[2,-5],[13,-5],[13,-2],[2,-2],[1.5,7],[5,8],[5,10],[-5,10],[-5,8],[-1.5,7],[-2,-2],[-13,-2],[-13,-5],[-2,-5],[-2,-9]];
   const touch = () => !!(FI.ui && FI.ui.touch);
 
-  // Light-mode partners for the map colours (Settings > Appearance)
   const T = window.facoTheme ? facoTheme.swap({
     '#0a0e13': '#f4f6f8', '#1b2733': '#dde3ea', '#233244': '#c3ccd6', '#3a4d62': '#8a9aab',
     '#3a5470': '#7f97b0', '#3a6f9e': '#5d8ab5', '#4da3ff': '#1a73d1', '#6a7684': '#7c8792',
@@ -49,7 +45,6 @@
       window.__instruments = { ok: true, scene: this };
     }
 
-    // The map takes the canvas left of the panel (wide screens) or above it.
     layout() {
       const W = this.scale.width, H = this.scale.height;
       const L = FI.layout(W, H);
@@ -64,7 +59,6 @@
       return p.x >= v.x && p.x < v.x + v.w && p.y >= v.y && p.y < v.y + v.h;
     }
 
-    // ---------- coordinates ----------
     toWorld(p) {
       const c = this.cam;
       return { x: c.scrollX + c.width / 2 + (p.x - c.x - c.width / 2) / c.zoom,
@@ -90,7 +84,6 @@
       return (hp.x - w.x) ** 2 + (hp.y - w.y) ** 2 <= r * r;
     }
 
-    // ---------- input ----------
     touchesDown() { return [this.input.pointer1, this.input.pointer2].filter(q => q && q.isDown); }
     startPinch() {
       const ps = this.touchesDown();
@@ -110,11 +103,6 @@
       this.setFollow(false);
     }
 
-    // Press on the aircraft and drag to steer it, like a stick: left and
-    // right set a new heading flown with a standard-rate turn, up and down a
-    // new altitude (as Briefing Lines' climb ticks: drag up to climb). Shift+drag
-    // moves it, the yellow dot points the nose. Right-click (or press and
-    // hold on a touchscreen) opens the quick menu.
     onDown(p) {
       if (!this.inView(p)) return;
       FI.ui && FI.ui.closeQuick();
@@ -135,8 +123,6 @@
       else this.drag = { kind: 'pan', sx: this.cam.scrollX, sy: this.cam.scrollY, px: p.x, py: p.y };
       document.body.classList.add('map-gesture');
     }
-    // The drag adds to whatever turn and altitude change is already under way,
-    // so a second drag mid-turn carries on from where the first one ends up.
     startSteer(p) {
       const s = FI.state, ap = FI.ap, run = FI.scn && !FI.scn.off;
       const d = this.drag = {
@@ -154,11 +140,9 @@
       if (!d.moved && Math.hypot(dx, dy) < (touch() ? 10 : 5)) return;
       if (!d.moved) { d.moved = true; clearTimeout(d.hold); }
       const fine = p.event && p.event.shiftKey;
-      // 2 px a degree in 5° steps, 4 px per 100 ft
       const dh = fine ? Math.round(dx / 2) : Math.round(dx / 10) * 5;
       d.turn = clamp(d.turn0 + dh, -355, 355);
       d.dAlt = Math.round(dy / 4) * 100;
-      // past 170° the turn goes the way it was dragged, not the short way
       FI.steer({ hdg: d.h0 + d.turn, dir: Math.abs(d.turn) > 170 ? Math.sign(d.turn) : 0, alt: d.alt0 + d.dAlt });
       d.hdgTgt = FI.nav.bug; d.altTgt = FI.ap.altTgt;
       FI.ui && FI.ui.steerTip(p, d);
@@ -218,7 +202,6 @@
     zoomCenter(k) { this.zoomAt({ x: this.cam.x + this.cam.width / 2, y: this.cam.y + this.cam.height / 2 }, k); }
     setFollow(on) { this.follow = on; FI.ui && FI.ui.refresh(); }
 
-    // Frame the aircraft, the home airport and the stations it is tuned to.
     fit() {
       const s = FI.state, n = FI.navOut, pts = [[s.x, s.y], [FI.home.apt.x, FI.home.apt.y]];
       if (n && n.station) pts.push([n.station.x, n.station.y]);
@@ -234,7 +217,6 @@
       this.setFollow(false);
     }
 
-    // ---------- drawing ----------
     text(str, x, y, color, size, ox, oy, rot) {
       let t = this.textPool[this.textUsed];
       if (!t) {
@@ -266,7 +248,6 @@
       FI.ui && FI.ui.tick();
     }
 
-    // 1 nm grid. Lines thin out when the squares get small.
     drawGrid(v, z) {
       const g = this.gridG; g.clear();
       let step = NM;
@@ -276,7 +257,6 @@
       const x0 = Math.floor(v.x0 / step) * step, y0 = Math.floor(v.y0 / step) * step;
       for (let x = x0; x <= v.x1; x += step) g.lineBetween(x, v.y0, x, v.y1);
       for (let y = y0; y <= v.y1; y += step) g.lineBetween(v.x0, y, v.x1, y);
-      // nm labels down the left edge and along the bottom
       if (step * z >= 50) {
         for (let x = x0; x <= v.x1; x += step) {
           const nm = Math.round(x / NM); if (!nm) continue;
@@ -289,9 +269,6 @@
       }
     }
 
-    // Airports and runways, localizer feathers, navaids with chart-style
-    // symbols, and for the tuned station its compass rose (turned to its
-    // magnetic north), the selected course and the radial you are on.
     drawNav(v, z) {
       const g = this.navG; g.clear();
       const nv = FI.nav, n = FI.navOut, s0 = FI.state;
@@ -299,7 +276,6 @@
       const pxNm = NM * z, labels = pxNm >= 7;
       const tuned = n && n.station, tunedLoc = n && n.loc;
 
-      // --- runways ---
       for (const a of FI.airports) {
         if (!inV(a.x, a.y, 3 * NM)) continue;
         for (const r of a.runways) {
@@ -315,7 +291,6 @@
         if (labels) this.text(a.code, a.x, a.y + 14 / z, a === FI.home.apt ? T('#e6f1ff') : T('#8fb3d1'), a === FI.home.apt ? 12 : 10, 0.5, 0);
       }
 
-      // --- localizer feathers ---
       for (const L of FI.ilsList) {
         const act = L === tunedLoc;
         if (!act && (!labels || Math.hypot(L.thr.x - s0.x, L.thr.y - s0.y) > 60 * NM)) continue;
@@ -330,7 +305,6 @@
           g.fillStyle(T(0x4da3ff), 0.15); g.fillPoints(pts, true);
           g.lineStyle(1 / z, T(0x4da3ff), 0.9);
           this.dashed(g, L.thr.x, L.thr.y, tip.x, tip.y, 18 / z, 10 / z);
-          // glideslope check altitudes every 2 nm from the threshold
           if (L.hasGs) {
             for (let d = 2; d <= 10; d += 2) {
               const x = L.thr.x - dx * d * NM, y = L.thr.y - dy * d * NM;
@@ -347,7 +321,6 @@
         } else if (pxNm >= 25) this.text(`${L.id} ${FI.fmtMhz(L.mhz)}`, tip.x, tip.y, T('#3a5470'), 10);
       }
 
-      // --- navaids ---
       for (const st of FI.stations) {
         if (!inV(st.x, st.y)) continue;
         const on = st === tuned || (n.adf.valid && st === n.adf.st);
@@ -359,7 +332,6 @@
         }
       }
 
-      // --- the tuned VOR or TACAN: rose, range, selected course, current radial ---
       if (tuned && (n.kind === 'VOR' || n.kind === 'TACAN')) {
         const V = tuned, rr = 70 / z, vr = V.varE;
         g.lineStyle(1.5 / z, T(0x8fb3d1), 0.9);
@@ -382,14 +354,12 @@
           g.lineBetween(V.x, V.y, V.x + Math.sin(ra) * n.dist * NM, V.y - Math.cos(ra) * n.dist * NM);
         }
       }
-      // the ADF bearing: a thin line from the aircraft to the NDB
       if (n.adf.valid) {
         g.lineStyle(1 / z, T(0xb98ac9), 0.7);
         this.dashed(g, s0.x, s0.y, n.adf.st.x, n.adf.st.y, 8 / z, 6 / z);
       }
     }
 
-    // Chart-style navaid symbols at a fixed screen size.
     symbol(g, st, z, on) {
       const k = 1 / z, x = st.x, y = st.y, col = on ? T(0xe6f1ff) : st.ndb ? T(0xb98ac9) : T(0x8fb3d1);
       g.lineStyle(1.5 * k, col, 1); g.fillStyle(col, 1);
@@ -403,7 +373,6 @@
       const hex = []; for (let i = 0; i < 6; i++) hex.push({ x: x + Math.cos(i * Math.PI / 3) * 7 * k, y: y + Math.sin(i * Math.PI / 3) * 7 * k });
       if (st.vor) { g.strokePoints(hex, true); g.fillCircle(x, y, 1.5 * k); }
       if (st.tacan) {
-        // three blocks on alternate sides of the hexagon
         for (const i of [0, 2, 4]) {
           const a = hex[i], b = hex[(i + 1) % 6], mx = (a.x + b.x) / 2 - x, my = (a.y + b.y) / 2 - y, L = Math.hypot(mx, my), ox = mx / L * 4 * k, oy = my / L * 4 * k;
           g.fillPoints([a, b, { x: b.x + ox, y: b.y + oy }, { x: a.x + ox, y: a.y + oy }], true);
@@ -426,13 +395,11 @@
     drawAircraft(z) {
       const s = FI.state, g = this.acG, tg = this.trailG;
       tg.clear(); g.clear();
-      // trail
       const tr = FI.trail;
       if (tr.length > 1) {
         tg.lineStyle(1.5 / z, T(0xffd166), 0.7);
         tg.strokePoints(tr.concat([{ x: s.x, y: s.y }]));
       }
-      // track line (dashed) and heading line
       const L = 70 / z, t = s.trk * D2R, h = s.hdg * D2R;
       if (FI.wind.kt > 0) {
         g.lineStyle(1.5 / z, T(0x4da3ff), 0.9);
@@ -441,30 +408,20 @@
       g.lineStyle(1.5 / z, T(0xffd166), 0.9);
       g.lineBetween(s.x, s.y, s.x + Math.sin(h) * L, s.y - Math.cos(h) * L);
       this.drawPlan(z);
-      // hover hint: the aircraft is a stick
       const steering = this.drag && this.drag.kind === 'steer';
       if ((this.hoverAc && !this.drag) || steering) {
         g.lineStyle(1.5 / z, T(0x4da3ff), steering ? 0.9 : 0.6);
         g.strokeCircle(s.x, s.y, (touch() ? 30 : 18) / z);
         if (!steering) this.text(this.moveNext ? 'drag to move' : 'drag to steer · right-click for menu', s.x, s.y + 24 / z, T('#8fb3d1'), 10, 0.5, 0);
       }
-      // nose handle
       const hp = this.handlePos();
       g.fillStyle(T(0xffd166), 1); g.fillCircle(hp.x, hp.y, (touch() ? 9 : 5) / z);
-      // symbol
       const k = 1.1 / z, pts = GA.map(([px, py]) => ({ x: s.x + (px * Math.cos(h) - py * Math.sin(h)) * k, y: s.y + (px * Math.sin(h) + py * Math.cos(h)) * k }));
       g.fillStyle(T(0xffd166), 1); g.fillPoints(pts, true);
       g.lineStyle(1 / z, T(0x0a0e13), 1); g.strokePoints(pts, true);
-      // data block
       this.text(`${FI.pad3(FI.toMag(s.hdg))}° ${Math.round(s.ias)} kt\n${Math.round(s.alt).toLocaleString('en-US')} ft`, s.x + 22 / z, s.y + 14 / z, T('#e6edf3'), 11, 0, 0);
     }
 
-    // The planned flight path while the mouse or the quick menu is steering
-    // (bright) or a turn or altitude change it set is still under way (dim):
-    // a standard-rate turn to the new heading, then straight. Climb ticks
-    // across its middle read like Briefing Lines': one tick level, two a
-    // gentle climb or descent, three a steep one; growing ticks climb and
-    // shrinking ticks descend.
     drawPlan(z) {
       const s = FI.state, ap = FI.ap, g = this.acG;
       if (FI.scn && !FI.scn.off) return;
@@ -486,13 +443,11 @@
       const a = live ? 0.95 : 0.45;
       g.lineStyle(2 / z, T(0x4da3ff), a);
       g.strokePoints(pts);
-      // arrowhead at the end
       const e = pts[pts.length - 1], hr = h * D2R, b = 8 / z;
       g.fillStyle(T(0x4da3ff), a);
       g.fillPoints([{ x: e.x + Math.sin(hr) * b, y: e.y - Math.cos(hr) * b },
         { x: e.x - Math.sin(hr) * b * 0.6 + Math.cos(hr) * b * 0.6, y: e.y + Math.cos(hr) * b * 0.6 + Math.sin(hr) * b * 0.6 },
         { x: e.x - Math.sin(hr) * b * 0.6 - Math.cos(hr) * b * 0.6, y: e.y + Math.cos(hr) * b * 0.6 - Math.sin(hr) * b * 0.6 }], true);
-      // climb ticks at the middle of the path
       const mid = Math.floor(pts.length / 2);
       if (pts.length > 4) {
         const ad = Math.abs(dAlt), count = ad < 100 ? 1 : ad < 1000 ? 2 : 3;
@@ -511,7 +466,6 @@
       }
     }
 
-    // wind arrow in the top-left corner of the map
     drawHud(v, z) {
       const g = this.hudG; g.clear();
       const w = FI.wind;

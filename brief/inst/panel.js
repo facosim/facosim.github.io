@@ -1,8 +1,3 @@
-// Phaser scene: the instrument panel. Drawn at a fixed design size (3 x 3
-// cells of 300 px: the six-pack over the nav indicator and its readout)
-// inside one container that is scaled to fit the space the layout gives
-// it. Static faces are drawn once; needles, cards and the attitude ball are
-// redrawn every frame.
 (function (FI) {
   'use strict';
 
@@ -12,14 +7,12 @@
   const SANS = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
   const WHITE = 0xf2f5f8, FACE = 0x0b0f14, BEZEL = 0x242c36, RING = 0x3a4654;
 
-  // polar helpers: angle in degrees clockwise from the top
   const px = (r, a) => r * Math.sin(a * D2R), py = (r, a) => -r * Math.cos(a * D2R);
-  const rad = a => (a - 90) * D2R;      // canvas angle for arcs
+  const rad = a => (a - 90) * D2R;
 
-  // A tapered needle from the hub toward `len` at angle `a`, with a short tail.
   function needle(g, a, len, w, color, tail) {
     const s = Math.sin(a * D2R), c = -Math.cos(a * D2R);
-    const nx = -c, ny = s;   // perpendicular
+    const nx = -c, ny = s;
     g.fillStyle(color, 1);
     g.fillPoints([
       { x: s * len, y: c * len },
@@ -29,7 +22,6 @@
   }
   function tick(g, a, r0, r1) { g.lineBetween(px(r0, a), py(r0, a), px(r1, a), py(r1, a)); }
 
-  // The part of the circle of radius R on one side of the horizontal line y = yl.
   function segment(Rr, yl, above) {
     if (yl <= -Rr) return above ? null : 'full';
     if (yl >= Rr) return above ? 'full' : null;
@@ -39,7 +31,6 @@
     for (let i = 0; i <= N; i++) { const t = t0 + (t1 - t0) * i / N; pts.push({ x: Math.cos(t) * Rr, y: Math.sin(t) * Rr }); }
     return pts;
   }
-  // Clip a horizontal line at y to the circle of radius Rr, between x0..x1.
   function clipH(Rr, y, x0, x1) {
     if (Math.abs(y) >= Rr) return null;
     const xi = Math.sqrt(Rr * Rr - y * y);
@@ -61,7 +52,6 @@
       this.buildASI(0, 0); this.buildAI(1, 0); this.buildALT(2, 0);
       this.buildTC(0, 1); this.buildHI(1, 1); this.buildVSI(2, 1);
       this.buildCDI(0, 2); this.buildADF(1, 2); this.buildReadout(2, 2);
-      // the glass cockpit shares the design size and the layout; only one shows
       this.glass = FI.Glass(this);
       this.setMode(FI.panelMode);
       if (this.pending) this.layout(this.pending);
@@ -74,7 +64,6 @@
       for (const r of [this.root, this.glass.root]) r.setScale(s).setPosition((L.w - W * s) / 2, (L.h - H * s) / 2);
     }
 
-    // 'analog' shows the six-pack, 'glass' the G1000-style display
     setMode(mode) {
       this.mode = mode === 'glass' ? 'glass' : 'analog';
       this.root.setVisible(this.mode === 'analog');
@@ -82,8 +71,6 @@
       this.paintPlate();
     }
 
-    // The panel plate behind the gauges: dark, or light grey in light mode.
-    // The gauges and the glass display keep their real colours.
     paintPlate() {
       const light = !!(window.facoTheme && facoTheme.isLight);
       this.lightPlate = light;
@@ -94,7 +81,6 @@
       (this.plateLabels || []).forEach(t => t.setColor(light ? '#2c3540' : '#aeb9c4'));
     }
 
-    // ---------- building blocks ----------
     cell(col, row) {
       const c = this.add.container(CELL / 2 + col * CELL, CELL / 2 + row * CELL);
       this.root.add(c);
@@ -106,7 +92,6 @@
       g.lineStyle(2, RING, 1); g.strokeCircle(0, 0, R + 12);
       g.fillStyle(FACE, 1); g.fillCircle(0, 0, R);
       g.lineStyle(1.5, 0x1f2833, 1); g.strokeCircle(0, 0, R);
-      // four screws
       g.fillStyle(0x4a5664, 1);
       for (const a of [45, 135, 225, 315]) g.fillCircle(px(R + 2, a) * 1.0, py(R + 2, a) * 1.0, 3.5);
       c.add(g);
@@ -120,16 +105,15 @@
     }
     hub(c, r) { const g = this.add.graphics(); g.fillStyle(0x1b222b, 1); g.fillCircle(0, 0, r || 7); g.lineStyle(1, 0x5d6b78, 1); g.strokeCircle(0, 0, r || 7); c.add(g); }
 
-    // ---------- airspeed ----------
     buildASI(col, row) {
       const c = this.cell(col, row); this.bezel(c);
       const A = FI.AC, ang = v => v * 1.7 - 170;
       const g = this.add.graphics();
       const arc = (v0, v1, r, w, color) => { g.lineStyle(w, color, 1); g.beginPath(); g.arc(0, 0, r, rad(ang(v0)), rad(ang(v1)), false); g.strokePath(); };
-      arc(A.vS0, A.vFe, R - 24, 7, 0xe6edf3);        // white: flaps
-      arc(A.vS1, A.vNo, R - 14, 9, 0x2fa84f);        // green: normal
-      arc(A.vNo, A.vNe, R - 14, 9, 0xf2c94c);        // yellow: caution
-      g.lineStyle(4, 0xe53935, 1); tick(g, ang(A.vNe), R - 22, R - 6);   // red line
+      arc(A.vS0, A.vFe, R - 24, 7, 0xe6edf3);
+      arc(A.vS1, A.vNo, R - 14, 9, 0x2fa84f);
+      arc(A.vNo, A.vNe, R - 14, 9, 0xf2c94c);
+      g.lineStyle(4, 0xe53935, 1); tick(g, ang(A.vNe), R - 22, R - 6);
       g.lineStyle(2, WHITE, 1);
       for (let v = 0; v <= 200; v += 10) tick(g, ang(v), R - (v % 20 ? 8 : 14), R - 2);
       c.add(g);
@@ -140,7 +124,6 @@
       this.inst.asi = { n, ang };
     }
 
-    // ---------- attitude ----------
     buildAI(col, row) {
       const c = this.cell(col, row); this.bezel(c);
       const ball = this.add.container(0, 0); c.add(ball);
@@ -150,13 +133,11 @@
         const l = this.txt(ball, String(Math.abs(p)), -40, 0, 13, '#ffffff'), r = this.txt(ball, String(Math.abs(p)), 40, 0, 13, '#ffffff');
         labels.push({ p, l, r });
       }
-      // sky pointer rotates with the ball; the bank scale is fixed to the case
       const ptr = this.add.graphics(); ptr.fillStyle(WHITE, 1); ptr.fillPoints([{ x: 0, y: -R + 4 }, { x: -8, y: -R + 20 }, { x: 8, y: -R + 20 }], true); ball.add(ptr);
       const fixed = this.add.graphics();
       fixed.lineStyle(2.5, WHITE, 1);
       for (const a of [-60, -45, -30, -20, -10, 0, 10, 20, 30, 45, 60]) tick(fixed, a, R - 2, R - (a % 30 === 0 || a === 0 ? 20 : 11));
       fixed.fillStyle(WHITE, 1); fixed.fillPoints([{ x: 0, y: -R + 2 }, { x: -7, y: -R - 10 }, { x: 7, y: -R - 10 }], true);
-      // miniature airplane
       fixed.fillStyle(0xffb547, 1);
       fixed.fillRect(-70, -3, 44, 6); fixed.fillRect(26, -3, 44, 6);
       fixed.fillRect(-26, -3, 6, 10); fixed.fillRect(20, -3, 6, 10);
@@ -165,14 +146,12 @@
       this.inst.ai = { ball, bg, labels };
     }
 
-    // ---------- altimeter ----------
     buildALT(col, row) {
       const c = this.cell(col, row); this.bezel(c);
       const g = this.add.graphics(); g.lineStyle(2, WHITE, 1);
       for (let i = 0; i < 50; i++) tick(g, i * 7.2, R - (i % 5 ? 8 : 16), R - 2);
       c.add(g);
       for (let i = 0; i < 10; i++) this.txt(c, String(i), px(R - 36, i * 36), py(R - 36, i * 36), 20);
-      // Kollsman window
       const k = this.add.graphics(); k.fillStyle(0x161d26, 1); k.fillRect(56, -12, 52, 24); k.lineStyle(1, 0x5d6b78, 1); k.strokeRect(56, -12, 52, 24); c.add(k);
       this.txt(c, '29.92', 82, 0, 13, '#e6edf3');
       this.txt(c, 'ALT', 0, -54, 12, '#aeb9c4', SANS);
@@ -181,13 +160,12 @@
       this.inst.alt = { n };
     }
 
-    // ---------- turn coordinator ----------
     buildTC(col, row) {
       const c = this.cell(col, row); this.bezel(c);
       const g = this.add.graphics(); g.lineStyle(4, WHITE, 1);
       for (const side of [-1, 1]) {
-        g.lineBetween(side * (R - 4), 0, side * (R - 26), 0);     // wings-level marks
-        tick(g, side > 0 ? 110 : 250, R - 26, R - 4);              // standard-rate marks, 20° below level
+        g.lineBetween(side * (R - 4), 0, side * (R - 26), 0);
+        tick(g, side > 0 ? 110 : 250, R - 26, R - 4);
       }
       c.add(g);
       this.txt(c, 'L', px(R - 40, 250 + 8), py(R - 40, 250 + 8), 15);
@@ -195,25 +173,22 @@
       this.txt(c, 'TURN COORDINATOR', 0, -62, 11, '#aeb9c4', SANS);
       this.txt(c, '2 MIN', 0, 60, 11, '#aeb9c4', SANS);
       this.txt(c, 'NO PITCH\nINFORMATION', 0, 102, 9, '#7d8a96', SANS);
-      // inclinometer: a curved tube with the ball centered (the model flies coordinated)
       const tube = this.add.graphics();
       tube.lineStyle(16, 0x1a222c, 1); tube.beginPath(); tube.arc(0, -40, 122, rad(160), rad(200), false); tube.strokePath();
       tube.lineStyle(1.5, 0x5d6b78, 1); tube.beginPath(); tube.arc(0, -40, 122, rad(160), rad(200), false); tube.strokePath();
       tube.lineStyle(2, WHITE, 1); tube.lineBetween(-7, 68, -7, 96); tube.lineBetween(7, 68, 7, 96);
       tube.fillStyle(0x111111, 1); tube.fillCircle(0, 82, 6); tube.lineStyle(1, 0x888888, 1); tube.strokeCircle(0, 82, 6);
       c.add(tube);
-      // the miniature airplane banks to show the rate of turn
       const plane = this.add.container(0, 0); c.add(plane);
       const ac = this.add.graphics();
-      ac.lineStyle(7, WHITE, 1); ac.lineBetween(-84, 0, 84, 0);                 // wings
-      ac.lineStyle(5, WHITE, 1); ac.lineBetween(0, -22, 0, 10);                 // fin
-      ac.lineBetween(-20, 10, 20, 10);                                          // tail
+      ac.lineStyle(7, WHITE, 1); ac.lineBetween(-84, 0, 84, 0);
+      ac.lineStyle(5, WHITE, 1); ac.lineBetween(0, -22, 0, 10);
+      ac.lineBetween(-20, 10, 20, 10);
       ac.fillStyle(WHITE, 1); ac.fillCircle(0, 0, 9);
       plane.add(ac);
       this.inst.tc = { plane };
     }
 
-    // ---------- heading indicator ----------
     buildHI(col, row) {
       const c = this.cell(col, row); this.bezel(c);
       const card = this.add.container(0, 0); c.add(card);
@@ -227,14 +202,12 @@
       fixed.fillStyle(WHITE, 1); fixed.fillPoints([{ x: 0, y: -R - 8 }, { x: -7, y: -R - 20 }, { x: 7, y: -R - 20 }], true);
       fixed.lineStyle(2, WHITE, 1); fixed.lineBetween(0, -R - 8, 0, -R + 22);
       for (const a of [45, 90, 135, 180, 225, 270, 315]) tick(fixed, a, R + 3, R + 11);
-      // miniature airplane
       fixed.lineStyle(4, 0xffb547, 1);
       fixed.lineBetween(0, -40, 0, 30); fixed.lineBetween(-44, 4, 44, 4); fixed.lineBetween(-14, 26, 14, 26);
       c.add(fixed);
       this.inst.hi = { card, bug };
     }
 
-    // ---------- vertical speed ----------
     buildVSI(col, row) {
       const c = this.cell(col, row); this.bezel(c);
       const ang = vs => -90 + vs / 2000 * 170;
@@ -253,7 +226,6 @@
       this.inst.vsi = { n, ang };
     }
 
-    // ---------- VOR / ILS indicator ----------
     buildCDI(col, row) {
       const c = this.cell(col, row); this.bezel(c);
       const card = this.add.container(0, 0); c.add(card);
@@ -262,7 +234,6 @@
       card.add(g);
       const names = ['N', '3', '6', 'E', '12', '15', 'S', '21', '24', 'W', '30', '33'];
       names.forEach((s, i) => this.txt(card, s, px(R - 30, i * 30), py(R - 30, i * 30), 'NESW'.includes(s) ? 18 : 14).setRotation(i * 30 * D2R));
-      // fixed: course index, reciprocal, dots
       const f = this.add.graphics();
       f.fillStyle(WHITE, 1);
       f.fillPoints([{ x: 0, y: -R + 2 }, { x: -8, y: -R - 10 }, { x: 8, y: -R - 10 }], true);
@@ -273,7 +244,6 @@
       const gsDots = this.add.graphics(); gsDots.fillStyle(WHITE, 1);
       for (let i = 1; i <= 5; i++) for (const x of [-84, 84]) { gsDots.fillCircle(x, i * 14, 3); gsDots.fillCircle(x, -i * 14, 3); }
       c.add(gsDots);
-      // flags
       const flags = this.add.container(0, 0); c.add(flags);
       const toFrom = this.add.graphics(); flags.add(toFrom);
       const navFlag = this.flag(flags, -42, 44, 'NAV');
@@ -291,10 +261,6 @@
       return k;
     }
 
-    // ---------- ADF (fixed card) ----------
-    // The card is fixed with 0 at the nose; the needle points at the NDB, so
-    // it reads relative bearing. Magnetic bearing to the station is heading
-    // plus relative bearing.
     buildADF(col, row) {
       const c = this.cell(col, row); this.bezel(c);
       const g = this.add.graphics(); g.lineStyle(2, WHITE, 1);
@@ -302,7 +268,7 @@
       c.add(g);
       for (let i = 0; i < 12; i++) this.txt(c, String(i * 3), px(R - 30, i * 30), py(R - 30, i * 30), i % 3 ? 14 : 18).setRotation(i * 30 * D2R);
       const f = this.add.graphics(); f.lineStyle(3, 0xffb547, 1);
-      f.lineBetween(0, -40, 0, 26); f.lineBetween(-30, -6, 30, -6); f.lineBetween(-12, 22, 12, 22);     // little airplane
+      f.lineBetween(0, -40, 0, 26); f.lineBetween(-30, -6, 30, -6); f.lineBetween(-12, 22, 12, 22);
       c.add(f);
       (this.plateLabels = this.plateLabels || []).push(this.txt(c, 'ADF', -R + 26, R - 18, 10, '#aeb9c4', SANS));
       const id = this.txt(c, '', 0, 52, 12, '#e6edf3', MONO);
@@ -310,7 +276,6 @@
       this.inst.adf = { n, id };
     }
 
-    // ---------- nav readout ----------
     buildReadout(col, row) {
       const c = this.cell(col, row), w = 272, h = 272;
       const g = this.add.graphics();
@@ -328,15 +293,12 @@
       this.inst.ro = t;
     }
 
-    // ---------- per frame ----------
     update() {
       if (!!(window.facoTheme && facoTheme.isLight) !== this.lightPlate) this.paintPlate();
       const s = FI.state, n = FI.navOut, nv = FI.nav, I = this.inst;
       if (!n || !I.asi) return;
       if (this.mode === 'glass') { this.glass.update(); return; }
-      // ASI
       I.asi.n.clear(); needle(I.asi.n, I.asi.ang(clamp(s.ias, 0, 200)), R - 22, 9, WHITE, 18);
-      // AI
       const ai = I.ai, ppd = R / 30, off = clamp(s.pitch, -25, 25) * ppd;
       ai.ball.setRotation(-s.bank * D2R);
       const g = ai.bg; g.clear();
@@ -352,25 +314,20 @@
         if (seg) { g.lineStyle(2, WHITE, 1); g.lineBetween(seg[0], y, seg[1], y); }
       }
       for (const l of ai.labels) { const y = off - l.p * ppd, vis = Math.abs(y) < Rr - 30; l.l.setY(y).setVisible(vis); l.r.setY(y).setVisible(vis); }
-      // ALT
       const a = Math.max(0, s.alt); I.alt.n.clear();
       const a10k = (a % 100000) / 100000 * 360;
       I.alt.n.lineStyle(2.5, WHITE, 1); tick(I.alt.n, a10k, 0, R - 20);
       I.alt.n.fillStyle(WHITE, 1); I.alt.n.fillPoints([{ x: px(R - 4, a10k), y: py(R - 4, a10k) }, { x: px(R - 18, a10k - 4), y: py(R - 18, a10k - 4) }, { x: px(R - 18, a10k + 4), y: py(R - 18, a10k + 4) }], true);
       needle(I.alt.n, (a % 10000) / 10000 * 360, R - 60, 16, WHITE, 10);
       needle(I.alt.n, (a % 1000) / 1000 * 360, R - 20, 8, WHITE, 18);
-      // TC
       I.tc.plane.setRotation(clamp(s.turnRate / 3, -1.6, 1.6) * 20 * D2R);
-      // HI
       const hdgM = FI.toMag(s.hdg);
       I.hi.card.setRotation(-hdgM * D2R);
       const bg2 = I.hi.bug; bg2.clear(); bg2.fillStyle(0xff8c1a, 1);
       const b = nv.bug;
       bg2.fillPoints([{ x: px(R - 2, b - 5), y: py(R - 2, b - 5) }, { x: px(R - 2, b + 5), y: py(R - 2, b + 5) }, { x: px(R - 14, b + 5), y: py(R - 14, b + 5) },
         { x: px(R - 10, b + 1.5), y: py(R - 10, b + 1.5) }, { x: px(R - 10, b - 1.5), y: py(R - 10, b - 1.5) }, { x: px(R - 14, b - 5), y: py(R - 14, b - 5) }], true);
-      // VSI
       I.vsi.n.clear(); needle(I.vsi.n, I.vsi.ang(clamp(s.vs, -2000, 2000)), R - 22, 9, WHITE, 18);
-      // CDI
       const cd = I.cdi;
       const az = n.kind === 'VOR' || n.kind === 'TACAN';
       cd.card.setRotation(-nv.obs * D2R);
@@ -388,11 +345,9 @@
       const nd = cd.n; nd.clear();
       if (n.gsShow && !n.gsFlag) { const y = n.gsDots * 14; nd.fillStyle(WHITE, 1); nd.fillRect(-92, y - 2, 184, 4); }
       const x = n.dots * 14; nd.fillStyle(WHITE, 1); nd.fillRect(x - 2, -78, 4, 156);
-      // ADF needle: relative bearing, parked at 90° with no signal
       const ad = I.adf, A = n.adf;
       ad.n.clear(); needle(ad.n, A.valid ? A.rel : 90, R - 24, 9, A.valid ? 0xffd166 : 0x6a7684, 40);
       ad.id.setText(nv.khz ? `${nv.khz} kHz\n${A.valid ? A.id : 'NO SIG'}` : 'OFF');
-      // readout
       const ro = I.ro, nm = v => v == null ? '---' : `${v.toFixed(1)} nm`;
       const tcnSt = n.src === 'TCN' ? n.ident : null;
       ro.nav.setText(`${FI.fmtMhz(nv.mhz)} ${n.src === 'NAV' ? (n.ident || '---') : ''}`).setColor(n.src === 'NAV' ? '#26e05a' : '#e6edf3');

@@ -1,100 +1,68 @@
-// Flight model, navaids, nav receiver, autopilot and scenarios. No Phaser
-// here: pure math and data, so it can be checked outside the page.
-// Units: positions in feet (x east, y south, so north is up on screen),
-// headings and bearings in degrees true (0 = north, clockwise), speeds in
-// knots, altitude in feet, vertical speed in feet per minute.
 window.FI = window.FI || {};
 
 (function (FI) {
   'use strict';
 
-  const NM = 6076.12;          // feet per nautical mile
-  const KT = 1.6878099;        // ft/s per knot
-  const KT2FPM = 101.269;      // vertical fpm per knot of vertical speed
+  const NM = 6076.12;
+  const KT = 1.6878099;
+  const KT2FPM = 101.269;
   const D2R = Math.PI / 180, R2D = 180 / Math.PI;
   const norm360 = a => ((a % 360) + 360) % 360;
   const norm180 = a => { a = norm360(a); return a > 180 ? a - 360 : a; };
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
   Object.assign(FI, { NM, KT, KT2FPM, D2R, R2D, norm360, norm180, clamp });
 
-  // ---------- aircraft: a 172-class trainer ----------
-  // Thrust from a fixed-pitch prop falls with speed: T = kT * power / V.
-  // Drag: parasite grows with V², induced falls with V². Both in kt/s of
-  // speed change. Full power holds about 125 kt level, 65% about 106 kt,
-  // and the glide at 68 kt is about 11:1.
   const AC = FI.AC = {
     name: 'Trainer', kT: 3.88, tMax: 4.0, dragA: 1.824, dragB: 0.39,
     vMin: 45, vNe: 163, vS0: 40, vS1: 48, vFe: 85, vNo: 129,
     rollRate: 15, pitchRate: 3, maxBank: 30, pitchMin: -10, pitchMax: 15,
   };
-  const aoa = V => 0.5 + 4.5 * (85 / Math.max(V, 40)) ** 2;      // degrees, level flight
+  const aoa = V => 0.5 + 4.5 * (85 / Math.max(V, 40)) ** 2;
   const thrust = (V, p) => Math.min(AC.tMax, AC.kT * (p / 100) * (100 / Math.max(V, 40)));
   const drag = V => { const v = Math.max(V, 40) / 100; return AC.dragA * v * v + AC.dragB / (v * v); };
   FI.aoa = aoa;
 
-  // ---------- state ----------
   const S = FI.state = {
     x: 0, y: 0, hdg: 0, ias: 100, alt: 3000, vs: 0, pitch: 3.5, bank: 0, power: 65,
     cmdBank: 0, cmdPitch: 3.5, tas: 100, gs: 100, trk: 0, turnRate: 0, t: 0,
   };
-  // radios and bugs the student sets: CDI source, NAV MHz, TACAN channel,
-  // ADF kHz, OBS and heading bug (magnetic)
   FI.nav = { src: 'NAV', mhz: 112.6, chan: '73X', khz: 0, obs: 90, bug: 0 };
-  FI.wind = { dir: 0, kt: 0 };                           // wind from dir at kt
-  // spd holds spdTgt with power; turnDir (+1 right, -1 left, 0 shortest) keeps
-  // a HDG turn of more than 180° going the way the student asked for.
+  FI.wind = { dir: 0, kt: 0 };
   FI.ap = { hdg: false, alt: false, nav: false, altTgt: 3000, gsCap: false, spd: false, spdTgt: 100, turnDir: 0 };
   FI.trail = [];
   FI.paused = false;
   FI.speed = 1;
   FI.msg = '';
-  FI.scn = null;                                         // running scenario, see loadScenario
+  FI.scn = null;
   let trailT = 0;
 
-  const stdBank = () => Math.atan(3 * S.tas / 1091) * R2D;  // bank for a standard-rate turn
+  const stdBank = () => Math.atan(3 * S.tas / 1091) * R2D;
   FI.stdBank = stdBank;
 
-  // Heading that gives ground track T in the current wind.
   function headingFor(T) {
     const w = FI.wind;
     const x = w.kt * Math.sin((w.dir - T) * D2R) / Math.max(S.tas, 40);
     return norm360(T + Math.asin(clamp(x, -0.9, 0.9)) * R2D);
   }
 
-  // Cross-track distance (nm, right of course positive) from the line with
-  // direction `course` through (px, py).
   function xtk(course, px, py) {
     const pe = S.x - px, pn = -(S.y - py);
     return (pe * Math.cos(course * D2R) - pn * Math.sin(course * D2R)) / NM;
   }
   FI.xtk = xtk;
 
-  // ---------- receivers ----------
-  // The aircraft has a VHF nav radio (VOR and localizer by frequency, plus
-  // the DME paired with it), a military TACAN receiver (azimuth and DME by
-  // channel) and an ADF (NDB bearing by kHz). The CDI shows NAV or TCN.
-  //
-  // VOR and TACAN azimuth: the needle shows the OBS course against the
-  // radial, full scale 10°, TO when the radial is within 90° of the
-  // reciprocal of the course. Radials are magnetic with the station's own
-  // variation. The localizer is about the extended centerline, measured from
-  // the antenna, and the same side of the centerline deflects the needle the
-  // same way on the front or the back course, so a back course reads
-  // backwards. The glideslope is ±0.7° about the published angle.
   const same = (a, b) => a != null && b != null && Math.abs(a - b) < 0.001;
   const dNm = (s, x, y) => Math.hypot(S.x - (x != null ? x : s.x), S.y - (y != null ? y : s.y)) / NM;
   const agl = s => S.alt - (s.elev || 0);
   const inRange = s => dNm(s) <= FI.vhfRange(s.vorCls || s.dmeCls, agl(s));
   const dmeRange = s => dNm(s) <= FI.vhfRange(s.dmeCls || s.vorCls, agl(s));
-  const bearingFrom = s => norm360(Math.atan2(S.x - s.x, -(S.y - s.y)) * R2D);   // true
+  const bearingFrom = s => norm360(Math.atan2(S.x - s.x, -(S.y - s.y)) * R2D);
   const nearestFirst = list => list.slice().sort((a, b) => dNm(a) - dNm(b));
 
-  // The localizer on this frequency: the one whose front course we are on,
-  // else the nearest. Opposite ends of a runway often share a frequency.
   function locSignal(L) {
     const c = L.course * D2R, vx = S.x - L.loc.x, vy = S.y - L.loc.y;
-    const along = -(vx * Math.sin(c) - vy * Math.cos(c));          // ft before the antenna, front course positive
-    const cross = vx * Math.cos(c) + vy * Math.sin(c);             // ft right of the course
+    const along = -(vx * Math.sin(c) - vy * Math.cos(c));
+    const cross = vx * Math.cos(c) + vy * Math.sin(c);
     const d = Math.hypot(vx, vy), off = Math.atan2(Math.abs(cross), Math.abs(along)) * R2D;
     const valid = (d <= 18 * NM && off <= 10) || (d <= 10 * NM && off <= 35);
     return { along, cross, d, valid, front: along > 0, dev: -Math.asin(clamp(cross / Math.max(d, 1), -1, 1)) * R2D };
@@ -113,7 +81,6 @@ window.FI = window.FI || {};
     n.src = nv.src;
     let st = null, loc = null, dmeSt = null, az = false;
     if (nv.src === 'TCN') {
-      // TACAN channel: azimuth and DME from a TACAN or VORTAC, DME only from a DME
       const c = String(nv.chan || '').toUpperCase();
       const cands = nearestFirst(FI.stations.filter(s => (s.tacan || s.dme) && s.chan === c));
       st = cands.find(s => s.tacan && inRange(s)) || cands.find(s => dmeRange(s)) || cands[0] || null;
@@ -127,7 +94,6 @@ window.FI = window.FI || {};
       const lp = locs.length ? pickLoc(locs) : null;
       if (lp && (lp.g.valid || !vor || !inRange(vor))) { loc = lp.L; n.locG = lp.g; }
       else if (vor) { st = vor; az = true; }
-      // DME on the paired channel: the station's own, or a separate DME or TACAN
       if (loc && loc.dme) dmeSt = { id: loc.id, x: loc.dme.x, y: loc.dme.y, elev: loc.elev, dmeCls: 'T', ils: true };
       else if (st && st.dme) dmeSt = st;
       else {
@@ -141,18 +107,16 @@ window.FI = window.FI || {};
     n.source = n.kind === 'LOC' ? 'ILS' : 'VOR';
     n.ident = n.station ? n.station.id : null;
 
-    // azimuth (VOR or TACAN)
     n.radial = null; n.dist = n.station ? dNm(n.station, n.station.x, n.station.y) : null;
     n.cone = false; n.to = false; n.toFrom = null; n.vorValid = false;
     if (st && az) {
       n.radial = norm360(bearingFrom(st) - st.varE);
-      n.cone = Math.max(agl(st), 0) > dNm(st) * NM * 1.2;           // inside the cone over the station
+      n.cone = Math.max(agl(st), 0) > dNm(st) * NM * 1.2;
       n.vorValid = inRange(st) && !n.cone;
       const d = norm180(n.radial - nv.obs);
       n.to = Math.abs(d) > 90;
       n.cdiVor = n.to ? norm180(d - 180) : -d;
     }
-    // localizer and glideslope
     n.locValid = false; n.gsValid = false; n.front = true; n.locDev = 0; n.gsDev = 0;
     if (loc) {
       const g = n.locG || locSignal(loc);
@@ -160,11 +124,10 @@ window.FI = window.FI || {};
       if (loc.hasGs) {
         const gd = Math.hypot(S.x - loc.gs.x, S.y - loc.gs.y);
         const c = loc.course * D2R, past = -((S.x - loc.gs.x) * Math.sin(c) - (S.y - loc.gs.y) * Math.cos(c));
-        n.gsDev = Math.atan2(S.alt - loc.elev, Math.max(gd, 1)) * R2D - loc.gsAngle;   // above positive
+        n.gsDev = Math.atan2(S.alt - loc.elev, Math.max(gd, 1)) * R2D - loc.gsAngle;
         n.gsValid = n.front && past > 0 && gd / NM <= 10 && Math.abs(n.locDev) <= 8 && Math.abs(n.gsDev) <= 5;
       }
     }
-    // DME: slant range
     n.dmeId = dmeSt ? dmeSt.id : null;
     n.dmeValid = !!dmeSt && dmeRange(dmeSt);
     n.dme = n.dmeValid ? Math.hypot(dNm(dmeSt) * NM, agl(dmeSt)) / NM : null;
@@ -181,15 +144,13 @@ window.FI = window.FI || {};
     n.loc = loc;
     n.dots = n.flag ? 0 : clamp(n.cdi / n.full * 5, -5.5, 5.5);
     n.gsDots = n.gsValid ? clamp(n.gsDev / loc.gsFull * 5, -5.5, 5.5) : 0;
-    // what the autopilot's NAV mode follows, in true degrees
     n.track = (n.kind === 'VOR' || n.kind === 'TACAN') && n.vorValid ? { course: norm360(nv.obs + st.varE), x: st.x, y: st.y }
       : loc && n.locValid ? { course: loc.course, x: loc.loc.x, y: loc.loc.y } : null;
 
-    // ADF: relative bearing to the NDB on the tuned frequency
     const ndbs = nearestFirst(FI.stations.filter(s => s.ndb && s.khz === nv.khz));
     const ndb = ndbs.find(s => dNm(s) <= FI.ndbRange(s.ndbCls)) || null;
     n.adf = ndb ? (() => {
-      const brg = norm360(Math.atan2(ndb.x - S.x, -(ndb.y - S.y)) * R2D);  // true bearing to the station
+      const brg = norm360(Math.atan2(ndb.x - S.x, -(ndb.y - S.y)) * R2D);
       return { valid: true, id: ndb.id, name: ndb.name, rel: norm360(brg - S.hdg), brgM: FI.toMag(brg), dist: dNm(ndb), st: ndb };
     })() : { valid: false, id: ndbs[0] ? ndbs[0].id : null, rel: 90 };
     FI.navOut = n;
@@ -197,18 +158,11 @@ window.FI = window.FI || {};
   }
   FI.computeNav = computeNav;
 
-  // ---------- autopilot ----------
-  // Targets come from the running scenario step, or from the HDG, ALT and
-  // NAV buttons. Lateral: bank toward a heading, a ground track that closes
-  // on a course line (30° intercept, less when close), or a fixed bank.
-  // Vertical: vertical speed toward an altitude, or down the glideslope once
-  // it is captured from below. Speed: power for the target airspeed.
   function targets() {
     const sc = FI.scn, ap = FI.ap, nv = FI.nav;
     if (sc && !sc.off && sc.step) return sc.step;
     const t = targets.user = {};
     if (ap.nav) {
-      // follow the CDI: a radial or the localizer; with no signal, hold heading
       const n = FI.navOut;
       if (n && n.track) { t.track = n.track; if (n.kind === 'LOC') t.gs = true; }
       else t.hdg = S.hdg;
@@ -220,7 +174,6 @@ window.FI = window.FI || {};
 
   function autopilot(dt, t, n) {
     const ap = FI.ap;
-    // lateral
     let bank = null;
     if (t.bank != null) bank = t.bank === 'std' ? stdBank() : t.bank === '-std' ? -stdBank() : t.bank;
     else {
@@ -242,7 +195,6 @@ window.FI = window.FI || {};
       }
     }
     if (bank != null) S.cmdBank = bank;
-    // vertical
     let vsTgt = null;
     if (t.gs && n.gsValid && n.gsDev >= -0.1) ap.gsCap = true;
     if (t.gs && ap.gsCap && n.gsValid) {
@@ -256,7 +208,6 @@ window.FI = window.FI || {};
       const g = Math.asin(clamp(vsTgt / (S.tas * KT2FPM), -0.5, 0.5)) * R2D;
       S.cmdPitch = clamp(g + aoa(S.ias), AC.pitchMin, AC.pitchMax);
     }
-    // speed
     if (t.ias != null) {
       const gamma = (S.pitch - aoa(S.ias)) * D2R;
       const need = (drag(S.ias) + 19.06 * Math.sin(gamma)) * S.ias / AC.kT;
@@ -264,25 +215,20 @@ window.FI = window.FI || {};
     }
   }
 
-  // ---------- flight model ----------
   function physics(dt) {
     const w = FI.wind;
-    // controls move toward their commands at fixed rates
     const db = clamp(S.cmdBank, -AC.maxBank, AC.maxBank) - S.bank;
     S.bank += clamp(db, -AC.rollRate * dt, AC.rollRate * dt);
     const dp = clamp(S.cmdPitch, AC.pitchMin, AC.pitchMax) - S.pitch;
     S.pitch += clamp(dp, -AC.pitchRate * dt, AC.pitchRate * dt);
-    // turn
     S.tas = S.ias * (1 + 0.02 * S.alt / 1000);
     S.turnRate = 1091 * Math.tan(S.bank * D2R) / Math.max(S.tas, 40);
     S.hdg = norm360(S.hdg + S.turnRate * dt);
-    // climb and speed from pitch and power
     const gamma = (S.pitch - aoa(S.ias)) * D2R;
     S.vs = S.tas * KT2FPM * Math.sin(gamma);
-    S.alt = Math.max(FI.groundElev || 0, S.alt + S.vs / 60 * dt);   // no terrain: the home field's elevation is the ground
+    S.alt = Math.max(FI.groundElev || 0, S.alt + S.vs / 60 * dt);
     const acc = thrust(S.ias, S.power) - drag(S.ias) - 19.06 * Math.sin(gamma);
     S.ias = clamp(S.ias + acc * dt, AC.vMin, 220);
-    // ground track with wind
     const h = S.hdg * D2R, wd = w.dir * D2R;
     const ge = S.tas * Math.sin(h) - w.kt * Math.sin(wd), gn = S.tas * Math.cos(h) - w.kt * Math.cos(wd);
     S.gs = Math.hypot(ge, gn);
@@ -296,7 +242,6 @@ window.FI = window.FI || {};
 
   const STEP = 0.05;
   let acc = 0;
-  // Advance the simulation by `ms` of wall time, in fixed steps.
   FI.advance = function (ms) {
     if (FI.paused) return;
     acc += Math.min(ms, 250) / 1000 * FI.speed;
@@ -310,10 +255,6 @@ window.FI = window.FI || {};
     computeNav();
   };
 
-  // ---------- student input ----------
-  // Any stick, power or drag input ends a running scenario and shows
-  // "You have control". Outside a scenario, a bank input releases the HDG
-  // and NAV holds and a pitch input releases ALT.
   FI.takeover = function () {
     const sc = FI.scn, ap = FI.ap;
     if (sc && !sc.off) sc.off = true;
@@ -334,7 +275,6 @@ window.FI = window.FI || {};
     FI.trail.length = 0;
     computeNav();
   };
-  // HDG, ALT and NAV buttons outside a scenario.
   FI.setAp = function (mode, on) {
     const sc = FI.scn, ap = FI.ap;
     if (sc && !sc.off) FI.takeover();
@@ -345,9 +285,6 @@ window.FI = window.FI || {};
     if (!on && mode !== 'alt') ap.info = null;
     FI.msg = '';
   };
-  // Mouse steering and the quick menu: fly to a heading (magnetic) with a
-  // standard-rate turn the way `dir` says, an altitude at 500 fpm, and an
-  // airspeed with power. Each one left out is untouched.
   FI.steer = function ({ hdg, dir, alt, ias }) {
     const sc = FI.scn, ap = FI.ap;
     if (sc && !sc.off) FI.takeover();
@@ -360,7 +297,6 @@ window.FI = window.FI || {};
     if (ias != null) { ap.spd = true; ap.spdTgt = clamp(Math.round(ias), FI.SPD_MIN, FI.SPD_MAX); }
     FI.msg = '';
   };
-  // Degrees of turn left in the HDG turn now flying, signed (+ right), or 0.
   FI.turnLeft = function () {
     const ap = FI.ap;
     if (!ap.hdg || ap.nav || (FI.scn && !FI.scn.off)) return 0;
@@ -368,14 +304,8 @@ window.FI = window.FI || {};
     if (ap.turnDir && Math.abs(err) >= 10 && Math.sign(err) !== ap.turnDir) err += 360 * ap.turnDir;
     return err;
   };
-  FI.SPD_MIN = 60; FI.SPD_MAX = 125;      // speeds the trainer can hold level
+  FI.SPD_MIN = 60; FI.SPD_MAX = 125;
 
-  // ---------- scenarios ----------
-  // Each scenario is a start state plus steps the autopilot flies in turn.
-  // A step holds its targets until `until` is true; the last step holds on.
-  // They are built around the home airport: its nearest VOR, TACAN and NDB
-  // and the chosen approach. Headings and courses in the names are
-  // magnetic; the steps hold true values for the autopilot.
   const pad3 = h => String(Math.round(norm360(h)) % 360 || 360).padStart(3, '0');
   const fmtAlt = a => Math.round(a).toLocaleString('en-US');
   FI.pad3 = pad3;
@@ -384,8 +314,8 @@ window.FI = window.FI || {};
   FI.buildScenarios = function () {
     const H = FI.home, apt = H.apt, M = FI.toTrue;
     const V = H.vor || { id: apt.code, x: apt.x, y: apt.y, varE: FI.magVar, mhz: 108, elev: apt.elev, type: 'VOR' };
-    const A = Math.max(2000, Math.round((apt.elev + 3000) / 500) * 500);       // working altitude, about 3,000 ft above the field
-    const vt = (s, m) => norm360(m + s.varE);                                  // magnetic course at a station -> true
+    const A = Math.max(2000, Math.round((apt.elev + 3000) / 500) * 500);
+    const vt = (s, m) => norm360(m + s.varE);
     const posAt = (s, radial, nm) => { const b = vt(s, radial) * D2R; return { x: s.x + Math.sin(b) * nm * NM, y: s.y - Math.cos(b) * nm * NM }; };
     const pos = (radial, nm) => posAt(V, radial, nm);
     const via = (s, m) => ({ course: vt(s, m), x: s.x, y: s.y });
@@ -441,7 +371,6 @@ window.FI = window.FI || {};
         ],
       },
     ];
-    // the approach
     const L = H.ils;
     if (L) {
       const c = L.course * D2R, dx = Math.sin(c), dy = -Math.cos(c), rx = Math.cos(c), ry = Math.sin(c);
@@ -524,7 +453,6 @@ window.FI = window.FI || {};
     physics(0);
     computeNav();
   };
-  // Clear everything and leave the aircraft southwest of the home VOR, flown by hand.
   FI.freeFlight = function () {
     FI.scn = null;
     const f = FI.freeStart;
@@ -547,7 +475,6 @@ window.FI = window.FI || {};
     }
   }
 
-  // Text for the status bar: what is flying the aircraft right now.
   FI.statusText = function () {
     const sc = FI.scn, ap = FI.ap, n = FI.navOut || {};
     if (sc && !sc.off) return (sc.done ? 'Scenario complete · ' : 'Autopilot: ') + sc.step.name;

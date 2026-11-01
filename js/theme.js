@@ -1,8 +1,3 @@
-/* Light and dark mode for the whole site.
-   Load this in <head>, before the page's styles finish, so the right theme is
-   on <html> before anything is drawn (no white flash on dark pages).
-   The choice is kept in a small cookie, "faco-theme", for a year. With no
-   cookie yet, the page follows the visitor's system setting. */
 (function () {
   var COOKIE = 'faco-theme';
   var root = document.documentElement;
@@ -44,10 +39,6 @@
 
   function toggle() { set(current() === 'dark' ? 'light' : 'dark'); }
 
-  // For pages that draw on a canvas: swap(table) gives a function that
-  // returns a colour as is in dark mode, or its light-mode partner from the
-  // table ({ '#0a0e13': '#f4f6f8', ... }). Works with '#rrggbb' strings and
-  // 0xrrggbb numbers alike.
   function swap(table) {
     var light = {};
     for (var k in table) light[k.toLowerCase()] = table[k];
@@ -65,7 +56,6 @@
 
   apply(savedTheme() || systemTheme());
 
-  // Until the visitor picks a theme, follow changes to the system setting.
   if (window.matchMedia) {
     var mq = matchMedia('(prefers-color-scheme: dark)');
     var onChange = function () { if (!savedTheme()) apply(systemTheme()); };
@@ -73,7 +63,6 @@
     else if (mq.addListener) mq.addListener(onChange);
   }
 
-  // Moon and sun icons; CSS shows the one for the mode you would switch to.
   var ICONS =
     '<svg class="theme-icon-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>' +
     '<svg class="theme-icon-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/>' +
@@ -89,11 +78,6 @@
     return b;
   }
 
-  // Put a toggle on the page. A page can mark its own spot with
-  // data-theme-toggle; site pages get one in the header beside Contact
-  // (desktop) and beside the menu button (mobile); anything else gets a small
-  // floating button, unless <html> has data-theme-no-button (pages that
-  // switch the theme from their own settings).
   function placeButtons() {
     var spots = document.querySelectorAll('[data-theme-toggle]');
     var placed = false;

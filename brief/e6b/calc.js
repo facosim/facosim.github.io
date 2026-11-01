@@ -1,45 +1,34 @@
-// E6B math: every calculation the E6B page shows, with no page code in it,
-// so it can be checked on its own (node brief/e6b/test.js).
 (function (root) {
   'use strict';
 
   var D2R = Math.PI / 180, R2D = 180 / Math.PI;
 
   function norm360(d) { d = d % 360; return d < 0 ? d + 360 : d; }
-  // Headings show 360 rather than 000, as on a compass rose
   function hdg(d) { var r = Math.round(norm360(d)); return r === 0 ? 360 : r; }
 
-  /* ---------- Wind triangle ---------- */
-
-  // Heading and groundspeed for a true course, with the wind given as the
-  // direction it blows FROM (true) and its speed.
   function windTriangle(tc, tas, wdir, wspd) {
     var rel = (wdir - tc) * D2R;
     var s = wspd * Math.sin(rel) / tas;
-    if (!(tas > 0) || Math.abs(s) > 1) return null;   // wind too strong to hold the course
+    if (!(tas > 0) || Math.abs(s) > 1) return null;
     var wca = Math.asin(s) * R2D;
     var gs = tas * Math.cos(wca * D2R) - wspd * Math.cos(rel);
     if (gs <= 0) return null;
     return { wca: wca, th: norm360(tc + wca), gs: gs };
   }
 
-  // The wind, from the heading and TAS flown and the course and groundspeed made good
   function findWind(tc, gs, th, tas) {
     var ax = tas * Math.sin(th * D2R), ay = tas * Math.cos(th * D2R);
     var gx = gs * Math.sin(tc * D2R), gy = gs * Math.cos(tc * D2R);
-    var wx = ax - gx, wy = ay - gy;                // points to where the wind comes from
+    var wx = ax - gx, wy = ay - gy;
     var spd = Math.hypot(wx, wy);
     return { dir: spd < 1e-9 ? 0 : norm360(Math.atan2(wx, wy) * R2D), spd: spd };
   }
 
-  /* ---------- Standard atmosphere ---------- */
-
-  var P0 = 29.92126;          // inHg, sea level standard
-  var T0 = 288.15;            // K
-  function isaTemp(pa) { return 15 - 1.98 * pa / 1000; }                    // degC
+  var P0 = 29.92126;
+  var T0 = 288.15;
+  function isaTemp(pa) { return 15 - 1.98 * pa / 1000; }
   function pressureRatio(pa) { return Math.pow(1 - 6.8755856e-6 * pa, 5.2558797); }
   function pressureAltitude(elev, altimInHg) {
-    // Exact form; the rule of thumb is elev + (29.92 - altimeter) x 1000
     return elev + 145442.16 * (1 - Math.pow(altimInHg / P0, 0.190263));
   }
   function densityAltitude(pa, oatC) {
@@ -47,17 +36,14 @@
     return 145442.16 * (1 - Math.pow(sigma, 0.234969));
   }
 
-  // True airspeed from calibrated airspeed, pressure altitude and outside air
-  // temperature, with compressibility, as an electronic E6B does it.
   function trueAirspeed(cas, pa, oatC) {
-    var a0 = 661.4786;                             // kt, speed of sound at sea level
-    var qc = Math.pow(1 + 0.2 * Math.pow(cas / a0, 2), 3.5) - 1;   // impact pressure / P0
+    var a0 = 661.4786;
+    var qc = Math.pow(1 + 0.2 * Math.pow(cas / a0, 2), 3.5) - 1;
     var dp = pressureRatio(pa);
     var mach = Math.sqrt(5 * (Math.pow(qc / dp + 1, 2 / 7) - 1));
-    var a = 38.967854 * Math.sqrt(oatC + 273.15);  // kt, local speed of sound
+    var a = 38.967854 * Math.sqrt(oatC + 273.15);
     return { tas: mach * a, mach: mach };
   }
-  // CAS needed for a wanted TAS (the inverse, by bisection)
   function calibratedAirspeed(tas, pa, oatC) {
     var lo = 0, hi = tas * 2 + 50;
     for (var i = 0; i < 60; i++) {
@@ -67,9 +53,6 @@
     return (lo + hi) / 2;
   }
 
-  /* ---------- Crosswind ---------- */
-
-  // Runway "27" or "09L" means 270 / 090; a three-digit value is taken as a heading
   function runwayHeading(s) {
     var m = String(s).trim().toUpperCase().match(/^(\d{1,3})\s*[LRC]?$/);
     if (!m) return NaN;
@@ -79,12 +62,9 @@
   }
   function windComponents(rwyHdg, wdir, wspd) {
     var ang = (wdir - rwyHdg) * D2R;
-    return { cross: wspd * Math.sin(ang), head: wspd * Math.cos(ang) };   // cross > 0: from the right
+    return { cross: wspd * Math.sin(ang), head: wspd * Math.cos(ang) };
   }
 
-  /* ---------- Units ---------- */
-
-  // Each unit's size in the category's base unit
   var UNITS = {
     distance: { base: 'm', units: { nm: 1852, sm: 1609.344, km: 1000, m: 1, ft: 0.3048 } },
     speed: { base: 'kt', units: { kt: 1, mph: 1609.344 / 1852, 'km/h': 1000 / 1852, 'm/s': 3600 / 1852, 'ft/min': 0.3048 * 60 / 1852 } },
@@ -102,12 +82,8 @@
     K: { toC: function (v) { return v - 273.15; }, fromC: function (c) { return c + 273.15; } },
   };
   function convertTemp(v, from, to) { return TEMPS[to].fromC(TEMPS[from].toC(v)); }
-  // Fuel densities, lb per US gallon (FAA nominal values)
   var FUEL_DENSITY = { '100LL': 6.0, 'Jet A': 6.7, 'Mogas': 6.0, 'Oil': 7.5 };
 
-  /* ---------- Time ---------- */
-
-  // "1:30" is h:mm, "1:30:15" is h:mm:ss, a plain number is minutes. Returns hours.
   function parseTime(s) {
     s = String(s).trim();
     if (!s) return NaN;
@@ -124,16 +100,14 @@
     return h + ':' + (m < 10 ? '0' : '') + m + (sec ? ':' + (sec < 10 ? '0' : '') + sec : '');
   }
 
-  /* ---------- Coordinates ---------- */
-
   var WGS84_A = 6378137, WGS84_F = 1 / 298.257223563;
   var E2 = WGS84_F * (2 - WGS84_F), EP2 = E2 / (1 - E2), K0 = 0.9996;
 
   function utmZone(lat, lon) {
     var z = Math.floor((lon + 180) / 6) + 1;
     if (z > 60) z = 60;
-    if (lat >= 56 && lat < 64 && lon >= 3 && lon < 12) z = 32;                // Norway
-    if (lat >= 72 && lat < 84 && lon >= 0 && lon < 42) {                       // Svalbard
+    if (lat >= 56 && lat < 64 && lon >= 3 && lon < 12) z = 32;
+    if (lat >= 72 && lat < 84 && lon >= 0 && lon < 42) {
       z = lon < 9 ? 31 : lon < 21 ? 33 : lon < 33 ? 35 : 37;
     }
     return z;
@@ -150,7 +124,7 @@
   }
 
   function toUTM(lat, lon, forceZone) {
-    if (lat < -80 || lat > 84) return null;        // polar areas use UPS, not UTM
+    if (lat < -80 || lat > 84) return null;
     var zone = forceZone || utmZone(lat, lon);
     var lon0 = ((zone - 1) * 6 - 180 + 3) * D2R;
     var phi = lat * D2R, lam = lon * D2R;
@@ -189,10 +163,9 @@
     return { lat: lat * R2D, lon: lon * R2D };
   }
 
-  var MGRS_COLS = ['STUVWXYZ', 'ABCDEFGH', 'JKLMNPQR'];   // indexed by zone % 3
+  var MGRS_COLS = ['STUVWXYZ', 'ABCDEFGH', 'JKLMNPQR'];
   var MGRS_ROWS = 'ABCDEFGHJKLMNPQRSTUV';
 
-  // digits: 1 (10 km) to 5 (1 m) per coordinate
   function toMGRS(lat, lon, digits) {
     var u = toUTM(lat, lon);
     if (!u) return null;
@@ -221,11 +194,9 @@
     if (zone % 2 === 0) rowIdx = (rowIdx + 15) % 20;
     var k = m[5].length / 2;
     var scale = Math.pow(10, 5 - k);
-    // Place the point in the middle of the square the digits name
     var half = k < 5 ? scale / 2 : 0;
     var e = (colIdx + 1) * 100000 + (k ? +m[5].slice(0, k) * scale : 0) + (k ? half : 50000);
     var n = rowIdx * 100000 + (k ? +m[5].slice(k) * scale : 0) + (k ? half : 50000);
-    // The row letters repeat every 2,000 km; the latitude band says which repeat it is
     var bandIdx = BANDS.indexOf(band);
     var south = bandIdx < 10;
     var bandLat = -80 + bandIdx * 8;
@@ -236,15 +207,12 @@
     return { lat: ll.lat, lon: ll.lon, precisionM: k ? scale : 100000 };
   }
 
-  // Lat/lon in any common form: decimal degrees, deg-min, deg-min-sec, with
-  // N/S/E/W before or after, or signed; also packed forms like 291121N0810327W.
   function parseLatLon(input) {
     var s = String(input).toUpperCase()
       .replace(/[°º˚'′’‘"″”“]/g, ' ')
       .replace(/(\d)\s*(DEG|D)\b/g, '$1 ')
       .replace(/;/g, ',').trim();
     if (!s) return null;
-    // Packed aviation forms, e.g. 2911.36N 08103.45W or 291121N0810327W
     var pk = s.match(/^([NS]?)\s*(\d{4,6}(?:\.\d+)?)\s*([NS]?)[\s,]*([EW]?)\s*(\d{5,7}(?:\.\d+)?)\s*([EW]?)$/);
     if (pk && (pk[1] || pk[3]) && (pk[4] || pk[6]) && !(pk[1] && pk[3]) && !(pk[4] && pk[6])) {
       var la = unpack(pk[2], 2), lo = unpack(pk[5], 3);
@@ -253,7 +221,7 @@
     }
     var toks = s.match(/[NSEW]|[-+]?\d+(?:\.\d+)?|\.\d+|,/g);
     if (!toks) return null;
-    if (s.replace(/[NSEW]|[-+]?\d+(?:\.\d+)?|\.\d+|[\s,]/g, '') !== '') return null;  // stray characters
+    if (s.replace(/[NSEW]|[-+]?\d+(?:\.\d+)?|\.\d+|[\s,]/g, '') !== '') return null;
     var letters = toks.filter(function (t) { return /^[NSEW]$/.test(t); });
     var groups = [];
     if (letters.length) {
@@ -288,7 +256,7 @@
       var d = Math.abs(+g.n[0]), mi = g.n.length > 1 ? +g.n[1] : 0, se = g.n.length > 2 ? +g.n[2] : 0;
       if (g.n.slice(1).some(function (x) { return /^[-+]/.test(x); })) return NaN;
       if (mi >= 60 || se >= 60) return NaN;
-      if (g.n.length > 1 && d % 1) return NaN;             // 29.5 11 makes no sense
+      if (g.n.length > 1 && d % 1) return NaN;
       if (g.n.length > 2 && mi % 1) return NaN;
       var v = d + mi / 60 + se / 3600;
       if (neg) v = -v;
@@ -298,7 +266,7 @@
     var lat = vals[0], lon = vals[1];
     if (groups[0].h) {
       var latFirst = /[NS]/.test(groups[0].h);
-      if (latFirst === /[NS]/.test(groups[1].h)) return null;   // two latitudes
+      if (latFirst === /[NS]/.test(groups[1].h)) return null;
       if (!latFirst) { lat = vals[1]; lon = vals[0]; }
     }
     return check(lat, lon);
@@ -319,7 +287,6 @@
     }
   }
 
-  // UTM written as "17R 495000 3229000" or "17N 495000 3229000"
   function parseUTM(s) {
     var m = String(s).toUpperCase().trim().match(/^(\d{1,2})\s*([C-HJ-NP-X])\s+(\d{3,7}(?:\.\d+)?)\s*M?\s*E?\s*[, ]\s*(\d{1,8}(?:\.\d+)?)\s*M?\s*N?$/);
     if (!m) return null;
@@ -327,9 +294,6 @@
     if (zone < 1 || zone > 60) return null;
     var e = +m[3], n = +m[4];
     if (e < 100000 || e > 900000 || n > 10000000) return null;
-    // The letter is read as a latitude band (N and later are north). Some
-    // people write S for the southern hemisphere instead; if the band does not
-    // fit the northing, try that reading.
     var bi = BANDS.indexOf(m[2]);
     var ll = fromUTM(zone, bi < 10, e, n);
     var bandLat = -80 + bi * 8;
@@ -338,7 +302,6 @@
     return ll;
   }
 
-  // Any format the page accepts
   function parseCoordinate(s) {
     var str = String(s).trim();
     if (!str) return null;
@@ -356,7 +319,6 @@
     dp = dp == null ? 6 : dp;
     return lat.toFixed(dp) + ', ' + lon.toFixed(dp);
   }
-  // Degrees and decimal minutes, e.g. N 29° 10.800' W 081° 03.450'
   function formatDDM(v, isLat, dp) {
     dp = dp == null ? 3 : dp;
     var h = isLat ? (v < 0 ? 'S' : 'N') : (v < 0 ? 'W' : 'E');
@@ -383,7 +345,6 @@
     return h + ' ' + pad0(d, isLat ? 2 : 3) + '° ' + pad0(m, 2) + "' " + pad0(ss, dp ? 3 + dp : 2) + '"';
   }
 
-  // Great-circle distance (nm) and initial true course between two points
   function greatCircle(lat1, lon1, lat2, lon2) {
     var p1 = lat1 * D2R, p2 = lat2 * D2R, dl = (lon2 - lon1) * D2R;
     var a = Math.pow(Math.sin((p2 - p1) / 2), 2) + Math.cos(p1) * Math.cos(p2) * Math.pow(Math.sin(dl / 2), 2);

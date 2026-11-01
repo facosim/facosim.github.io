@@ -1,10 +1,7 @@
-/* Links page (links.html): local and Zulu clocks across the top, then a
-   grid of app icons, one per link. */
 .efb {
   box-sizing: border-box;
   max-width: 1040px;
   min-height: 55vh;
-  /* the site header is fixed and sits over the top of the page */
   margin: calc(var(--header-height, 80px) + 2rem) auto 3rem;
   padding: 0 1.5rem;
   color: #272727;
@@ -20,7 +17,6 @@
   white-space: nowrap;
 }
 
-/* Clocks: local time on the left, Zulu time on the right */
 .efb-clock {
   display: flex;
   align-items: baseline;
@@ -42,7 +38,6 @@
   text-transform: uppercase;
 }
 
-/* App grid */
 .efb-apps {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
@@ -121,23 +116,19 @@
     margin-top: calc(var(--header-height, 80px) + 1rem);
     padding: 0 1rem;
   }
-
   .efb-clock {
     font-size: 16px;
   }
-
   .efb-apps {
     grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
     gap: 22px 8px;
     padding-top: 26px;
   }
-
   .efb-icon {
     width: 62px;
     height: 62px;
     border-radius: 15px;
   }
-
   .efb-label {
     font-size: 12px;
   }

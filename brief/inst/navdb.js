@@ -1,27 +1,19 @@
-// Real US navaids and ILS approaches from FAA NASR data (navdata.js), placed
-// on the sim's flat map. The map is a local flat projection around a home
-// airport: x feet east, y feet south of it. That is accurate to well under
-// a percent within 100 nm, which covers everything the receivers can hear.
-// Training use only, not for navigation.
 (function (FI) {
   'use strict';
 
   const NM = FI.NM, D2R = FI.D2R, R2D = FI.R2D, norm360 = FI.norm360, norm180 = FI.norm180, clamp = FI.clamp;
   const DATA = FI.NAVDATA || { nav: [], apt: [] };
-  const REACH = 4.5;                     // degrees of latitude around home to load (about 270 nm)
+  const REACH = 4.5;
 
   const O = FI.origin = { lat: 0, lon: 0, cos: 1 };
   const toXY = (lat, lon) => ({ x: (lon - O.lon) * 60 * NM * O.cos, y: -(lat - O.lat) * 60 * NM });
   const toLL = (x, y) => ({ lat: O.lat - y / (60 * NM), lon: O.lon + x / (60 * NM * O.cos) });
   FI.toXY = toXY; FI.toLL = toLL;
 
-  // Magnetic variation, east positive: magnetic = true - variation.
   FI.magVar = 0;
   FI.toMag = t => norm360(t - FI.magVar);
   FI.toTrue = m => norm360(m + FI.magVar);
 
-  // TACAN channel <-> paired VHF frequency. 17-59 pair with 108.00-112.25,
-  // 70-126 with 112.30-117.95; X channels on the .x0, Y on the .x5.
   FI.chanToMhz = function (ch) {
     const m = /^(\d{1,3})([XY])$/.exec(String(ch || '').toUpperCase().trim());
     if (!m) return null;
@@ -31,7 +23,7 @@
     return null;
   };
   FI.mhzToChan = function (f) {
-    const k = Math.round(f * 20);                 // 50 kHz steps
+    const k = Math.round(f * 20);
     const y = k % 2 ? 'Y' : 'X', base = (k - (k % 2)) / 20;
     let n = null;
     if (base >= 108 && base < 112.3 - 1e-6) n = 17 + Math.round((base - 108) * 10);
@@ -40,9 +32,6 @@
   };
   FI.fmtMhz = f => (f == null ? '---.--' : f.toFixed(2));
 
-  // ---------- service volumes ----------
-  // Standard service volumes by class, in nm, at a height above the station,
-  // and never beyond radio line of sight (1.23 * sqrt(feet)).
   function ssv(cls, agl) {
     switch (cls) {
       case 'T': return 25;
@@ -55,7 +44,6 @@
   }
   const los = agl => 1.23 * Math.sqrt(Math.max(agl, 200));
   FI.vhfRange = (cls, agl) => Math.min(ssv(cls, agl), los(agl));
-  // NDBs by class: HH 75 nm, H 50, MH 25, compass locators 15.
   FI.ndbRange = cls => {
     const c = cls || '';
     if (/^HH/.test(c)) return 75;
@@ -65,10 +53,9 @@
     return 25;
   };
 
-  // ---------- the loaded area ----------
-  FI.stations = [];       // VOR, VOR/DME, VORTAC, TACAN, DME, NDB, NDB/DME
-  FI.ilsList = [];        // localizers (ILS, LOC, LDA, SDF), with glideslope where there is one
-  FI.airports = [];       // airports with an approach, with their runways
+  FI.stations = [];
+  FI.ilsList = [];
+  FI.airports = [];
   FI.home = null;
 
   function station(r) {
@@ -87,10 +74,6 @@
     return s;
   }
 
-  // A localizer from a runway end: the threshold (moved in for a displaced
-  // threshold), the antenna 1,000 ft past the far end, and the glideslope
-  // antenna beside the touchdown zone where the path crosses the threshold
-  // at the published height.
   function localizer(a, rw, e) {
     const [endId, ident, sys, mhz, crsM, gsAngle, tch, disp, dmeChan] = e;
     const r = a.runways.find(w => w.ends[0] === endId || w.ends[1] === endId);
@@ -99,20 +82,19 @@
     const A = first ? r.a : r.b, B = first ? r.b : r.a, elev = first ? r.elevA : r.elevB;
     const L = Math.hypot(B.x - A.x, B.y - A.y);
     if (L < 500) return null;
-    const ux = (B.x - A.x) / L, uy = (B.y - A.y) / L;            // landing direction on the map
-    const geo = norm360(Math.atan2(ux, -uy) * R2D);              // true course of the centerline
+    const ux = (B.x - A.x) / L, uy = (B.y - A.y) / L;
+    const geo = norm360(Math.atan2(ux, -uy) * R2D);
     const dataTrue = norm360(crsM + a.varE);
-    const offset = Math.abs(norm180(dataTrue - geo)) > 3;        // offset localizer, LDA or SDF
+    const offset = Math.abs(norm180(dataTrue - geo)) > 3;
     const course = offset ? dataTrue : geo;
     const thr = { x: A.x + ux * disp, y: A.y + uy * disp };
     const loc = { x: B.x + ux * 1000, y: B.y + uy * 1000 };
     let gs = null;
     if (gsAngle) {
       const d = clamp(tch / Math.tan(gsAngle * D2R), 700, 1600);
-      gs = { x: thr.x + ux * d - uy * 400, y: thr.y + uy * d + ux * 400 };   // 400 ft right of the centerline
+      gs = { x: thr.x + ux * d - uy * 400, y: thr.y + uy * d + ux * 400 };
     }
     const dThr = Math.hypot(loc.x - thr.x, loc.y - thr.y);
-    // full scale: 350 ft either side at the threshold, between 1.5 and 3 degrees (SDF wider)
     const locFull = sys === 'SDF' ? 5 : clamp(Math.atan(350 / dThr) * R2D, 1.5, 3);
     const hasDme = !!dmeChan || /DME/.test(sys);
     return {
@@ -136,7 +118,6 @@
     return a;
   }
 
-  // Find an airport (ICAO or FAA code) in the data, without loading it.
   FI.findAirport = function (code) {
     const c = String(code || '').toUpperCase().trim();
     if (!c) return null;
@@ -149,9 +130,6 @@
   };
   FI.dataCycle = DATA.cycle || '';
 
-  // Load the area around an airport and make it home: the origin of the
-  // map, the magnetic variation used for headings, and the approach and
-  // stations the scenarios use.
   FI.setHome = function (code, rwy) {
     const r = FI.findAirport(code) || FI.findAirport('KDAB') || DATA.apt[0];
     if (!r) return null;
@@ -177,7 +155,6 @@
     return FI.home;
   };
 
-  // Stations and localizers near a point, nearest first, for the tuning list.
   FI.nearby = function (x, y, maxNm) {
     const out = [];
     for (const s of FI.stations) { const d = Math.hypot(s.x - x, s.y - y) / NM; if (d <= maxNm) out.push({ s, d }); }

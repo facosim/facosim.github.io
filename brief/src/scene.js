@@ -1,6 +1,3 @@
-// Phaser scene: grid, aircraft, trails, predicted turn, and mouse input.
-// World units are feet. Symbols and labels are drawn at a fixed screen size
-// by dividing by the camera zoom.
 (function (DL) {
   'use strict';
 
@@ -11,93 +8,89 @@
     ga:       [[0,-11],[2,-9],[2,-5],[13,-5],[13,-2],[2,-2],[1.5,7],[5,8],[5,10],[-5,10],[-5,8],[-1.5,7],[-2,-2],[-13,-2],[-13,-5],[-2,-5],[-2,-9]],
   };
 
-  // Top-down outlines of the named aircraft, after public three-view drawings.
-  // Meters: the right half only, from the nose tip (0, 0) round the right
-  // wing and tail back to the centerline; x out along the right wing, y aft.
-  // Below they are mirrored, centered and scaled to screen pixels.
-  const FLANKER = [   // Su-27; the J-11 and J-16 are the same airframe
-    [0, 0], [0.3, 0.8], [0.55, 2.0], [0.68, 3.3], [0.74, 4.6],               // nose, cockpit
-    [0.8, 5.4], [1.05, 6.6], [1.45, 7.8], [1.95, 8.9], [2.45, 9.8],          // ogive LERX
-    [7.2, 14.1], [7.35, 14.0], [7.35, 15.65],                                // 42° wing, tip rail
-    [2.4, 14.95], [2.3, 15.2], [2.3, 16.5],                                  // tail boom
-    [4.94, 19.1], [4.94, 20.2], [2.3, 19.6],                                 // stabilator
-    [1.95, 19.7], [1.92, 20.4], [0.78, 20.4], [0.75, 20.0],                  // nozzle
-    [0.4, 20.0], [0.4, 21.5], [0.22, 21.9], [0, 21.9],                       // tail stinger
+  const FLANKER = [
+    [0, 0], [0.3, 0.8], [0.55, 2.0], [0.68, 3.3], [0.74, 4.6],
+    [0.8, 5.4], [1.05, 6.6], [1.45, 7.8], [1.95, 8.9], [2.45, 9.8],
+    [7.2, 14.1], [7.35, 14.0], [7.35, 15.65],
+    [2.4, 14.95], [2.3, 15.2], [2.3, 16.5],
+    [4.94, 19.1], [4.94, 20.2], [2.3, 19.6],
+    [1.95, 19.7], [1.92, 20.4], [0.78, 20.4], [0.75, 20.0],
+    [0.4, 20.0], [0.4, 21.5], [0.22, 21.9], [0, 21.9],
   ];
   const PLANFORMS = {
     f16: [
       [0, 0], [0.22, 0.5], [0.4, 1.3], [0.5, 2.2], [0.56, 3.2], [0.6, 4.0],
-      [0.68, 4.9], [0.85, 5.8], [1.12, 6.6], [1.5, 7.2],                     // strake
-      [4.62, 10.0], [4.75, 10.0], [4.75, 11.2],                              // 40° wing, tip launcher
-      [1.0, 11.2], [0.9, 11.6], [0.88, 12.5],                                // unswept trailing edge
-      [2.79, 14.1], [2.79, 14.75], [0.95, 14.7],                             // stabilator
+      [0.68, 4.9], [0.85, 5.8], [1.12, 6.6], [1.5, 7.2],
+      [4.62, 10.0], [4.75, 10.0], [4.75, 11.2],
+      [1.0, 11.2], [0.9, 11.6], [0.88, 12.5],
+      [2.79, 14.1], [2.79, 14.75], [0.95, 14.7],
       [0.62, 14.75], [0.55, 15.0], [0, 15.0],
     ],
     f15: [
       [0, 0], [0.25, 0.6], [0.45, 1.5], [0.58, 2.6], [0.65, 3.8], [0.68, 5.0],
-      [0.72, 5.3], [1.42, 5.45], [1.5, 6.4], [1.52, 8.4],                   // box intakes
-      [6.52, 13.4], [6.05, 15.1], [1.55, 14.2],                             // 45° wing, raked tip
-      [1.6, 15.3], [4.3, 18.4], [4.3, 19.4], [1.65, 18.35],                 // stabilator on the boom
-      [1.15, 18.5], [1.12, 19.05], [0.12, 19.05], [0.1, 18.75], [0, 18.75], // twin nozzles
+      [0.72, 5.3], [1.42, 5.45], [1.5, 6.4], [1.52, 8.4],
+      [6.52, 13.4], [6.05, 15.1], [1.55, 14.2],
+      [1.6, 15.3], [4.3, 18.4], [4.3, 19.4], [1.65, 18.35],
+      [1.15, 18.5], [1.12, 19.05], [0.12, 19.05], [0.1, 18.75], [0, 18.75],
     ],
     f22: [
-      [0, 0], [0.25, 0.7], [0.5, 1.7], [0.72, 2.8], [0.9, 3.9], [1.08, 4.9], // chined nose
-      [1.55, 5.6], [1.68, 6.4],                                              // caret intake
-      [6.78, 11.0], [6.78, 12.7], [1.85, 14.2],                              // diamond wing
-      [1.5, 14.5], [1.5, 14.75], [4.42, 17.4], [4.42, 18.0], [1.55, 18.85],  // diamond stabilator
+      [0, 0], [0.25, 0.7], [0.5, 1.7], [0.72, 2.8], [0.9, 3.9], [1.08, 4.9],
+      [1.55, 5.6], [1.68, 6.4],
+      [6.78, 11.0], [6.78, 12.7], [1.85, 14.2],
+      [1.5, 14.5], [1.5, 14.75], [4.42, 17.4], [4.42, 18.0], [1.55, 18.85],
       [1.05, 18.9], [0.9, 18.92], [0.12, 18.92], [0, 18.75],
     ],
     f35: [
       [0, 0], [0.3, 0.7], [0.55, 1.7], [0.76, 2.7], [0.93, 3.6],
-      [1.15, 4.4], [1.36, 5.2], [1.45, 6.1],                                 // DSI intake
-      [5.35, 8.8], [5.35, 10.3], [1.5, 11.3],                                // 35° wing, forward-swept TE
-      [1.3, 11.7], [1.3, 12.6], [3.35, 14.0], [3.35, 14.7], [1.35, 15.25],   // stabilator
+      [1.15, 4.4], [1.36, 5.2], [1.45, 6.1],
+      [5.35, 8.8], [5.35, 10.3], [1.5, 11.3],
+      [1.3, 11.7], [1.3, 12.6], [3.35, 14.0], [3.35, 14.7], [1.35, 15.25],
       [0.75, 15.2], [0.62, 15.7], [0, 15.7],
     ],
     a10: [
-      [0, 0], [0.25, 0.15], [0.55, 0.7], [0.72, 1.6], [0.78, 3.0], [0.8, 5.9], // gun nose
-      [8.65, 5.9], [8.77, 6.1], [8.77, 7.75], [8.6, 7.9],                   // straight wing, drooped tip
-      [3.0, 8.95], [2.25, 8.95], [2.3, 9.6], [2.3, 12.4], [2.05, 13.1],     // engine pod
+      [0, 0], [0.25, 0.15], [0.55, 0.7], [0.72, 1.6], [0.78, 3.0], [0.8, 5.9],
+      [8.65, 5.9], [8.77, 6.1], [8.77, 7.75], [8.6, 7.9],
+      [3.0, 8.95], [2.25, 8.95], [2.3, 9.6], [2.3, 12.4], [2.05, 13.1],
       [1.2, 13.1], [1.05, 12.4], [1.05, 9.3], [0.62, 9.3], [0.58, 13.4], [0.5, 13.65],
-      [2.7, 13.65], [2.75, 13.1], [2.95, 13.1], [2.95, 16.2], [2.75, 16.2], [2.75, 15.6], // H-tail
+      [2.7, 13.65], [2.75, 13.1], [2.95, 13.1], [2.95, 16.2], [2.75, 16.2], [2.75, 15.6],
       [0.45, 15.6], [0.35, 16.26], [0, 16.26],
     ],
     mig25: [
       [0, 0], [0.25, 0.7], [0.45, 1.8], [0.56, 3.0], [0.6, 4.2], [0.62, 5.0],
-      [1.95, 5.55], [1.98, 7.0], [1.98, 10.1],                               // huge intakes
-      [6.7, 14.25], [6.7, 13.8], [6.9, 13.5], [7.1, 13.8], [7.1, 16.7], [6.7, 16.6], [6.7, 16.35], // tip pods
+      [1.95, 5.55], [1.98, 7.0], [1.98, 10.1],
+      [6.7, 14.25], [6.7, 13.8], [6.9, 13.5], [7.1, 13.8], [7.1, 16.7], [6.7, 16.6], [6.7, 16.35],
       [1.98, 15.6], [1.8, 15.7], [1.75, 15.85],
-      [4.3, 18.5], [4.3, 19.5], [1.75, 18.75],                               // stabilator
+      [4.3, 18.5], [4.3, 19.5], [1.75, 18.75],
       [1.55, 18.9], [1.55, 19.75], [0.12, 19.75], [0, 19.55],
     ],
     mig29: [
       [0, 0], [0.25, 0.7], [0.45, 1.7], [0.56, 2.8], [0.62, 3.9],
-      [0.66, 4.4], [0.8, 5.4], [1.05, 6.4], [1.35, 7.3], [1.75, 8.3], [2.0, 8.9], // LERX
-      [5.7, 12.2], [5.7, 13.6], [2.0, 12.8],                                 // 42° wing
-      [1.85, 12.95], [1.82, 13.4], [3.9, 15.85], [3.9, 16.75], [1.82, 15.95], // stabilator
-      [1.48, 16.05], [1.45, 16.5], [0.55, 16.5], [0.5, 16.1], [0.3, 16.1],    // nozzles
-      [0.3, 16.95], [0.15, 17.05], [0, 17.05],                               // chute housing
+      [0.66, 4.4], [0.8, 5.4], [1.05, 6.4], [1.35, 7.3], [1.75, 8.3], [2.0, 8.9],
+      [5.7, 12.2], [5.7, 13.6], [2.0, 12.8],
+      [1.85, 12.95], [1.82, 13.4], [3.9, 15.85], [3.9, 16.75], [1.82, 15.95],
+      [1.48, 16.05], [1.45, 16.5], [0.55, 16.5], [0.5, 16.1], [0.3, 16.1],
+      [0.3, 16.95], [0.15, 17.05], [0, 17.05],
     ],
     su24: [
-      [0, 0], [0.4, 0.4], [0.72, 1.3], [0.88, 2.6], [0.95, 3.9], [1.0, 5.3], // wide side-by-side nose
-      [1.05, 5.9], [1.8, 6.2], [1.85, 7.6],                                  // intakes
-      [3.15, 10.9], [7.25, 15.0], [7.25, 16.4], [3.15, 14.5],                // glove, wing swept to 45°
+      [0, 0], [0.4, 0.4], [0.72, 1.3], [0.88, 2.6], [0.95, 3.9], [1.0, 5.3],
+      [1.05, 5.9], [1.8, 6.2], [1.85, 7.6],
+      [3.15, 10.9], [7.25, 15.0], [7.25, 16.4], [3.15, 14.5],
       [1.75, 14.6], [1.65, 15.5], [1.62, 16.9],
-      [4.15, 19.9], [4.15, 20.9], [1.62, 20.1],                              // stabilator
+      [4.15, 19.9], [4.15, 20.9], [1.62, 20.1],
       [1.4, 20.2], [1.35, 21.4], [0.1, 21.4], [0, 21.25],
     ],
     su25: [
       [0, 0], [0.28, 0.7], [0.48, 1.8], [0.6, 3.0], [0.66, 4.2], [0.7, 4.9],
-      [1.22, 5.2], [1.3, 6.2], [1.32, 6.35],                                 // intakes
-      [6.85, 8.35], [6.85, 7.7], [7.0, 7.4], [7.15, 7.7], [7.15, 10.5], [6.85, 10.4], [6.85, 9.75], // wing, tip pods
-      [1.3, 9.35], [1.25, 11.0], [1.05, 11.6], [0.65, 11.6], [0.55, 12.2],   // engine nacelle
-      [0.48, 12.9], [2.33, 14.0], [2.33, 14.8], [0.45, 14.55],               // tailplane
+      [1.22, 5.2], [1.3, 6.2], [1.32, 6.35],
+      [6.85, 8.35], [6.85, 7.7], [7.0, 7.4], [7.15, 7.7], [7.15, 10.5], [6.85, 10.4], [6.85, 9.75],
+      [1.3, 9.35], [1.25, 11.0], [1.05, 11.6], [0.65, 11.6], [0.55, 12.2],
+      [0.48, 12.9], [2.33, 14.0], [2.33, 14.8], [0.45, 14.55],
       [0.32, 15.5], [0, 15.5],
     ],
     su27: FLANKER,
-    su30: [   // Su-30SM: the Flanker with canards on the LERX
+    su30: [
       [0, 0], [0.3, 0.8], [0.55, 2.0], [0.68, 3.3], [0.74, 4.6],
-      [0.8, 5.4], [1.05, 6.6], [1.12, 6.8], [3.2, 8.75], [3.2, 9.35], [1.61, 8.15], // canard
+      [0.8, 5.4], [1.05, 6.6], [1.12, 6.8], [3.2, 8.75], [3.2, 9.35], [1.61, 8.15],
       [1.95, 8.9], [2.45, 9.8],
       [7.2, 14.1], [7.35, 14.0], [7.35, 15.65],
       [2.4, 14.95], [2.3, 15.2], [2.3, 16.5],
@@ -107,61 +100,58 @@
     ],
     su57: [
       [0, 0], [0.3, 0.8], [0.55, 1.9], [0.72, 3.0], [0.85, 4.1], [0.98, 5.0],
-      [1.35, 5.9], [1.75, 7.0], [2.3, 8.4], [2.6, 9.1],                      // LEVCON
-      [7.05, 14.0], [7.05, 15.5], [2.6, 15.4],                               // 48° wing
-      [2.4, 15.55], [2.4, 15.8], [4.8, 18.2], [4.8, 19.05], [2.4, 19.35],    // stabilator
-      [2.05, 19.35], [2.0, 19.65], [1.05, 19.65], [1.0, 18.9],               // widely spaced engines
-      [0.45, 18.9], [0.45, 19.8], [0.25, 20.1], [0, 20.1],                   // stinger
+      [1.35, 5.9], [1.75, 7.0], [2.3, 8.4], [2.6, 9.1],
+      [7.05, 14.0], [7.05, 15.5], [2.6, 15.4],
+      [2.4, 15.55], [2.4, 15.8], [4.8, 18.2], [4.8, 19.05], [2.4, 19.35],
+      [2.05, 19.35], [2.0, 19.65], [1.05, 19.65], [1.0, 18.9],
+      [0.45, 18.9], [0.45, 19.8], [0.25, 20.1], [0, 20.1],
     ],
     j10: [
       [0, 0], [0.25, 0.8], [0.45, 1.9], [0.56, 3.0], [0.62, 4.2], [0.7, 5.2],
-      [0.75, 5.5], [2.7, 7.9], [2.7, 8.55], [0.85, 7.1],                     // close-coupled canard
-      [0.88, 7.7], [4.85, 13.3], [4.85, 14.4], [0.9, 14.5],                  // delta wing
+      [0.75, 5.5], [2.7, 7.9], [2.7, 8.55], [0.85, 7.1],
+      [0.88, 7.7], [4.85, 13.3], [4.85, 14.4], [0.9, 14.5],
       [0.65, 14.8], [0.55, 15.9], [0, 15.9],
     ],
-    t6: [    // T-6 Texan II, propeller drawn as a bar
-      [0, 0], [0.22, 0.15], [0.3, 0.3], [1.35, 0.3], [1.35, 0.42], [0.42, 0.45], // spinner, prop blade
-      [0.5, 0.8], [0.6, 1.6], [0.64, 2.5],                                   // cowling
-      [0.68, 2.6], [5.1, 3.05], [5.1, 4.1], [0.66, 4.9],                     // tapered low wing
+    t6: [
+      [0, 0], [0.22, 0.15], [0.3, 0.3], [1.35, 0.3], [1.35, 0.42], [0.42, 0.45],
+      [0.5, 0.8], [0.6, 1.6], [0.64, 2.5],
+      [0.68, 2.6], [5.1, 3.05], [5.1, 4.1], [0.66, 4.9],
       [0.55, 6.0], [0.4, 7.4], [0.32, 8.4],
-      [2.3, 8.95], [2.3, 9.6], [0.28, 9.95], [0.12, 10.15], [0, 10.15],      // tailplane
+      [2.3, 8.95], [2.3, 9.6], [0.28, 9.95], [0.12, 10.15], [0, 10.15],
     ],
-    t7: [    // T-7A Red Hawk
+    t7: [
       [0, 0], [0.25, 0.8], [0.45, 1.9], [0.58, 3.0], [0.66, 4.0], [0.75, 4.6],
-      [1.1, 5.6], [1.6, 6.8], [2.0, 7.6],                                    // LERX
-      [5.05, 9.7], [5.05, 10.6], [1.4, 11.3],                                // swept wing
-      [1.3, 11.8], [3.0, 13.2], [3.0, 13.9], [1.15, 13.6],                   // stabilator
+      [1.1, 5.6], [1.6, 6.8], [2.0, 7.6],
+      [5.05, 9.7], [5.05, 10.6], [1.4, 11.3],
+      [1.3, 11.8], [3.0, 13.2], [3.0, 13.9], [1.15, 13.6],
       [0.95, 13.8], [0.6, 14.0], [0.55, 14.3], [0, 14.3],
     ],
-    t38: [   // T-38 Talon
-      [0, 0], [0.15, 0.8], [0.3, 2.0], [0.42, 3.2], [0.52, 4.2],             // needle nose
-      [0.75, 5.2], [0.8, 5.6], [0.82, 6.2],                                  // intakes
-      [3.85, 8.5], [3.85, 9.4], [0.8, 10.0],                                 // small trapezoid wing
-      [0.74, 10.7], [0.78, 11.6],                                            // area-ruled waist
-      [2.15, 12.8], [2.15, 13.4], [0.75, 13.3],                              // stabilator
+    t38: [
+      [0, 0], [0.15, 0.8], [0.3, 2.0], [0.42, 3.2], [0.52, 4.2],
+      [0.75, 5.2], [0.8, 5.6], [0.82, 6.2],
+      [3.85, 8.5], [3.85, 9.4], [0.8, 10.0],
+      [0.74, 10.7], [0.78, 11.6],
+      [2.15, 12.8], [2.15, 13.4], [0.75, 13.3],
       [0.68, 13.6], [0.6, 14.14], [0, 14.14],
     ],
     j11: FLANKER,
     j16: FLANKER,
-    j17: [   // JF-17 Thunder
+    j17: [
       [0, 0], [0.24, 0.7], [0.42, 1.7], [0.52, 2.8], [0.56, 3.8], [0.6, 4.2],
-      [1.0, 4.55], [1.05, 5.4], [1.15, 6.4], [1.45, 7.3], [1.65, 7.75],      // DSI intake, LERX
-      [4.6, 10.4], [4.72, 10.35], [4.72, 11.4], [1.05, 11.55],               // 42° wing, tip rail
-      [0.85, 11.8], [0.8, 12.3], [2.65, 13.85], [2.65, 14.45], [0.82, 14.2], // stabilator
+      [1.0, 4.55], [1.05, 5.4], [1.15, 6.4], [1.45, 7.3], [1.65, 7.75],
+      [4.6, 10.4], [4.72, 10.35], [4.72, 11.4], [1.05, 11.55],
+      [0.85, 11.8], [0.8, 12.3], [2.65, 13.85], [2.65, 14.45], [0.82, 14.2],
       [0.6, 14.3], [0.52, 14.9], [0, 14.9],
     ],
     j20: [
-      [0, 0], [0.28, 0.9], [0.52, 2.1], [0.72, 3.3], [0.88, 4.5], [1.0, 5.5], // chined nose
-      [1.5, 6.2], [1.6, 7.0], [1.62, 7.2],                                   // DSI intake
-      [3.95, 9.75], [3.95, 10.55], [1.7, 9.4],                               // canard
-      [1.85, 10.0], [2.4, 11.4],                                             // LERX
-      [6.45, 15.9], [6.45, 17.3], [2.2, 18.0],                               // delta wing
+      [0, 0], [0.28, 0.9], [0.52, 2.1], [0.72, 3.3], [0.88, 4.5], [1.0, 5.5],
+      [1.5, 6.2], [1.6, 7.0], [1.62, 7.2],
+      [3.95, 9.75], [3.95, 10.55], [1.7, 9.4],
+      [1.85, 10.0], [2.4, 11.4],
+      [6.45, 15.9], [6.45, 17.3], [2.2, 18.0],
       [1.5, 18.2], [1.3, 18.6], [1.25, 19.95], [0.1, 19.95], [0, 19.7],
     ],
   };
-  // Mirror to a full outline, center it, and scale so the longest side is
-  // about 32 px for a 17 m jet, growing with the square root of size, so
-  // a Flanker reads bigger than a JF-17 without either getting lost.
   for (const k in PLANFORMS) {
     const half = PLANFORMS[k];
     const full = half.concat(half.slice(1, -1).reverse().map(([x, y]) => [-x, y]));
@@ -175,8 +165,6 @@
   DL.ICONS = ICONS;
   const iconFor = type => ICONS[type] || ICONS.fighter;
 
-  // Click radii, the heading handle's reach and the movement that turns a
-  // press into a drag, in screen px. Touchscreen mode makes them finger-sized.
   const touch = () => !!(DL.ui && DL.ui.touch);
   const hitPx = () => (touch() ? 30 : 18);
   const handlePx = () => (touch() ? 64 : 46);
@@ -185,8 +173,6 @@
 
   const fmt = n => (Math.round(n) + 0).toLocaleString('en-US');
 
-  // Light-mode partners for the map colours (Settings > General > Appearance).
-  // The aircraft colours get deeper shades so they read on a light grid.
   const T = window.facoTheme ? facoTheme.swap({
     '#0a0e13': '#f4f6f8', '#1a2836': '#e2e8ef', '#27405a': '#c5d2df', '#3a6488': '#7f9bb8',
     '#3d5f7d': '#6f8aa5', '#ffffff': '#1f2a36', '#e6edf3': '#10171e', '#9fb3c5': '#4f6275',
@@ -214,9 +200,9 @@
       this.textPool = [];
       this.textUsed = 0;
 
-      this.drag = null;       // active mouse gesture
+      this.drag = null;
       this.spaceDown = false;
-      this.hover = null;      // world point under cursor
+      this.hover = null;
 
       this.input.mouse.disableContextMenu();
       this.input.on('pointerdown', this.onDown, this);
@@ -224,7 +210,6 @@
       this.input.on('pointerup', this.onUp, this);
       this.input.on('pointerupoutside', this.onUp, this);
       this.input.on('wheel', this.onWheel, this);
-      // a second touch pointer, for two-finger pinch and pan
       if (this.input.addPointer) this.input.addPointer(1);
       this.pinch = null;
 
@@ -232,7 +217,6 @@
       DL.ui && DL.ui.refresh();
     }
 
-    // ---------- coordinates ----------
     toWorld(p) {
       const c = this.cam;
       return { x: c.scrollX + c.width / 2 + (p.x - c.width / 2) / c.zoom,
@@ -285,7 +269,6 @@
       return best;
     }
 
-    // A past frame's position marker under the cursor.
     hitFrame(w) {
       const r2 = ((touch() ? 20 : 10) / this.cam.zoom) ** 2;
       let best = null, bd = r2;
@@ -299,8 +282,6 @@
       return best;
     }
 
-    // ---------- input ----------
-    // ---------- two-finger pinch and pan ----------
     touchesDown() {
       return [this.input.pointer1, this.input.pointer2].filter(q => q && q.isDown);
     }
@@ -308,7 +289,7 @@
     startPinch() {
       const ps = this.touchesDown();
       if (ps.length < 2) return false;
-      this.drag = null;     // a second finger cancels the one-finger gesture
+      this.drag = null;
       DL.ui.hideTip();
       const [a, b] = ps;
       const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
@@ -323,7 +304,6 @@
       const d = Math.max(10, Math.hypot(a.x - b.x, a.y - b.y));
       const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
       this.cam.setZoom(DL.clamp(pz.z0 * d / pz.d0, MIN_ZOOM, MAX_ZOOM));
-      // keep the map point that started between the fingers between them
       const now = this.toWorld(mid);
       this.cam.scrollX += pz.w.x - now.x;
       this.cam.scrollY += pz.w.y - now.y;
@@ -365,9 +345,6 @@
         }
         return;
       }
-      // Select tool. Plain drag from an aircraft shapes its flight path.
-      // Option/Ctrl/Cmd+drag turns it and Shift+drag moves it, but only on
-      // the frame where it first appears.
       const mod = ev.altKey || ev.ctrlKey || ev.metaKey;
       if (this.hitHandle(w)) {
         this.drag = { mode: 'rotate', id: DL.ui.selected };
@@ -385,7 +362,6 @@
       if (hit) {
         DL.ui.select(hit);
         const s = DL.cur()[hit];
-        // on a touchscreen the panel's Drag buttons stand in for Shift and Option
         const dm = touch() ? DL.ui.dragMode : 'path';
         const wantMove = ev.shiftKey || dm === 'move', wantTurn = mod || dm === 'nose';
         if ((wantTurn || wantMove) && !DL.canEditPose(hit)) {
@@ -403,7 +379,6 @@
         return;
       }
       if (touch()) {
-        // a tap shows a past frame's or marker's data, or deselects; a drag pans
         this.drag = { mode: 'pan', sx: p.x, sy: p.y, scx: this.cam.scrollX, scy: this.cam.scrollY, tap: true };
         return;
       }
@@ -419,7 +394,6 @@
       const d = this.drag;
       if (!d) { if (!touch()) this.hoverInfo(p, w); return; }
       if (d.mode === 'climb') {
-        // a click opens the vertical window; a drag sets the climb angle
         if (!d.moved && Math.hypot(p.x - d.sx, p.y - d.sy) < (touch() ? 10 : 5)) return;
         d.moved = true;
         const gam = Math.round(DL.clamp(d.g0 + (d.sy - p.y) / 3, -89, 89));
@@ -447,14 +421,12 @@
         DL.editPose(d.id, { hdg: Math.round(hdg) });
         DL.ui.refresh();
       } else if (d.mode === 'path') {
-        // ignore the small jitter of a plain click
         if (!d.live && Math.hypot(p.x - d.sx, p.y - d.sy) < slopPx()) return;
         d.live = true;
         this.applyPath(w);
       }
     }
 
-    // Hover: data for a past frame, or a hint over the vertical ticks.
     hoverInfo(p, w) {
       const tool = DL.ui.tool;
       if (tool !== 'select' && tool !== 'path') { DL.ui.hideTip(); return; }
@@ -478,7 +450,6 @@
         if (DL.ui.pendingClear) { const id = DL.ui.pendingClear; DL.ui.pendingClear = null; this.keepClear(id); }
       }
       if (this.pinch) {
-        // lifting a finger ends the pinch; the other finger starts nothing new
         if (!this.touchesDown().length) this.pinch = null;
         this.drag = null;
         return;
@@ -499,8 +470,6 @@
       this.drag = null;
     }
 
-    // Flight-path tool: choose the level turn whose arc passes through the
-    // cursor. Cursor straight ahead (or behind) means wings level.
     applyPath(w) {
       const id = this.drag && this.drag.id;
       const s = id && DL.cur()[id];
@@ -526,7 +495,6 @@
     onWheel(p, over, dx, dy) {
       const ev = p.event || {};
       const id = DL.ui.selected;
-      // Option/Alt + wheel: throttle. Shift + wheel: g. Plain wheel or pinch: zoom.
       if (id && DL.cur()[id] && (ev.altKey || ev.shiftKey)) {
         const s = DL.cur()[id];
         const delta = (dy || dx) > 0 ? -1 : 1;
@@ -540,8 +508,6 @@
       if (ev.preventDefault) ev.preventDefault();
     }
 
-    // After a selection, slide the map so the aircraft is not hidden under
-    // the aircraft panel (the sheet on a phone, the side panel elsewhere).
     keepClear(id) {
       const s = DL.cur()[id], el = document.getElementById('panel');
       if (!s || !el.offsetWidth) return;
@@ -568,7 +534,6 @@
       this.zoomAt({ x: this.cam.width / 2, y: this.cam.height / 2 }, k);
     }
 
-    // Frame the aircraft, their trails, and the next frame's prediction.
     fit() {
       const pts = [];
       for (let k = 0; k <= DL.tl.current; k++) {
@@ -584,8 +549,6 @@
       let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
       for (const [x, y] of pts) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
       const w = Math.max(x1 - x0, 1500), h = Math.max(y1 - y0, 1500);
-      // keep clear of the windows open on either side of the map, and of
-      // full-width sheets above or below it (phones)
       const W = this.cam.width, H = this.cam.height, top0 = DL.ui.barH();
       let left = 0, right = 0, above = 0, below = 0;
       for (const id of ['panel', 'vwin', 'advwin', 'v3d']) {
@@ -606,7 +569,6 @@
       DL.ui.refresh();
     }
 
-    // ---------- drawing ----------
     text(str, x, y, color, size, originX, originY) {
       let t = this.textPool[this.textUsed];
       if (!t) {
@@ -626,7 +588,6 @@
       this.tickHits = [];
       this.evHits = [];
       DL.ui.syncScrub();
-      // this frame's flight of every aircraft, used by several layers
       this.pred = {};
       const f = DL.cur();
       for (const id in f) this.pred[id] = DL.step(DL.tl.aircraft[id].type, f[id], DL.frameDur(DL.tl.current));
@@ -640,10 +601,6 @@
       for (let i = this.textUsed; i < this.textPool.length; i++) this.textPool[i].setVisible(false);
     }
 
-    // Where every aircraft is part-way through the upcoming frame, at the
-    // scrub time the title-bar slider shares with the 3D view: position,
-    // heading, speed and altitude from the flight model's samples. Null
-    // when the slider sits at the frame start.
     scrubStates() {
       const t = DL.scrubT ? DL.scrubT() : 0, st = DL.settings, tl = DL.tl;
       if (!(t > 0)) return null;
@@ -653,7 +610,6 @@
         const nx = tl.frames[tl.current + 1] && tl.frames[tl.current + 1][id];
         let p;
         if (nx && nx.pinned) {
-          // the next frame was set by hand: slide straight along the dashed trail
           const dh = ((nx.hdg - s.hdg + 540) % 360) - 180;
           p = { x: s.x + (nx.x - s.x) * frac, y: s.y + (nx.y - s.y) * frac, hdg: DL.wrap360(s.hdg + dh * frac),
             spd: s.spd + (nx.spd - s.spd) * frac, alt: (s.alt || 0) + ((nx.alt || 0) - (s.alt || 0)) * frac };
@@ -674,7 +630,6 @@
       v.right = v.x + vw; v.bottom = v.y + vh;
       g.clear();
       const cell = DL.settings.gridFt;
-      // Thin out lines when cells get too small to read.
       let minor = cell;
       while (minor * z < 7) minor *= (String(minor / cell).startsWith('1') ? 5 : 2);
       const major = minor * (String(minor / cell)[0] === '1' ? 10 : 2);
@@ -693,7 +648,6 @@
       g.lineStyle(1.5 / z, T(0x3a6488), 1);
       g.lineBetween(0, v.y, 0, y1);
       g.lineBetween(v.x, 0, x1, 0);
-      // major-line distance labels along the top and left edges
       if ((x1 - x0) / major < 40) {
         for (let x = Math.ceil(v.x / major) * major; x <= x1; x += major) {
           this.text(DL.fmtFt(x), x + 3 / z, v.y + 4 / z, T('#3d5f7d'), 10);
@@ -732,10 +686,6 @@
       g.strokePath();
     }
 
-    // Climb/descent marks across the middle of a frame's path. The first
-    // tick is the reference; the next ones grow for a climb and shrink for a
-    // descent. Two ticks = gentle, three = steep, one = level. The size step
-    // grows with the altitude change over the frame.
     vertTicks(g, path, dAlt, color, alpha, hit) {
       const st = DL.settings;
       if (!st.showVertical || !path || path.length < 3 || dAlt === undefined) return;
@@ -745,7 +695,6 @@
       const stepPx = count === 1 ? 0 : DL.clamp(3 + 7 * a / st.vertSteepFt, 3, 8);
       const sign = dAlt >= 0 ? 1 : -1;
       const base = 20, gapPx = 7;
-      // walk to the middle of the path by distance
       let total = 0;
       for (let i = 1; i < path.length; i++) total += Math.hypot(path[i][0] - path[i - 1][0], path[i][1] - path[i - 1][1]);
       if (total * z < 30) return;
@@ -788,7 +737,7 @@
           if (!ac) continue;
           const age = tl.current - k;
           const alpha = Math.max(0.3, 0.9 - age * 0.06);
-          const col = T(DL.colorAt(k - 1, id));   // the color it wore while flying this segment
+          const col = T(DL.colorAt(k - 1, id));
           g.lineStyle(2 / z, col, alpha);
           if (s.path) {
             g.strokePoints(s.path.map(([x, y]) => ({ x, y })));
@@ -798,7 +747,6 @@
           }
         }
       }
-      // frame marks: ghost symbol at every past frame position
       for (let k = 0; k < tl.current; k++) {
         const f = tl.frames[k];
         for (const id in f) {
@@ -832,7 +780,6 @@
           g.lineStyle(1.5 / z, col, sel ? 0.8 : 0.45);
           g.strokePoints(this.iconPoints(ac.type, r.x, r.y, r.hdg, 0.8), true);
         }
-        // whole-maneuver preview: keep flying until a reversal rolls out
         if (st.showPrediction && (s.ctl.maneuver || s.rev || r.rev)) {
           const ahead = DL.predictAhead(DL.tl.current, id, 10);
           for (let i = 1; i < ahead.length; i++) {
@@ -875,10 +822,6 @@
       }
     }
 
-    // Radar sector ahead of an aircraft: the field of view as a grey wedge
-    // with range arcs and a fan of rays; rays that reach another aircraft
-    // inside the sector are drawn bright up to it, like a return on the
-    // scope. While scrubbing it follows the aircraft along the frame.
     drawRadar() {
       const g = this.radarG, z = this.cam.zoom, rd = DL.adv && DL.adv.radar;
       g.clear();
@@ -896,7 +839,6 @@
         g.lineStyle(1.5 / z, GREY, 0.6);
         g.slice(s.x, s.y, R, a0 - half, a0 + half, false);
         g.strokePath();
-        // range arcs at each quarter
         for (let q = 1; q <= 3; q++) {
           const r = R * q / 4;
           g.lineStyle(1 / z, GREY, 0.25);
@@ -907,7 +849,6 @@
           }
         }
         this.text(rd.rangeNm + ' nm', s.x + Math.sin(h) * R + 4 / z, s.y - Math.cos(h) * R - 12 / z, GREYS, 10);
-        // ray fan
         const contacts = DL.radarContacts(id, undefined, f);
         const stepDeg = rd.fovDeg > 180 ? 10 : 5;
         for (let d = -rd.fovDeg / 2; d <= rd.fovDeg / 2 + 1e-6; d += stepDeg) {
@@ -919,7 +860,6 @@
           g.lineStyle((bright ? 1.5 : 1) / z, bright ? T(0xffffff) : GREY, bright ? 0.7 : 0.1);
           g.lineBetween(s.x, s.y, s.x + Math.sin(ang) * len, s.y - Math.cos(ang) * len);
         }
-        // contact brackets and readouts
         for (const c of contacts) {
           if (!c.detected) continue;
           const b = 14 / z;
@@ -939,13 +879,12 @@
       }
     }
 
-    // Event markers for every frame up to the current one.
     drawEvents() {
       const g = this.evG, z = this.cam.zoom, tl = DL.tl, kc = tl.current;
-      const kcf = kc + (DL.scrubT ? DL.scrubT() : 0) / DL.frameDur(kc);   // fractional frame while scrubbing
+      const kcf = kc + (DL.scrubT ? DL.scrubT() : 0) / DL.frameDur(kc);
       g.clear();
       if (!tl.events || !DL.EVENT_KINDS) return;
-      const stack = {};   // events on the same aircraft and frame stack their labels
+      const stack = {};
       for (const ev of tl.events) {
         if (ev.k > kc) continue;
         const kind = DL.EVENT_KINDS[ev.kind];
@@ -961,7 +900,6 @@
           const ex = s.x + Math.sin(h) * ev.len, ey = s.y - Math.cos(h) * ev.len;
           g.lineStyle(1 / z, T(kind.color), alpha * 0.5);
           g.lineBetween(s.x, s.y, ex, ey);
-          // short tracer dashes along the line
           g.lineStyle(2.5 / z, T(kind.color), alpha);
           for (let i = 1; i <= 5; i++) {
             const t0 = (i - 0.35) / 5.5, t1 = i / 5.5;
@@ -973,9 +911,6 @@
           label('GUNS', ex, ey);
           this.evHits.push({ x: ex, y: ey, ev });
         } else if (ev.kind === 'flare') {
-          // dropped one by one along the path flown during the frame. While
-          // that frame is scrubbed they appear as the aircraft passes; the
-          // ones still to come are drawn faint.
           const prog = age > 0 ? 1 : kcf - kc;
           const pred = ev.k === kc ? this.pred[ev.ac] : null;
           let lx = s.x, ly = s.y;
@@ -999,7 +934,6 @@
           const st = DL.shotState(ev, kcf);
           if (!st) continue;
           const col = T(kind.color);
-          // launch point
           g.lineStyle(1.5 / z, col, 0.9);
           g.strokeCircle(st.launch.x, st.launch.y, 6 / z);
           g.fillStyle(col, 0.9);
@@ -1008,7 +942,6 @@
           label('SHOT' + tgtName + '  F' + ev.k, st.launch.x, st.launch.y);
           this.evHits.push({ x: st.launch.x, y: st.launch.y, ev });
           if (st.tgt) {
-            // path flown so far and the symbol
             g.lineStyle(1.5 / z, col, 0.8);
             this.dashed(g, [[st.launch.x, st.launch.y], [st.at.x, st.at.y]], 6 / z, 5 / z);
             if (!st.done) {
@@ -1023,7 +956,6 @@
               g.fillPoints(pts, true);
               label(Math.round(st.p * ev.tof) + ' / ' + ev.tof + ' s', st.at.x, st.at.y + 26 / z, T('#e6edf3'));
             } else {
-              // end of flight: result marker set by the user
               const ex = st.at.x, ey = st.at.y;
               if (ev.result === 'hit') {
                 g.lineStyle(2 / z, col, 1);
@@ -1043,7 +975,6 @@
               this.evHits.push({ x: ex, y: ey, ev });
             }
           } else {
-            // no target chosen: arrow ahead of the nose at launch
             const ax = st.launch.x + Math.sin(h) * 40 / z, ay = st.launch.y - Math.cos(h) * 40 / z;
             g.lineStyle(1.5 / z, col, 0.8);
             g.lineBetween(st.launch.x, st.launch.y, ax, ay);
@@ -1064,7 +995,6 @@
         const sel = id === DL.ui.selected;
         const acol = T(s.color || ac.color);
         if (this.scrub) {
-          // faint symbol where the frame starts while the slider moves it along
           const s0 = DL.cur()[id];
           g.fillStyle(acol, 0.28);
           g.fillPoints(this.iconPoints(ac.type, s0.x, s0.y, s0.hdg, 0.7), true);
@@ -1100,7 +1030,6 @@
           this.text(lines.join('\n'), s.x + 22 / z, s.y - 26 / z, col, 11).setLineSpacing(1);
         }
       }
-      // placement preview
       if (DL.ui.tool === 'place' && this.hover && !this.drag) {
         const pts = this.iconPoints(DL.ui.placeType, this.snap(this.hover.x), this.snap(this.hover.y), 0, 1);
         g.lineStyle(1.5 / z, T(0xffffff), 0.6);

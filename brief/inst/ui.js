@@ -1,14 +1,9 @@
-// DOM: top bar, control strip, status bar, dialogs, keyboard and touch mode.
-// Also decides how the canvas is split between the map and the panel.
 (function (FI) {
   'use strict';
 
   const $ = id => document.getElementById(id);
   const clamp = FI.clamp;
 
-  // The panel is square. Wide screens: panel on the right, as tall as the
-  // canvas, map on the left. Narrow screens: panel across the bottom, map
-  // above it.
   FI.layout = function (W, H) {
     if (W >= 720 && W >= H * 0.8) {
       const pw = Math.round(clamp(Math.min(W * 0.58, H), 300, W - 240));
@@ -20,14 +15,12 @@
 
   const ui = FI.ui = {
     touch: false,
-    dragging: null,         // slider being dragged, so the sim does not move it back
+    dragging: null,
 
     init() {
-      // scenarios, rebuilt when the home airport changes
       const sel = $('scn');
       ui.fillScenarios();
       sel.addEventListener('change', () => { ui.start(sel.value); sel.blur(); });
-      // home airport and approach
       const dl = $('apt-list');
       for (const a of FI.airportCodes()) { const o = document.createElement('option'); o.value = a.code; o.label = a.name; dl.appendChild(o); }
       $('apt').addEventListener('change', () => {
@@ -38,7 +31,6 @@
       $('apt').addEventListener('focus', () => $('apt').select());
       $('app').addEventListener('change', () => { ui.setHome(FI.home.apt.code, $('app').value); $('app').blur(); });
       ui.fillApproaches();
-      // radios: type a frequency or channel, or pick a nearby station
       $('r-nav').addEventListener('change', () => ui.tune('nav', $('r-nav').value));
       $('r-tcn').addEventListener('change', () => ui.tune('tcn', $('r-tcn').value));
       $('r-adf').addEventListener('change', () => ui.tune('adf', $('r-adf').value));
@@ -66,7 +58,6 @@
       $('set-apply').addEventListener('click', () => ui.applySettings());
       document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); }));
 
-      // stick and power
       for (const [id, axis] of [['c-bank', 'bank'], ['c-pitch', 'pitch'], ['c-power', 'power']]) {
         const el = $(id);
         el.addEventListener('input', () => { FI.setControl(axis, +el.value); ui.refresh(); });
@@ -75,7 +66,6 @@
         el.addEventListener('pointercancel', () => { ui.dragging = null; });
       }
       $('c-level').addEventListener('click', () => { FI.setControl('bank', 0); ui.refresh(); });
-      // bugs and autopilot
       ui.repeat($('bug-dec'), () => ui.bump('bug', -1)); ui.repeat($('bug-inc'), () => ui.bump('bug', 1));
       ui.repeat($('obs-dec'), () => ui.bump('obs', -1)); ui.repeat($('obs-inc'), () => ui.bump('obs', 1));
       $('ap-hdg').addEventListener('click', () => { FI.setAp('hdg', !FI.ap.hdg); ui.refresh(); });
@@ -91,7 +81,6 @@
       ui.layoutDom();
     },
 
-    // Press and hold a − or + button to keep stepping.
     repeat(btn, fn) {
       let t = null, iv = null;
       const stop = () => { clearTimeout(t); clearInterval(iv); t = iv = null; };
@@ -102,10 +91,9 @@
       FI.nav[what] = FI.norm360(FI.nav[what] + d);
       ui.refresh();
     },
-    // Six-pack or glass cockpit. Remembered per browser; ?p=glass opens glass.
     setPanel(mode) {
       FI.panelMode = mode === 'glass' ? 'glass' : 'analog';
-      try { localStorage.setItem('fi-panel', FI.panelMode); } catch (e) { /* private mode */ }
+      try { localStorage.setItem('fi-panel', FI.panelMode); } catch (e) { }
       if (FI.panel && FI.panel.glass) FI.panel.setMode(FI.panelMode);
       ui.refresh();
     },
@@ -125,19 +113,16 @@
       $('apt').value = FI.home.apt.code;
       $('apt').title = `${FI.home.apt.code} ${FI.home.apt.name}: type an airport code (any US airport with an ILS or localizer)`;
     },
-    // Move to another airport: reload the area and the scenarios, and fly
-    // the same scenario there if it exists, otherwise free flight.
     setHome(code, rwy) {
       const sc = FI.scn ? FI.scn.def.id : null;
       FI.setHome(code, rwy);
-      try { localStorage.setItem('fi-home', JSON.stringify({ apt: FI.home.apt.code, rwy: FI.home.ils && FI.home.ils.rwy })); } catch (e) { /* private mode */ }
+      try { localStorage.setItem('fi-home', JSON.stringify({ apt: FI.home.apt.code, rwy: FI.home.ils && FI.home.ils.rwy })); } catch (e) { }
       ui.fillScenarios(); ui.fillApproaches();
       const i = FI.SCENARIOS.findIndex(s => s.id === sc);
       ui.start(i >= 0 ? String(i) : 'free');
       if (FI.map) FI.map.fit();
     },
 
-    // Tune a radio from typed text. Bad input puts the old value back.
     tune(which, text) {
       const nv = FI.nav, t = String(text).trim().toUpperCase();
       if (which === 'nav') {
@@ -155,7 +140,6 @@
       FI.computeNav();
       ui.refresh(true);
     },
-    // The nearby list: stations within 80 nm of the aircraft, nearest first.
     fillTune() {
       const sel = $('r-tune'), s = FI.state;
       ui.tuneList = FI.nearby(s.x, s.y, 80).slice(0, 40);
@@ -191,8 +175,6 @@
       ui.refresh();
     },
 
-    // keyboard: arrows bank and pitch, W/S power, L level, [ ] OBS, , . bug,
-    // H/A/N autopilot, V nav source, G six-pack or glass, Space pause, F follow, 0 fit, ? help
     key(e) {
       const tag = (e.target.tagName || '').toLowerCase();
       if (tag === 'input' || tag === 'select' || tag === 'textarea') return;
@@ -232,8 +214,6 @@
       ui.layoutDom();
     },
 
-    // The canvas fills the space between the bars; their heights change
-    // when they wrap, so measure them.
     layoutDom() {
       const g = $('game');
       g.style.top = $('bar').offsetHeight + 'px';
@@ -256,7 +236,6 @@
       ui.refresh();
     },
 
-    // Buttons and sliders reflect the state. Called after any input.
     refresh(radios) {
       const s = FI.state, ap = FI.ap, nv = FI.nav;
       $('btn-play').textContent = FI.paused ? '▶ Play' : '❚❚ Pause';
@@ -265,7 +244,6 @@
       $('btn-follow').classList.toggle('on', !!(FI.map && FI.map.follow));
       $('ap-hdg').classList.toggle('on', ap.hdg); $('ap-alt').classList.toggle('on', ap.alt); $('ap-nav').classList.toggle('on', ap.nav);
       document.querySelectorAll('[data-src]').forEach(b => b.classList.toggle('on', b.dataset.src === nv.src));
-      // radio boxes, unless the student is typing in one
       const act = document.activeElement;
       if (radios || act !== $('r-nav')) $('r-nav').value = FI.fmtMhz(nv.mhz);
       if (radios || act !== $('r-tcn')) $('r-tcn').value = nv.chan || '';
@@ -285,7 +263,6 @@
       $('c-power-v').textContent = `${Math.round(s.power)}%`;
     },
 
-    // Every frame from the map scene: status bar text, about 10 times a second.
     lastTick: 0,
     tick() {
       const now = performance.now();
@@ -305,7 +282,6 @@
       if (ui.quickOpen) ui.quickReadout();
     },
 
-    // ---------- tooltip while steering with the mouse ----------
     tip(html, p) {
       const t = $('tip'), r = FI.game.canvas.getBoundingClientRect();
       t.innerHTML = html; t.style.display = 'block';
@@ -321,10 +297,6 @@
       ui.tip(`${turn}<br>${alt}<br><span class="dim">Drag left or right to turn, up to climb, down to descend.${ui.touch ? '' : ' Shift for 1° steps.'}</span>`, p);
     },
 
-    // ---------- quick menu: right-click (or press and hold) the aircraft ----------
-    // Eight wedges laid out like the drag: up climbs, down descends, right
-    // and left turn, and the lower corners change speed. Clicks add up, so
-    // two clicks on Climb +500 ft climb 1,000 ft. Shift doubles a step.
     quickOpen: false,
     buildQuick() {
       const box = $('quick'), NS = 'http://www.w3.org/2000/svg';

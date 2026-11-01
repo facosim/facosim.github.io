@@ -1,4 +1,3 @@
-// E6B page: reads the inputs, runs the math in calc.js and shows the answers.
 (function () {
   'use strict';
   var E = window.E6B;
@@ -6,13 +5,10 @@
   var DASH = '—';
   var STORE = 'e6b-v1';
 
-  /* ---------- Small helpers ---------- */
-
   function num(id) {
     var s = $(id).value.replace(/,/g, '').trim();
     return s === '' || !/^[-+]?(\d+\.?\d*|\.\d+)$/.test(s) ? NaN : +s;
   }
-  // Flags an input the user filled in with something unreadable
   function bad(id, isBad) {
     var box = $(id).closest('.in');
     if (box) box.classList.toggle('bad', !!isBad && $(id).value.trim() !== '');
@@ -35,11 +31,11 @@
   function variation(valId, hemiId) {
     var v = num(valId);
     if (isNaN(v)) return NaN;
-    return $(hemiId).value === 'W' ? Math.abs(v) : -Math.abs(v);   // amount to add to true
+    return $(hemiId).value === 'W' ? Math.abs(v) : -Math.abs(v);
   }
   function timeText(h) {
     if (!isFinite(h) || h < 0) return DASH;
-    if (h >= 1) h = Math.round(h * 60) / 60;        // past an hour, whole minutes are plenty
+    if (h >= 1) h = Math.round(h * 60) / 60;
     return E.formatTime(h) + unit(fmt(h * 60, h * 60 < 10 ? 1 : 0) + ' min');
   }
   function headTail(v) {
@@ -49,12 +45,10 @@
     return r + unit('kt ' + (v > 0 ? 'headwind' : 'tailwind'));
   }
 
-  /* ---------- Saved entries ---------- */
-
   var state = { v: {}, seg: {}, from: {} };
   function load() {
     try { var s = JSON.parse(localStorage.getItem(STORE) || 'null'); if (s) state = { v: s.v || {}, seg: s.seg || {}, from: s.from || {} }; }
-    catch (e) { /* storage blocked: start from the examples */ }
+    catch (e) { }
     document.querySelectorAll('[data-save]').forEach(function (el) {
       if (state.v[el.id] != null) el.value = state.v[el.id];
     });
@@ -65,14 +59,12 @@
   }
   function save() {
     document.querySelectorAll('[data-save]').forEach(function (el) { state.v[el.id] = el.value; });
-    try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) { /* not saved */ }
+    try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) { }
   }
   function pick(segEl, v) {
     segEl.querySelectorAll('button').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-v') === v); });
     state.seg[segEl.id] = v;
   }
-
-  /* ---------- Wind correction ---------- */
 
   function wind() {
     var tc = numChecked('w-tc'), tas = numChecked('w-tas'), wd = numChecked('w-wd'), ws = numChecked('w-ws');
@@ -101,7 +93,6 @@
   function svgEl(parent, tag, attrs, text) {
     var el = document.createElementNS(SVGNS, tag);
     for (var k in attrs) {
-      // Theme colours are CSS variables, which only work through style
       if ((k === 'fill' || k === 'stroke') && /^var\(/.test(attrs[k])) el.style[k] = attrs[k];
       else el.setAttribute(k, attrs[k]);
     }
@@ -125,7 +116,6 @@
     var svg = $('w-dia');
     svg.innerHTML = '';
     var R = Math.PI / 180;
-    // Air vector (heading, TAS), then the wind (blowing toward wd+180) gives the ground vector
     var A = [Math.sin(r.th * R) * tas, -Math.cos(r.th * R) * tas];
     var G = [Math.sin(tc * R) * r.gs, -Math.cos(tc * R) * r.gs];
     var xs = [0, A[0], G[0]], ys = [0, A[1], G[1]];
@@ -142,7 +132,6 @@
     line(o, a, 'var(--text)', 'mk-air');
     if (ws > 0.5) line(a, g, 'var(--warn)', 'mk-wnd', '5 3');
     line(o, g, 'var(--out)', 'mk-gnd');
-    // Legend under the drawing
     [['var(--text)', 'Heading ' + deg3(r.th) + ' at ' + Math.round(tas) + ' kt TAS (air)'],
       ['var(--warn)', ws > 0.5 ? 'Wind ' + deg3(wd) + ' at ' + Math.round(ws) + ' kt' : 'Calm'],
       ['var(--out)', 'Course ' + deg3(tc) + ' at ' + Math.round(r.gs) + ' kt GS (ground)']].forEach(function (l, i) {
@@ -151,8 +140,6 @@
       svgEl(svg, 'text', { x: 60, y: y, fill: l[0] }, l[1]);
     });
   }
-
-  /* ---------- Find the wind ---------- */
 
   function findWind() {
     var tc = numChecked('fw-tc'), gs = numChecked('fw-gs'), th = numChecked('fw-th'), tas = numChecked('fw-tas');
@@ -163,8 +150,6 @@
     set('fw-wca', Math.round(wca) === 0 ? '0°' : Math.abs(Math.round(wca)) + '°' + unit(wca > 0 ? 'right' : 'left'));
     set('fw-hw', headTail(w.spd * Math.cos((w.dir - tc) * Math.PI / 180)));
   }
-
-  /* ---------- Time, speed, distance ---------- */
 
   function tsd() {
     var mode = seg('tsd-mode');
@@ -189,8 +174,6 @@
     set('tsd-m10', gs > 0 ? fmt(600 / gs, 1) + unit('min') : DASH);
   }
 
-  /* ---------- Fuel ---------- */
-
   function fuel() {
     var mode = seg('fuel-mode');
     var u = $('fu-units').value, dens = E.FUEL_DENSITY[$('fu-type').value];
@@ -205,7 +188,6 @@
     if (isNaN(res)) res = 0;
     var dp = u === 'L' || u === 'kg' || u === 'lb' ? 0 : 1;
     function amt(v) { return fmt(v, v >= 100 ? 0 : dp) + unit(u); }
-    // The other way of measuring: weight for volumes, volume for weights
     function other(v) {
       var lb = u === 'gal' ? v * dens : u === 'L' ? v / 3.785411784 * dens : u === 'lb' ? v : v / 0.45359237;
       if (u === 'gal' || u === 'L') return fmt(lb, 0) + unit('lb') + ' · ' + fmt(lb * 0.45359237, 0) + unit('kg');
@@ -243,8 +225,6 @@
     set('fu-out', o1); set('fu-o2', o2); set('fu-o3', o3);
   }
 
-  /* ---------- Climb & descent ---------- */
-
   var FT_PER_NM = 6076.12;
   function climb() {
     var gs = numChecked('cl-gs'), g = numChecked('cl-g'), gu = $('cl-gu').value;
@@ -265,8 +245,6 @@
     set('td-g', fmt(lose / dist) + unit('ft/nm · ' + fmt(Math.atan(lose / dist / FT_PER_NM) * 180 / Math.PI, 1) + '°'));
   }
 
-  /* ---------- True airspeed ---------- */
-
   function toC(v, u) { return u === 'F' ? E.convertTemp(v, 'F', 'C') : v; }
   function tempText(c, u) { return fmt(u === 'F' ? E.convertTemp(c, 'C', 'F') : c, 1) + '°' + u; }
   function tas() {
@@ -282,8 +260,6 @@
     set('ta-isa', tempText(E.isaTemp(pa), ou));
     set('ta-rot', fmt(cas * (1 + 0.02 * pa / 1000)) + unit('kt'));
   }
-
-  /* ---------- Density altitude ---------- */
 
   function densityAlt() {
     var el = numChecked('da-el'), alt = numChecked('da-alt'), oat = numChecked('da-oat');
@@ -312,8 +288,6 @@
     set('da-rot', fmt(Math.round(daRule / 10) * 10) + unit('ft'));
     if (da - el > 2000) set('da-msg', 'High density altitude: expect a longer takeoff roll and a weaker climb. Check your POH performance charts.');
   }
-
-  /* ---------- Crosswind ---------- */
 
   function crosswind() {
     var rh = E.runwayHeading($('xw-rwy').value);
@@ -356,7 +330,6 @@
     var g = svgEl(svg, 'g', { transform: 'rotate(' + rh + ' ' + cx + ' ' + cy + ')' });
     svgEl(g, 'rect', { x: cx - W / 2, y: cy - L / 2, width: W, height: L, rx: 2, fill: 'var(--rwy)', stroke: 'var(--rwy-edge)' });
     svgEl(g, 'line', { x1: cx, y1: cy - L / 2 + 22, x2: cx, y2: cy + L / 2 - 22, stroke: 'var(--text)', 'stroke-width': 1.5, 'stroke-dasharray': '9 7' });
-    // Runway numbers: landing on 25 you head 250, so "25" is painted at the end you touch down on
     var R = Math.PI / 180;
     function paint(h, d) {
       svgEl(svg, 'text', { x: cx + Math.sin(h * R) * d, y: cy - Math.cos(h * R) * d + 4, fill: 'var(--strong)', 'text-anchor': 'middle', 'font-weight': 600 }, rwyName(h + 180));
@@ -372,8 +345,6 @@
       svgEl(svg, 'text', { x: Math.max(30, Math.min(270, tx)), y: Math.max(12, Math.min(214, ty + (ty > cy ? 12 : -4))), fill: 'var(--warn)', 'text-anchor': 'middle' }, deg3(wd) + '/' + Math.round(ws));
     }
   }
-
-  /* ---------- Units ---------- */
 
   var UNIT_LABELS = {
     distance: { nm: 'nautical miles', sm: 'statute miles', km: 'kilometers', m: 'meters', ft: 'feet' },
@@ -415,8 +386,6 @@
     });
   }
 
-  /* ---------- Coordinates ---------- */
-
   function copyBtn(text) {
     var b = document.createElement('button');
     b.type = 'button';
@@ -427,7 +396,7 @@
       else fallback();
       function fallback() {
         var t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select();
-        try { document.execCommand('copy'); done(); } catch (e) { /* nothing to do */ }
+        try { document.execCommand('copy'); done(); } catch (e) { }
         t.remove();
       }
     });
@@ -497,8 +466,6 @@
     set('gc-ete', gs > 0 ? timeText(r.nm / gs) : DASH);
   }
 
-  /* ---------- Page wiring ---------- */
-
   function all() {
     wind(); findWind(); tsd(); fuel(); climb(); tas(); densityAlt(); crosswind(); units(); coords(); greatCircle();
   }
@@ -531,9 +498,8 @@
   document.querySelectorAll('[data-ex]').forEach(function (b) {
     b.addEventListener('click', function () { $('co-in').value = b.getAttribute('data-ex'); coords(); save(); });
   });
-  // Select the whole entry on focus so a new number can be typed straight over it
   document.addEventListener('focusin', function (e) {
-    if (e.target.matches && e.target.matches('.in input')) setTimeout(function () { try { e.target.select(); } catch (x) { /* ignore */ } }, 0);
+    if (e.target.matches && e.target.matches('.in input')) setTimeout(function () { try { e.target.select(); } catch (x) { } }, 0);
   });
   Object.keys(E.FUEL_DENSITY).forEach(function (k) {
     var o = document.createElement('option'); o.value = k; o.textContent = k + ' (' + E.FUEL_DENSITY[k] + ' lb/gal)'; $('un-ft').appendChild(o);

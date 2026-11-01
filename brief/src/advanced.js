@@ -1,22 +1,18 @@
-// Advanced debrief overlays: a radar sector ahead of an aircraft and event
-// markers (missile shots, gun bursts, flares) placed on the timeline.
-// These are drawing and bookkeeping only: geometry from the frame data,
-// nothing is flown or scored.
 (function (DL) {
   'use strict';
 
   const $ = id => document.getElementById(id);
   const fmt = n => (Math.round(n) + 0).toLocaleString('en-US');
   const hex = c => '#' + c.toString(16).padStart(6, '0');
-  const NM = 6076.12;           // feet per nautical mile
+  const NM = 6076.12;
   const wrap180 = a => ((a + 540) % 360) - 180;
 
   DL.NM = NM;
 
   const adv = {
-    radar: { on: false, rangeNm: 10, fovDeg: 120, who: 'selected' },   // who: 'selected' | 'all'
-    shotTofSec: 10,       // default time of flight for a shot marker, seconds
-    gunLenFt: 2000,       // length of the gun line drawn ahead of the nose
+    radar: { on: false, rangeNm: 10, fovDeg: 120, who: 'selected' },
+    shotTofSec: 10,
+    gunLenFt: 2000,
     flareCount: 3,
   };
   DL.adv = adv;
@@ -28,10 +24,6 @@
   };
   DL.EVENT_KINDS = KINDS;
 
-  // ---------- geometry ----------
-  // Position of an aircraft at a fractional frame, following the flown path.
-  // Past the last frame it follows the predicted flight of that frame
-  // (`pred`, a step() result for frame k, saves flying it again).
   function posAt(id, kf, pred) {
     const tl = DL.tl;
     const k = Math.min(Math.floor(kf), tl.frames.length - 1);
@@ -41,7 +33,6 @@
     if (frac < 1e-6) return { x: s.x, y: s.y, alt: s.alt || 0 };
     const nx = tl.frames[k + 1] && tl.frames[k + 1][id];
     const alt = nx ? (s.alt || 0) + frac * ((nx.alt || 0) - (s.alt || 0)) : s.alt || 0;
-    // a hand-set next frame has a straight dashed trail
     if (nx && nx.pinned) return { x: s.x + frac * (nx.x - s.x), y: s.y + frac * (nx.y - s.y), alt };
     let path = nx && nx.path;
     if (!path) path = (pred || DL.step(tl.aircraft[id].type, s, DL.frameDur(k))).path;
@@ -50,9 +41,6 @@
   }
   DL.posAt = posAt;
 
-  // Radar picture for aircraft `id` at frame k (or in the given set of
-  // states): every other aircraft with bearing, range, aspect and closure,
-  // flagged if inside the sector.
   function radarContacts(id, k, states) {
     const tl = DL.tl;
     if (k === undefined) k = tl.current;
@@ -73,10 +61,9 @@
       const rel = wrap180(brg - own.hdg);
       const oh = o.hdg * DL.D2R;
       const vt = [o.spd * Math.sin(oh), -o.spd * Math.cos(oh)];
-      // aspect: angle off the contact's tail as seen from it (0 = we are dead astern)
       const bearingFromContact = DL.wrap360(Math.atan2(-dx, dy) / DL.D2R);
       const aspect = Math.abs(wrap180(bearingFromContact - o.hdg - 180));
-      const rangeRate = range > 1 ? ((vt[0] - vo[0]) * dx + (vt[1] - vo[1]) * dy) / range : 0;   // kt, + opening
+      const rangeRate = range > 1 ? ((vt[0] - vo[0]) * dx + (vt[1] - vo[1]) * dy) / range : 0;
       out.push({
         id: oid, callsign: tl.aircraft[oid].callsign, color: o.color || tl.aircraft[oid].color,
         range, rangeNm: range / NM, brg, rel, aspect, closure: -rangeRate,
@@ -89,7 +76,6 @@
   }
   DL.radarContacts = radarContacts;
 
-  // ---------- events ----------
   function addEvent(kind, k, ac, opts) {
     const tl = DL.tl;
     if (!tl.frames[k] || !tl.frames[k][ac]) return null;
@@ -110,9 +96,6 @@
     return DL.tl.events.filter(e => e.k === k && (!ac || e.ac === ac));
   }
 
-  // Where a shot marker is at frame kc (fractional while scrubbing): launch
-  // point, the point it is drawn at, progress 0..1, and the target position
-  // it is heading for.
   function shotState(ev, kc) {
     const tl = DL.tl;
     const sh = tl.frames[ev.k] && tl.frames[ev.k][ev.ac];
@@ -148,7 +131,6 @@
 
   Object.assign(DL, { addEvent, removeEvent, eventsAt, shotState, describeEvent: describe });
 
-  // ---------- Advanced window ----------
   const win = {
     init() {
       $('btn-adv').onclick = () => (this.isOpen() ? this.close() : this.open());
@@ -227,7 +209,6 @@
       document.querySelectorAll('[data-range]').forEach(b => b.classList.toggle('on', +b.dataset.range === adv.radar.rangeNm));
       if (document.activeElement !== $('adv-fov')) $('adv-fov').value = adv.radar.fovDeg;
 
-      // radar picture
       const pic = $('adv-contacts');
       if (!s) {
         $('adv-own').textContent = 'Select an aircraft to see its radar picture.';
@@ -248,7 +229,6 @@
         }
       }
 
-      // add-event controls
       const tgt = $('adv-shot-target');
       const others = s ? Object.keys(DL.cur()).filter(o => o !== id) : [];
       const keep = tgt.value;
@@ -257,7 +237,6 @@
       ['adv-add-shot', 'adv-add-gun', 'adv-add-flare'].forEach(b => { $(b).disabled = !s; });
       $('adv-at').textContent = s ? 'Add for ' + a.callsign + ' at frame ' + tl.current + ' (T+' + DL.fmtSec(DL.timeAt(tl.current)) + 's)' : 'Select an aircraft to add events.';
 
-      // timeline list
       const list = $('adv-events');
       if (!tl.events.length) { list.innerHTML = '<div class="dim">No events yet.</div>'; return; }
       list.innerHTML = tl.events.map(ev => {
