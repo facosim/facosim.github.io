@@ -917,20 +917,36 @@
         stack[key] = row + 1;
         const label = (txt, x, y, col) => this.text(txt, x + 10 / z, y - 16 / z - row * 12 / z, col || T('#' + kind.color.toString(16).padStart(6, '0')), 10);
         if (ev.kind === 'gun') {
-          const alpha = age === 0 ? 1 : 0.45;
-          const ex = s.x + Math.sin(h) * ev.len, ey = s.y - Math.cos(h) * ev.len;
-          g.lineStyle(1 / z, T(kind.color), alpha * 0.5);
-          g.lineBetween(s.x, s.y, ex, ey);
-          g.lineStyle(2.5 / z, T(kind.color), alpha);
-          for (let i = 1; i <= 5; i++) {
-            const t0 = (i - 0.35) / 5.5, t1 = i / 5.5;
-            g.lineBetween(s.x + (ex - s.x) * t0, s.y + (ey - s.y) * t0, s.x + (ex - s.x) * t1, s.y + (ey - s.y) * t1);
+          const col = T(kind.color), N = 16, spread = 6 * DL.D2R;
+          const prog = age > 0 ? 1 : kcf - kc, pred = ev.k === kc ? this.pred[ev.ac] : null;
+          const rnd = n => { const x = Math.sin(n * 127.1 + ev.k * 311.7 + 17.3) * 43758.5453; return x - Math.floor(x); };
+          const starts = [], ends = [];
+          let mid = null;
+          for (let i = 0; i < N; i++) {
+            const fr = (i + 0.5) / N;
+            const p = DL.posAt(ev.ac, ev.k + fr, pred);
+            if (!p) break;
+            const q0 = DL.posAt(ev.ac, ev.k + Math.max(0, fr - 0.04), pred), q1 = DL.posAt(ev.ac, ev.k + Math.min(1, fr + 0.04), pred);
+            let th = Math.atan2(q1.x - q0.x, -(q1.y - q0.y));
+            if (Math.hypot(q1.x - q0.x, q1.y - q0.y) < 1e-6) th = h;
+            const off = (rnd(i) * 2 - 1) * spread, L = ev.len * (0.8 + rnd(i + 40) * 0.35);
+            const ex = p.x + Math.sin(th + off) * L, ey = p.y - Math.cos(th + off) * L;
+            starts.push({ x: p.x, y: p.y }); ends.push({ x: ex, y: ey });
+            const out = fr <= prog + 1e-9, alpha = out ? (age === 0 ? 1 : 0.5) : 0.2;
+            g.lineStyle(3 / z, col, alpha);
+            for (let j = 0; j < 4; j++) {
+              const t0 = 0.12 + j * 0.24, t1 = t0 + 0.13;
+              g.lineBetween(p.x + (ex - p.x) * t0, p.y + (ey - p.y) * t0, p.x + (ex - p.x) * t1, p.y + (ey - p.y) * t1);
+            }
+            g.fillStyle(col, alpha);
+            g.fillCircle(ex, ey, 2.2 / z);
+            if (i === Math.floor(N / 2)) mid = { x: ex, y: ey };
           }
-          g.lineStyle(1.5 / z, T(kind.color), alpha);
-          g.strokeCircle(ex, ey, 5 / z);
-          g.lineBetween(ex - 8 / z, ey, ex + 8 / z, ey); g.lineBetween(ex, ey - 8 / z, ex, ey + 8 / z);
-          label('GUNS', ex, ey);
-          this.evHits.push({ x: ex, y: ey, ev });
+          if (starts.length > 1) {
+            g.fillStyle(col, age === 0 ? 0.18 : 0.08);
+            g.fillPoints(starts.concat(ends.slice().reverse()), true);
+          }
+          if (mid) { label('GUNS', mid.x, mid.y); this.evHits.push({ x: mid.x, y: mid.y, ev }); }
         } else if (ev.kind === 'flare') {
           const prog = age > 0 ? 1 : kcf - kc;
           const pred = ev.k === kc ? this.pred[ev.ac] : null;

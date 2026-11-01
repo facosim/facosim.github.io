@@ -19,7 +19,7 @@
 
   const KINDS = {
     shot:  { name: 'Missile shot', short: 'SHOT',   color: 0xff6b6b },
-    gun:   { name: 'Gun burst',    short: 'GUNS',   color: 0xffd166 },
+    gun:   { name: 'Gun burst',    short: 'GUNS',   color: 0xffe033 },
     flare: { name: 'Flares',       short: 'FLARES', color: 0xffb547 },
   };
   DL.EVENT_KINDS = KINDS;
