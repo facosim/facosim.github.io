@@ -18,6 +18,7 @@
     selected: null,
     touch: false,
     dragMode: 'path',
+    selection: [],
 
     init() {
       $('btn-add').onclick = () => this.setTool(this.tool === 'place' ? 'select' : 'place');
@@ -128,7 +129,7 @@
           case 'Delete': case 'Backspace': this.removeSelected(); break;
           case 'Escape': this.closeWheel(); this.closeVertical(); if (DL.advWin) DL.advWin.close(); if (DL.bscope) DL.bscope.close(); this.setTool('select'); this.select(null); $('help').classList.remove('open'); $('settings').classList.remove('open'); break;
           case 'v': case 'V': this.setTool('select'); break;
-          case 'a': case 'A': this.setTool('place'); break;
+          case 'a': case 'A': if (e.ctrlKey || e.metaKey) { e.preventDefault(); this.selectMany(Object.keys(DL.cur())); } else this.setTool('place'); break;
           case 'f': case 'F': this.setTool('path'); break;
           case 'm': case 'M': this.setTool('move'); break;
           case 'h': case 'H': this.setTool('pan'); break;
@@ -176,8 +177,21 @@
     ac() { return this.selected ? DL.tl.aircraft[this.selected] : null; },
     state() { return this.selected ? DL.cur()[this.selected] : null; },
 
+    selIds() { return this.selection.filter(id => DL.tl.aircraft[id] && DL.cur()[id]); },
+    isSelected(id) { return this.selection.includes(id); },
+    selectMany(ids) {
+      this.selection = ids.slice();
+      this.selected = ids[0] || null;
+      this.refresh();
+    },
+    toggleSelect(id) {
+      const ids = this.selIds();
+      this.selectMany(ids.includes(id) ? ids.filter(x => x !== id) : ids.concat(id));
+    },
+
     select(id) {
       const fresh = !!id && id !== this.selected;
+      this.selection = id ? [id] : [];
       this.selected = id;
       this.refresh();
       if (fresh && DL.scene && DL.scene.keepClear) {
@@ -196,7 +210,7 @@
         select: 'Drag from an aircraft to shape its flight path. Drag the next frame\'s climb ticks up or down to set climb angle. Hover a past frame for its data.',
         place: 'Click to place ' + DL.TYPES[this.placeType].name + ' here, drag to point its nose. Shift snaps heading to 15°.',
         path: 'Drag from the selected aircraft: its next turn bends through the cursor.',
-        move: 'Drag an aircraft to move its whole flight: its history and flight path go with it.',
+        move: 'Drag an aircraft to move its whole flight. Drag a box to select several (Shift adds) and move them together.',
         pan: 'Drag to pan. Space+drag or the middle button pans from any tool.',
         zoom: 'Click to zoom in, Shift+click to zoom out. Wheel or pinch zooms anywhere.',
       };
@@ -204,7 +218,7 @@
         select: 'Drag from an aircraft to shape its path. One finger pans, two fingers pinch to zoom. Tap a past frame for its data.',
         place: 'Tap to place ' + DL.TYPES[this.placeType].name + ' here and drag to point its nose.',
         path: 'Drag anywhere: the selected aircraft\'s next turn bends through your finger.',
-        move: 'Drag an aircraft to move its whole flight, history and path included.',
+        move: 'Drag an aircraft to move its whole flight. Drag a box on empty map to select several and move them together.',
         pan: 'Drag to pan, pinch to zoom.',
         zoom: 'Tap to zoom in. Pinch zooms anywhere.',
       };
@@ -287,7 +301,7 @@
             { a: 45, t: 'Wings level', v: '1 g', go: () => $('p-level').click() },
             { a: 90, t: 'Hold speed', go: () => $('p-trim').click() },
             { a: 135, t: 'Speedbrake', v: sb ? 'in' : 'out', off: !t.brake, go: () => this.setControl('sb', !sb) },
-            { a: 180, t: 'Remove', go: () => this.removeSelected() },
+            { a: 180, t: 'Remove', v: this.selIds().length > 1 ? this.selIds().length + ' aircraft' : undefined, go: () => this.removeSelected() },
             { a: 225, t: '3D view', go: () => $('btn-3d').click() },
             { a: 270, t: 'Immelmann', go: () => this.applyPreset(cur, hit, 'immelmann', false) },
             { a: 315, t: 'Split-S', go: () => this.applyPreset(cur, hit, 'splitS', false) },
@@ -323,7 +337,7 @@
 
     openWheel(p, w, hit) {
       if (!this.tool || this.tool === 'place' || this.tool === 'zoom') return;
-      if (hit) this.select(hit); else this.select(null);
+      if (hit) { if (!this.isSelected(hit)) this.select(hit); } else this.select(null);
       const NS = 'http://www.w3.org/2000/svg', box = $('wheel'), m = this.wheelItems(hit, w);
       this.wheelAt = { x: p.x, y: p.y };
       const C = 130, r0 = 50, r1 = 122, half = 22.5 - 1.2, d2r = Math.PI / 180;
@@ -366,9 +380,12 @@
     closeWheel() { if (!this.wheelOpen) return; this.wheelOpen = false; $('wheel').classList.remove('open'); },
 
     removeSelected() {
-      if (!this.selected) return;
-      DL.removeAircraft(this.selected);
+      const ids = this.selIds();
+      if (!ids.length && this.selected) ids.push(this.selected);
+      if (!ids.length) return;
+      for (const id of ids) DL.removeAircraft(id);
       this.selected = null;
+      this.selection = [];
       this.refresh();
     },
 
@@ -381,6 +398,7 @@
       if (any && !window.confirm('Clear every aircraft, frame and marker and start over?')) return;
       DL.reset();
       this.selected = null;
+      this.selection = [];
       this.closeVertical();
       this.setScrub(0);
       this.setTool('select');
@@ -523,6 +541,7 @@
       this.soloWindow('vwin');
       this.vw = { k, id };
       this.selected = id;
+      if (!this.isSelected(id)) this.selection = [id];
       $('vwin').classList.add('open');
       this.refresh();
     },
@@ -705,6 +724,9 @@
       const r = DL.step(a.type, s, DL.frameDur(DL.tl.current));
       $('p-swatch').style.background = hex(s.color || a.color);
       $('p-type').textContent = t.name;
+      const many = this.selIds().length;
+      $('p-multi').style.display = many > 1 ? '' : 'none';
+      $('p-multi').textContent = many + ' aircraft selected. This panel shows ' + (a.callsign || 'the first') + '. Move, Remove and Esc act on all of them.';
       if (document.activeElement !== $('p-callsign')) $('p-callsign').value = a.callsign;
       $('p-color').value = hex(s.color || a.color);
       const editable = DL.canEditPose(this.selected);

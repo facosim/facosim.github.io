@@ -342,14 +342,13 @@
         return;
       }
       if (tool === 'move') {
-        const hit = this.hitAircraft(w);
+        const hit = this.hitAircraft(w), add = ev.shiftKey || ev.ctrlKey || ev.metaKey;
         if (hit) {
-          DL.ui.select(hit);
-          const s = DL.cur()[hit];
-          this.drag = { mode: 'moveflight', id: hit, ox: s.x - w.x, oy: s.y - w.y, moved: false };
+          if (add) DL.ui.toggleSelect(hit); else if (!DL.ui.isSelected(hit)) DL.ui.select(hit);
+          const ids = DL.ui.selIds(), s = DL.cur()[hit];
+          this.drag = ids.includes(hit) ? { mode: 'moveflight', id: hit, ids, ox: s.x - w.x, oy: s.y - w.y, moved: false } : null;
         } else {
-          DL.ui.select(null);
-          this.drag = { mode: 'pan', sx: p.x, sy: p.y, scx: this.cam.scrollX, scy: this.cam.scrollY };
+          this.drag = { mode: 'marquee', sx: p.x, sy: p.y, x0: w.x, y0: w.y, x1: w.x, y1: w.y, add, base: add ? DL.ui.selIds() : [], moved: false };
         }
         return;
       }
@@ -399,6 +398,10 @@
         this.drag = { mode: 'pan', sx: p.x, sy: p.y, scx: this.cam.scrollX, scy: this.cam.scrollY, tap: true };
         return;
       }
+      if (ev.shiftKey) {
+        this.drag = { mode: 'marquee', sx: p.x, sy: p.y, x0: w.x, y0: w.y, x1: w.x, y1: w.y, add: false, base: [], moved: false };
+        return;
+      }
       DL.ui.select(null);
       this.drag = { mode: 'pan', sx: p.x, sy: p.y, scx: this.cam.scrollX, scy: this.cam.scrollY };
     }
@@ -429,7 +432,17 @@
         const s = DL.cur()[d.id];
         if (!s) return;
         const tx = this.snap(w.x + d.ox), ty = this.snap(w.y + d.oy), dx = tx - s.x, dy = ty - s.y;
-        if (dx || dy) { DL.moveFlight(d.id, dx, dy); d.moved = true; DL.ui.refresh(); }
+        if (dx || dy) {
+          for (const id of d.ids || [d.id]) DL.moveFlight(id, dx, dy);
+          d.moved = true;
+          DL.ui.refresh();
+        }
+      } else if (d.mode === 'marquee') {
+        if (!d.moved && Math.hypot(p.x - d.sx, p.y - d.sy) < slopPx()) return;
+        d.moved = true; d.x1 = w.x; d.y1 = w.y;
+        const xa = Math.min(d.x0, d.x1), xb = Math.max(d.x0, d.x1), ya = Math.min(d.y0, d.y1), yb = Math.max(d.y0, d.y1), f = DL.cur();
+        const inside = Object.keys(f).filter(id => f[id].x >= xa && f[id].x <= xb && f[id].y >= ya && f[id].y <= yb);
+        DL.ui.selectMany(d.add ? Array.from(new Set(d.base.concat(inside))) : inside);
       } else if (d.mode === 'move') {
         DL.editPose(d.id, { x: this.snap(w.x + d.ox), y: this.snap(w.y + d.oy) });
         d.moved = true;
@@ -504,6 +517,7 @@
         DL.ui.hideTip();
         if (!this.drag.moved) DL.ui.openVertical(this.drag.k, this.drag.id, this.lastPointer);
       }
+      if (d && d.mode === 'marquee' && !d.moved && !d.add) DL.ui.select(null);
       if (this.drag && this.drag.placing) DL.ui.setTool('select');
       this.drag = null;
     }
@@ -1058,8 +1072,8 @@
         g.fillPoints(pts, true);
         g.lineStyle(1 / z, T(0xffffff), sel ? 0.95 : 0.4);
         g.strokePoints(pts, true);
-        if (sel) {
-          g.lineStyle(1 / z, T(0xffffff), 0.5);
+        if (sel || DL.ui.isSelected(id)) {
+          g.lineStyle((sel ? 1 : 1.5) / z, T(sel ? 0xffffff : 0x4da3ff), sel ? 0.5 : 0.9);
           g.strokeCircle(s.x, s.y, 24 / z);
         }
         if (sel && DL.canEditPose(id) && !this.scrub) {
@@ -1083,6 +1097,12 @@
           const col = '#' + acol.toString(16).padStart(6, '0');
           this.text(lines.join('\n'), s.x + 22 / z, s.y - 26 / z, col, 11).setLineSpacing(1);
         }
+      }
+      const mq = this.drag && this.drag.mode === 'marquee' && this.drag.moved ? this.drag : null;
+      if (mq) {
+        const xa = Math.min(mq.x0, mq.x1), ya = Math.min(mq.y0, mq.y1), ww = Math.abs(mq.x1 - mq.x0), hh = Math.abs(mq.y1 - mq.y0);
+        g.fillStyle(T(0x4da3ff), 0.12); g.fillRect(xa, ya, ww, hh);
+        g.lineStyle(1.5 / z, T(0x4da3ff), 0.95); g.strokeRect(xa, ya, ww, hh);
       }
       if (DL.ui.tool === 'place' && this.hover && !this.drag) {
         const pts = this.iconPoints(DL.ui.placeType, this.snap(this.hover.x), this.snap(this.hover.y), 0, 1);
