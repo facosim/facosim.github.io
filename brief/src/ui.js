@@ -21,10 +21,7 @@
 
     init() {
       $('btn-add').onclick = () => this.setTool(this.tool === 'place' ? 'select' : 'place');
-      const groups = {};
-      for (const k in DL.TYPES) { const g = DL.TYPES[k].group || 'Other'; (groups[g] = groups[g] || []).push(k); }
-      $('add-type').innerHTML = Object.keys(groups).map(g => '<optgroup label="' + g + '">' +
-        groups[g].map(k => '<option value="' + k + '">' + DL.TYPES[k].name + '</option>').join('') + '</optgroup>').join('');
+      $('add-type').innerHTML = Object.keys(DL.TYPES).map(k => '<option value="' + k + '">' + DL.TYPES[k].name + '</option>').join('');
       $('add-type').value = this.placeType;
       $('add-type').onchange = e => { this.placeType = e.target.value; this.setTool('place'); };
       $('btn-remove').onclick = () => this.removeSelected();
@@ -627,11 +624,9 @@
     },
 
     buildSettings() {
-      let group = null;
       const rows = Object.keys(DL.TYPES).map(k => {
         const t = DL.TYPES[k];
-        const head = t.group !== group ? `<tr class="grp"><th colspan="8">${(group = t.group) || 'Other'}</th></tr>` : '';
-        return head + `<tr data-type="${k}"><td>${t.name}</td>` +
+        return `<tr data-type="${k}"><td>${t.name}</td>` +
           ['defSpeed', 'defAlt', 'vStall', 'vMax', 'maxG', 'accel', 'induced'].map(f =>
             `<td><input type="number" step="${f === 'induced' ? 0.01 : f === 'maxG' || f === 'accel' ? 0.5 : f === 'defAlt' ? 500 : 5}" data-f="${f}" value="${t[f]}"></td>`).join('') + '</tr>';
       }).join('');
