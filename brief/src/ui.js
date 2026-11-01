@@ -48,9 +48,25 @@
       $('p-color').oninput = e => { if (this.selected && this.state()) { DL.setColorAt(DL.tl.current, this.selected, parseInt(e.target.value.slice(1), 16)); this.refresh(); } };
       $('p-hdg').onchange = e => this.pose({ hdg: +e.target.value || 0 });
       $('p-spd').onchange = e => {
-        const a = this.ac(), t = DL.TYPES[a.type];
-        this.pose({ spd: DL.clamp(+e.target.value || t.defSpeed, t.vStall, t.vMax * 1.15) });
+        if (!this.state()) return;
+        DL.quickSpeed(DL.tl.current, this.selected, +e.target.value || DL.TYPES[this.ac().type].defSpeed);
+        this.refresh();
       };
+      $('p-alt').onchange = e => {
+        if (!this.state()) return;
+        DL.quickAlt(DL.tl.current, this.selected, +e.target.value || 0);
+        this.refresh();
+      };
+      for (const [id, step, fn] of [['p-spd', 10, 'quickSpeed'], ['p-alt', 500, 'quickAlt']]) {
+        $(id).addEventListener('wheel', e => {
+          const s = this.state();
+          if (!s) return;
+          e.preventDefault();
+          const k = (e.deltaY < 0 ? 1 : -1) * (e.shiftKey ? 5 : 1);
+          DL[fn](DL.tl.current, this.selected, (id === 'p-spd' ? s.spd : s.alt) + k * step);
+          this.refresh();
+        }, { passive: false });
+      }
       $('p-thr').oninput = e => this.setControl('thr', +e.target.value);
       $('p-g').oninput = e => this.setControl('g', +e.target.value);
       $('p-bank').oninput = e => this.setControl('bank', +e.target.value);
@@ -114,6 +130,7 @@
           case 'v': case 'V': this.setTool('select'); break;
           case 'a': case 'A': this.setTool('place'); break;
           case 'f': case 'F': this.setTool('path'); break;
+          case 'm': case 'M': this.setTool('move'); break;
           case 'h': case 'H': this.setTool('pan'); break;
           case 'z': case 'Z': this.setTool('zoom'); break;
           case '0': DL.scene.fit(); break;
@@ -172,13 +189,14 @@
       this.tool = t;
       document.querySelectorAll('[data-tool]').forEach(b => b.classList.toggle('on', b.dataset.tool === t));
       $('btn-add').classList.toggle('on', t === 'place');
-      const cursors = { select: 'default', place: 'crosshair', path: 'crosshair', pan: 'grab', zoom: 'zoom-in' };
+      const cursors = { select: 'default', place: 'crosshair', path: 'crosshair', move: 'move', pan: 'grab', zoom: 'zoom-in' };
       this.toolCursor = cursors[t] || 'default';
       $('game').style.cursor = this.toolCursor;
       const hints = {
         select: 'Drag from an aircraft to shape its flight path. Drag the next frame\'s climb ticks up or down to set climb angle. Hover a past frame for its data.',
         place: 'Click to place ' + DL.TYPES[this.placeType].name + ' here, drag to point its nose. Shift snaps heading to 15°.',
         path: 'Drag from the selected aircraft: its next turn bends through the cursor.',
+        move: 'Drag an aircraft to move its whole flight: its history and flight path go with it.',
         pan: 'Drag to pan. Space+drag or the middle button pans from any tool.',
         zoom: 'Click to zoom in, Shift+click to zoom out. Wheel or pinch zooms anywhere.',
       };
@@ -186,6 +204,7 @@
         select: 'Drag from an aircraft to shape its path. One finger pans, two fingers pinch to zoom. Tap a past frame for its data.',
         place: 'Tap to place ' + DL.TYPES[this.placeType].name + ' here and drag to point its nose.',
         path: 'Drag anywhere: the selected aircraft\'s next turn bends through your finger.',
+        move: 'Drag an aircraft to move its whole flight, history and path included.',
         pan: 'Drag to pan, pinch to zoom.',
         zoom: 'Tap to zoom in. Pinch zooms anywhere.',
       };
@@ -278,6 +297,10 @@
             { t: 'Pitchback L', go: () => this.applyPreset(cur, hit, 'pitchback', true) },
             { t: 'Sliceback R', go: () => this.applyPreset(cur, hit, 'sliceback', false) },
             { t: 'Sliceback L', go: () => this.applyPreset(cur, hit, 'sliceback', true) },
+            { t: 'Alt +1000', go: () => DL.quickAlt(cur, hit, DL.cur()[hit].alt + 1000) },
+            { t: 'Alt −1000', go: () => DL.quickAlt(cur, hit, DL.cur()[hit].alt - 1000) },
+            { t: 'Speed +50', go: () => DL.quickSpeed(cur, hit, DL.cur()[hit].spd + 50) },
+            { t: 'Speed −50', go: () => DL.quickSpeed(cur, hit, DL.cur()[hit].spd - 50) },
           ],
         };
       }
@@ -685,13 +708,14 @@
       if (document.activeElement !== $('p-callsign')) $('p-callsign').value = a.callsign;
       $('p-color').value = hex(s.color || a.color);
       const editable = DL.canEditPose(this.selected);
-      $('p-hdg').disabled = $('p-spd').disabled = !editable;
+      $('p-hdg').disabled = !editable;
       const first = DL.isFirstFrame(this.selected);
       $('p-locked').style.display = editable ? 'none' : '';
       $('p-unlocked').style.display = editable && !first ? '' : 'none';
       $('p-restore').style.display = s.pinned ? '' : 'none';
       if (document.activeElement !== $('p-hdg')) $('p-hdg').value = Math.round(s.hdg);
       if (document.activeElement !== $('p-spd')) $('p-spd').value = Math.round(s.spd);
+      if (document.activeElement !== $('p-alt')) $('p-alt').value = Math.round(s.alt || 0);
       $('p-bank').min = -this.bankMax(); $('p-bank').max = this.bankMax();
       $('p-thr').value = s.ctl.thr; $('p-thr-v').textContent = s.ctl.thr + '%';
       $('p-g').max = t.maxG;

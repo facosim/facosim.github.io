@@ -332,8 +332,10 @@ window.DL = window.DL || {};
           continue;
         }
         const carried = carryControls(s.ctl, r);
+        const keepSpd = old && old.spdSet, keepAlt = old && old.altSet;
         b[id] = {
-          x: r.x, y: r.y, hdg: r.hdg, spd: r.spd, alt: r.alt, gam: r.gam, dAlt: r.dAlt,
+          x: r.x, y: r.y, hdg: r.hdg, spd: keepSpd ? old.spd : r.spd, alt: keepAlt ? old.alt : r.alt, gam: r.gam, dAlt: r.dAlt,
+          spdSet: !!keepSpd, altSet: !!keepAlt,
           u: r.u, rev: r.rev, revArmed: r.revArmed, rolledOut: r.rolledOut,
           ctl: old && !old.ctl.auto ? old.ctl : carried,
           color: (old && old.color) || s.color,
@@ -375,6 +377,33 @@ window.DL = window.DL || {};
     if (!isFirstFrame(id)) { s.pinned = true; s.path = null; }
     resim(tl.current);
     return true;
+  }
+
+  function quickSpeed(k, id, spd) {
+    const s = tl.frames[k] && tl.frames[k][id];
+    if (!s) return;
+    const t = TYPES[tl.aircraft[id].type];
+    s.spd = clamp(spd, t.vStall, t.vMax * 1.15);
+    s.spdSet = true;
+    delete s.u;
+    resim(k);
+  }
+
+  function quickAlt(k, id, alt) {
+    const s = tl.frames[k] && tl.frames[k][id];
+    if (!s) return;
+    s.alt = clamp(alt, 0, 80000);
+    s.altSet = true;
+    resim(k);
+  }
+
+  function moveFlight(id, dx, dy) {
+    for (const f of tl.frames) {
+      const s = f[id];
+      if (!s) continue;
+      s.x += dx; s.y += dy;
+      if (s.path) for (const p of s.path) { p[0] += dx; p[1] += dy; }
+    }
   }
 
   function setClimb(k, id, gam) {
@@ -448,6 +477,6 @@ window.DL = window.DL || {};
   Object.assign(DL, {
     G0, KT, D2R, TYPES, settings, tl, clamp, wrap360, frameDur, setFrameDur, timeAt, frameAt, fmtSec,
     availG, liftSplit, accelKts, turnInfo, trimThrottle, cornerSpeed, gForRadius, bankForG, step,
-    cross, attitude, cur, colorAt, setColorAt, isFirstFrame, canEditPose, setUnlocked, restoreFlown, addAircraft, removeAircraft, resim, resimAll, editPose, editControls, editControlsAt, setAltAt, startManeuverAt, predictAhead, setClimb, nextFrame, prevFrame, truncate, reset,
+    cross, attitude, cur, colorAt, setColorAt, isFirstFrame, canEditPose, setUnlocked, restoreFlown, addAircraft, removeAircraft, resim, resimAll, editPose, editControls, editControlsAt, setAltAt, quickSpeed, quickAlt, moveFlight, startManeuverAt, predictAhead, setClimb, nextFrame, prevFrame, truncate, reset,
   });
 })(window.DL);

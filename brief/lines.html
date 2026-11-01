@@ -98,7 +98,7 @@
   input:disabled { opacity: .5; }
   #hint.flash { color: var(--warn); }
   input[type=range] { width: 100%; accent-color: var(--accent); }
-  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 8px; margin: 8px 0; }
   .row2 label { color: var(--dim); font-size: 12px; display: block; margin-bottom: 3px; }
   .btns { display: flex; gap: 6px; margin: 10px 0 4px; }
   .btns button { flex: 1; height: 28px; font-size: 12px; }
@@ -333,6 +333,7 @@
   <div class="seg" title="Mouse tools">
     <button data-tool="select" class="on" title="Select, and drag from an aircraft to shape its flight path (V)">Select</button>
     <button data-tool="path" title="Flight path tool: drag anywhere to bend the selected aircraft's next turn (F)">Path</button>
+    <button data-tool="move" title="Move tool (M): drag an aircraft and its whole flight, history and flight path, moves with it">Move</button>
     <button data-tool="pan" title="Pan (H), or Space+drag from any tool">Pan</button>
     <button data-tool="zoom" title="Zoom tool (Z): click in, Shift+click out">Zoom</button>
   </div>
@@ -366,10 +367,11 @@
   <h4>Start of this frame</h4>
   <div class="row2">
     <div><label>Heading °</label><input id="p-hdg" type="number" min="0" max="359"></div>
-    <div><label>Speed kt</label><input id="p-spd" type="number" step="5"></div>
+    <div><label>Speed kt</label><input id="p-spd" type="number" step="10" title="Scroll over it to change quickly"></div>
+    <div><label>Altitude ft</label><input id="p-alt" type="number" step="500" min="0" title="Scroll over it to change quickly"></div>
   </div>
-  <div class="note" id="p-locked">🔒 Heading, speed and position come from the previous frame. Shape the turn and throttle to change the next one.<button id="p-unlock">Unlock</button></div>
-  <div class="note" id="p-unlocked">🔓 Unlocked: <span class="only-mouse">Shift+drag moves it, Option+drag turns it,</span><span class="only-touch">pick Point nose or Move above and drag it,</span> or type heading and speed above. The trail into a hand-set frame is dashed.<button id="p-lock">Lock</button><button id="p-restore">Restore flown position</button></div>
+  <div class="note" id="p-locked">🔒 Heading and position come from the previous frame. Shape the turn and throttle to change the next one.<button id="p-unlock">Unlock</button></div>
+  <div class="note" id="p-unlocked">🔓 Unlocked: <span class="only-mouse">Shift+drag moves it, Option+drag turns it,</span><span class="only-touch">pick Point nose or Move above and drag it,</span> or type a heading above. The trail into a hand-set frame is dashed.<button id="p-lock">Lock</button><button id="p-restore">Restore flown position</button></div>
 
   <h4>Controls for the next frame</h4>
   <div class="field"><label>Throttle</label><input id="p-thr" type="range" min="0" max="100" step="1"><span class="v" id="p-thr-v"></span></div>
@@ -570,7 +572,7 @@
     <h2>Controls and layout</h2>
     <h3>Where things are</h3>
     <ul>
-      <li><b>Top bar:</b> add and remove aircraft, the mouse tools (Select, Path, Pan, Zoom), zoom and Fit, the <b>3D view</b> and <b>Advanced</b> windows, and on the right <b>Touch</b>, <b>↺ Reset</b>, help and settings. When it is wider than the screen it scrolls sideways.</li>
+      <li><b>Top bar:</b> add and remove aircraft, the mouse tools (Select, Path, <b>Move</b>, Pan, Zoom), zoom and Fit, the <b>3D view</b> and <b>Advanced</b> windows, and on the right <b>Touch</b>, <b>↺ Reset</b>, help and settings. When it is wider than the screen it scrolls sideways.</li>
       <li><b>Bottom timeline:</b> previous and next frame, <b>Play</b> and the scrub slider for the upcoming frame, the current frame's length, and <b>Clear later frames</b>.</li>
       <li><b>Right:</b> the selected aircraft: name and color, where the frame starts, the controls for the next frame, the vertical window and maneuvers, and its turn numbers. The vertical window opens beside it.</li>
       <li><b>Left:</b> the Advanced window at the top (tabs for the radar sector and the debrief markers) and the 3D view at the bottom. With <b>Show sector</b> on, the <b>B-Scope</b> button opens a green radar scope for the selected aircraft: bearing across, range up, with an elevation strip on the right. The beam only returns aircraft whose angle above or below the horizon is inside it, so scroll over the scope or drag it up and down (or use the slider) to point the beam up or down and find them. Drag any window by its title to move it.</li>
@@ -580,6 +582,8 @@
       <li><b>Add:</b> pick a type, press <b>+ Add</b> (<kbd>A</kbd>), click the grid and drag to point the nose. <kbd>Shift</kbd> snaps heading to 15°. The named aircraft, from the T-6 trainer to the J-20, are drawn with their own top-down outline and carry public performance figures (stall and corner speed, sea-level top speed, g limit, thrust and drag), all editable on the Aircraft tab of Settings (⚙). <b>↺ Reset</b> (top right) clears the whole debrief.</li>
       <li><b>Shape the flight path:</b> click an aircraft and drag. The next frame's arc bends through the cursor, and g and bank are set to match. The <b>Flight path</b> tool (<kbd>F</kbd>) does the same from anywhere on the grid.</li>
       <li><b>Turn or move:</b> <kbd>Option</kbd>, <kbd>Ctrl</kbd> or <kbd>⌘</kbd> + drag points the nose at the cursor; the yellow handle does the same. <kbd>Shift</kbd> + drag moves the aircraft. After an aircraft's first frame these are locked to how it flew; press <b>Unlock</b> in the panel to correct a frame by hand.</li>
+      <li><b>Move tool:</b> <b>Move</b> (<kbd>M</kbd>) drags an aircraft's whole flight: every frame, its history trail, its flight path and any markers shift together by the same amount, as if the flight had been flown somewhere else. It snaps to the grid when Snap is on.</li>
+      <li><b>Quick altitude and speed:</b> the <b>Speed</b> and <b>Altitude</b> boxes in the aircraft panel change the selected aircraft at the current frame and re-fly the frames after it (scroll over a box to step it, <kbd>Shift</kbd> for bigger steps). The right-click wheel has <b>Alt ±1000</b> and <b>Speed ±50</b> buttons too.</li>
       <li><b>Quick menu:</b> right-click an aircraft (or press and hold on a touchscreen) for a wheel of its most used actions: vertical profile, wings level, hold speed, speedbrake, Split-S, Immelmann, 3D view and remove, with pitchbacks and slicebacks below it. Right-click empty map for adding an aircraft there, stepping frames, play, zoom and fit. Dragging with the right button still pans.</li>
       <li><b>Name and color:</b> edit them at the top of the aircraft panel. A new color applies from the current frame on, so earlier frames keep the color they had. <kbd>Delete</kbd> removes the selected aircraft.</li>
       <li><b>Climb and descent:</b> lift tilts with bank. With wings level, more than 1 g pulls the nose up. In a bank, lift that doesn't hold the aircraft up lets it descend, and past 90° of bank the aircraft is <b>reversing</b>: it keeps pulling through the vertical until the nose is back on the horizon, then rolls wings level heading the opposite way (Split-S when rolled inverted, Immelmann when pulled over the top). From above, a pure Split-S or Immelmann draws out and back along the same line, so watch the altitude and the ticks. <b>Hold altitude</b> sets the bank that keeps the current climb angle at the current g, and dragging the flight path does the same automatically.</li>

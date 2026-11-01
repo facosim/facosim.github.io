@@ -341,6 +341,18 @@
         this.drag = { mode: 'rotate', id, placing: true };
         return;
       }
+      if (tool === 'move') {
+        const hit = this.hitAircraft(w);
+        if (hit) {
+          DL.ui.select(hit);
+          const s = DL.cur()[hit];
+          this.drag = { mode: 'moveflight', id: hit, ox: s.x - w.x, oy: s.y - w.y, moved: false };
+        } else {
+          DL.ui.select(null);
+          this.drag = { mode: 'pan', sx: p.x, sy: p.y, scx: this.cam.scrollX, scy: this.cam.scrollY };
+        }
+        return;
+      }
       if (tool === 'path') {
         const hit = this.hitAircraft(w);
         if (hit) DL.ui.select(hit);
@@ -413,6 +425,11 @@
         d.tap = d.menu = false;
         this.cam.scrollX = d.scx - (p.x - d.sx) / this.cam.zoom;
         this.cam.scrollY = d.scy - (p.y - d.sy) / this.cam.zoom;
+      } else if (d.mode === 'moveflight') {
+        const s = DL.cur()[d.id];
+        if (!s) return;
+        const tx = this.snap(w.x + d.ox), ty = this.snap(w.y + d.oy), dx = tx - s.x, dy = ty - s.y;
+        if (dx || dy) { DL.moveFlight(d.id, dx, dy); d.moved = true; DL.ui.refresh(); }
       } else if (d.mode === 'move') {
         DL.editPose(d.id, { x: this.snap(w.x + d.ox), y: this.snap(w.y + d.oy) });
         d.moved = true;
