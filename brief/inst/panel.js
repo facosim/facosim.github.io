@@ -9,6 +9,13 @@
 
   FI.PANELS = ['analog', 'glass', 't6a', 'hud'];
   FI.panelName = mode => FI.PANELS.includes(mode) ? mode : 'analog';
+  FI.PANEL_HASH = { analog: 'sixpack', glass: 'glass', t6a: 't6a', hud: 'hud' };
+  FI.panelFromHash = hash => {
+    const k = String(hash || '').replace(/^#/, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (k === 'sixpack' || k === 'analog') return 'analog';
+    if (k === 'headupdisplay') return 'hud';
+    return FI.PANELS.includes(k) ? k : null;
+  };
 
   const px = (r, a) => r * Math.sin(a * D2R), py = (r, a) => -r * Math.cos(a * D2R);
   const rad = a => (a - 90) * D2R;

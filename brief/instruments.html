@@ -331,7 +331,7 @@
       <li><b>Radios:</b> type a frequency in <b>NAV1</b> (a VOR such as 112.60, or a localizer such as 109.70), a channel in <b>TACAN</b> (such as 73X), or a kHz in <b>ADF</b>, or pick a station from <b>Tune nearby</b>. <b>NAV1</b> or <b>TCN</b> (<kbd>V</kbd>) picks which one drives the nav indicator; − and + (<kbd>[</kbd> <kbd>]</kbd>) turn the OBS. On the map the tuned station's compass rose is turned to its magnetic north, the selected course is the dashed blue line and the thin orange line is the radial you are on.</li>
       <li><b>What each station gives:</b> a VOR gives a radial; VOR/DME and VORTAC add DME on NAV1. The aircraft has a military TACAN receiver, so a TACAN or VORTAC gives a radial and DME by channel. A standalone TACAN tuned on NAV1 (its paired VHF frequency) gives DME only, as in a civil aircraft. A DME gives distance only. An ILS gives the localizer and glideslope, and DME where the approach has it. An NDB gives a bearing on the ADF. A station only comes in within its published service volume (25 to 130 nm by class and height) and radio line of sight; out of range the flag shows.</li>
       <li><b>Magnetic:</b> headings, courses, radials and bearings are magnetic, like in the airplane. Each VOR's radials use that station's own variation, so they can differ by a few degrees from the area's. The wind is in degrees true, like a winds-aloft forecast.</li>
-      <li><b>Panel:</b> the drop-down at the top (or <kbd>G</kbd> to step to the next) picks the instrument panel: <b>Six-pack</b> analog gauges, a <b>Glass</b> G1000-style cockpit, a <b>T-6A</b> trainer panel or a <b>Head-Up Display</b>. They all show the same aircraft, so you can switch mid-flight and compare. Your choice is remembered.</li>
+      <li><b>Panel:</b> the drop-down at the top (or <kbd>G</kbd> to step to the next) picks the instrument panel: <b>Six-pack</b> analog gauges, a <b>Glass</b> G1000-style cockpit, a <b>T-6A</b> trainer panel or a <b>Head-Up Display</b>. They all show the same aircraft, so you can switch mid-flight and compare. Your choice is remembered, and the address bar follows it, so a link ending in <code>#t6a</code>, <code>#hud</code>, <code>#glass</code> or <code>#sixpack</code> opens that panel.</li>
       <li><b>Scenarios:</b> <b>Play</b> (<kbd>Space</kbd>) pauses and resumes, <b>↺ Restart</b> starts the scenario over, 1× 2× 4× sets the speed. The status bar says what the autopilot is doing.</li>
     </ul>
     <h3>The instruments</h3>
@@ -380,7 +380,7 @@
   FI.startZoom = +q.get('z') || 0;
   let savedPanel = null;
   try { savedPanel = localStorage.getItem('fi-panel'); } catch (e) { }
-  FI.panelMode = FI.panelName(q.get('p') || savedPanel);
+  FI.panelMode = FI.panelName(FI.panelFromHash(location.hash) || q.get('p') || savedPanel);
   FI.ui.init();
   document.getElementById('scn').value = String(scnIndex);
   FI.game = new Phaser.Game({

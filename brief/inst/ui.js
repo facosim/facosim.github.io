@@ -76,6 +76,8 @@
       document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); }));
 
       ui.buildControls();
+      ui.syncHash();
+      window.addEventListener('hashchange', () => { const m = FI.panelFromHash(location.hash); if (m && m !== FI.panelMode) ui.setPanel(m); });
       $('c-level').addEventListener('click', () => { FI.setControl('bank', 0); ui.refresh(); });
       $('c-hold').addEventListener('click', () => ui.setHold(!ui.hold));
       ui.repeat($('bug-dec'), () => ui.bump('bug', -1)); ui.repeat($('bug-inc'), () => ui.bump('bug', 1));
@@ -141,7 +143,13 @@
       FI.panelMode = FI.panelName(mode);
       try { localStorage.setItem('fi-panel', FI.panelMode); } catch (e) { }
       if (FI.panel && FI.panel.hud) FI.panel.setMode(FI.panelMode);
+      ui.syncHash();
       ui.refresh();
+    },
+    syncHash() {
+      const h = '#' + FI.PANEL_HASH[FI.panelMode];
+      if (location.hash === h) return;
+      try { history.replaceState(null, '', location.pathname + location.search + h); } catch (e) { }
     },
     setSource(src) { FI.nav.src = src === 'TCN' ? 'TCN' : 'NAV'; FI.ap.gsCap = false; FI.computeNav(); ui.refresh(); },
 
