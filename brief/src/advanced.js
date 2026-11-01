@@ -136,8 +136,8 @@
       $('btn-adv').onclick = () => (this.isOpen() ? this.close() : this.open());
       $('adv-close').onclick = () => this.close();
       document.querySelectorAll('[data-advtab]').forEach(b => { b.onclick = () => this.tab(b.dataset.advtab); });
-      $('adv-bscope').onclick = () => DL.bscope.toggle();
-      $('adv-radar-on').onchange = e => { adv.radar.on = e.target.checked; if (!adv.radar.on) DL.bscope.close(); this.refresh(); };
+      $('adv-bscope').onclick = () => DL.bscope.toggleFor(DL.ui.selected);
+      $('adv-radar-on').onchange = e => { adv.radar.on = e.target.checked; if (!adv.radar.on) DL.bscope.closeAll(); this.refresh(); };
       $('adv-radar-who').onchange = e => { adv.radar.who = e.target.value; this.refresh(); };
       document.querySelectorAll('[data-range]').forEach(b => {
         b.onclick = () => { adv.radar.rangeNm = +b.dataset.range; adv.radar.on = true; this.refresh(); };
@@ -214,8 +214,8 @@
       const tl = DL.tl, st = DL.settings;
       const id = DL.ui.selected, s = id && DL.cur()[id], a = s && tl.aircraft[id];
       $('adv-radar-on').checked = adv.radar.on;
-      $('adv-bscope').disabled = !adv.radar.on;
-      $('adv-bscope').classList.toggle('on', DL.bscope.isOpen());
+      $('adv-bscope').disabled = !adv.radar.on || !DL.ui.selected;
+      $('adv-bscope').classList.toggle('on', !!DL.ui.selected && DL.bscope.has(DL.ui.selected));
       $('adv-radar-who').value = adv.radar.who;
       document.querySelectorAll('[data-range]').forEach(b => b.classList.toggle('on', +b.dataset.range === adv.radar.rangeNm));
       if (document.activeElement !== $('adv-fov')) $('adv-fov').value = adv.radar.fovDeg;

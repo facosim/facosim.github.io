@@ -1,59 +1,74 @@
 (function (DL) {
   'use strict';
 
-  const $ = id => document.getElementById(id);
   const NM = 6076.12;
   const BRIGHT = '#8dff8d', MID = '#38c238', DIM = '#145a14', FAINT = '#0b3a0b';
   const R = DL.adv.radar;
-  R.elevDeg = 0;
-  R.beamDeg = 8;
-  R.tags = true;
-
-  const bs = { raf: 0, t0: 0, last: 0, sweep: null, trail: document.createElement('canvas'), w: 0, h: 0 };
-
-  const clampElev = v => DL.clamp(Math.round(v), -60, 60);
+  const hex = c => '#' + c.toString(16).padStart(6, '0');
   const signed = v => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v);
+  const clampElev = v => DL.clamp(Math.round(v), -60, 60);
+
+  const TEMPLATE = `
+  <div class="vw-h"><span class="sw"></span><b class="bs-title">B-Scope</b><button class="icon bs-close" title="Close this B-Scope">×</button></div>
+  <canvas class="bs-canvas" title="Scroll, or drag up and down, to change the elevation angle"></canvas>
+  <div class="bs-info mono"></div>
+  <div class="bs-ctl">
+    <label>Elevation</label>
+    <input class="bs-elev" type="range" min="-60" max="60" step="1" value="0" aria-label="Elevation angle">
+    <span class="bs-elev-v mono"></span>
+    <button class="bs-level" title="Point the beam at the horizon">0°</button>
+  </div>
+  <div class="bs-ctl">
+    <span class="dim">Range</span>
+    <div class="seg"><button data-bsrange="5">5</button><button data-bsrange="10">10</button><button data-bsrange="20">20</button><button data-bsrange="40">40</button></div>
+    <span class="dim">nm</span>
+    <span class="dim adv-right">Beam</span>
+    <select class="bs-beam" title="Vertical beamwidth: contacts are returned only inside it" aria-label="Beamwidth"><option value="4">4°</option><option value="8">8°</option><option value="16">16°</option></select>
+    <label class="check"><input class="bs-labels" type="checkbox" checked> Tags</label>
+  </div>`;
+
+  const scopes = [];
+  let raf = 0;
+
+  function contactsFor(sc) {
+    const own = DL.cur()[sc.id];
+    if (!own) return null;
+    const half = R.fovDeg / 2, max = sc.rangeNm * NM;
+    return DL.radarContacts(sc.id).map(c => {
+      const elev = Math.atan2(c.dAlt, Math.max(c.range, 1)) / DL.D2R;
+      const seen = c.range <= max && Math.abs(c.rel) <= half;
+      return Object.assign(c, { elev, seen, hit: seen && Math.abs(elev - sc.elevDeg) <= sc.beamDeg / 2 });
+    });
+  }
 
   function geometry(w, h) {
     return { x0: 40, x1: w - 48, y0: 12, y1: h - 24 };
   }
 
-  function contacts() {
-    const id = DL.ui.selected;
-    if (!id || !DL.cur()[id]) return null;
-    const half = R.fovDeg / 2, max = R.rangeNm * NM;
-    return DL.radarContacts(id).map(c => {
-      const elev = Math.atan2(c.dAlt, Math.max(c.range, 1)) / DL.D2R;
-      const seen = c.range <= max && Math.abs(c.rel) <= half;
-      return Object.assign(c, { elev, seen, hit: seen && Math.abs(elev - R.elevDeg) <= R.beamDeg / 2 });
-    });
-  }
-
-  function fit(cv) {
-    const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
+  function fit(sc) {
+    const cv = sc.cv, dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
     if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) {
-      cv.width = bs.trail.width = Math.round(w * dpr);
-      cv.height = bs.trail.height = Math.round(h * dpr);
+      cv.width = sc.trail.width = Math.round(w * dpr);
+      cv.height = sc.trail.height = Math.round(h * dpr);
     }
-    bs.w = w; bs.h = h; bs.dpr = dpr;
+    sc.w = w; sc.h = h; sc.dpr = dpr;
   }
 
-  function frame(now) {
-    bs.raf = 0;
-    if (!win.isOpen()) return;
-    const cv = $('bs-canvas'), ctx = cv.getContext('2d'), tctx = bs.trail.getContext('2d');
-    fit(cv);
-    const { w, h, dpr } = bs, g = geometry(w, h);
-    const dt = bs.last ? Math.min(0.1, (now - bs.last) / 1000) : 0.016;
-    bs.last = now;
-    const half = R.fovDeg / 2, max = R.rangeNm * NM, pw = g.x1 - g.x0, ph = g.y1 - g.y0;
+  function draw(sc, now) {
+    const ctx = sc.cv.getContext('2d'), tctx = sc.trail.getContext('2d');
+    fit(sc);
+    const { w, h, dpr } = sc, g = geometry(w, h);
+    if (!w || !h) return;
+    const dt = sc.last ? Math.min(0.1, (now - sc.last) / 1000) : 0.016;
+    sc.last = now;
+    const half = R.fovDeg / 2, max = sc.rangeNm * NM, pw = g.x1 - g.x0, ph = g.y1 - g.y0;
     const X = rel => g.x0 + (rel / half + 1) / 2 * pw, Y = range => g.y1 - range / max * ph;
-    const list = contacts();
+    const list = contactsFor(sc);
 
-    const T = Math.max(1.2, R.fovDeg / 90), tm = (now - (bs.t0 || (bs.t0 = now))) / 1000;
+    const T = Math.max(1.2, R.fovDeg / 90), tm = (now - (sc.t0 || (sc.t0 = now))) / 1000;
     const phase = (tm % (2 * T)) / T, sweep = phase < 1 ? -half + phase * R.fovDeg : half - (phase - 1) * R.fovDeg;
-    const prev = bs.sweep === null ? sweep : bs.sweep;
-    bs.sweep = sweep;
+    const prev = sc.sweep === null ? sweep : sc.sweep;
+    sc.sweep = sweep;
 
     tctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     tctx.globalCompositeOperation = 'destination-out';
@@ -73,7 +88,7 @@
         gl.addColorStop(0, 'rgba(120,255,120,.55)'); gl.addColorStop(1, 'rgba(120,255,120,0)');
         tctx.fillStyle = gl; tctx.fillRect(x - 9, y - 9, 18, 18);
         tctx.fillStyle = BRIGHT; tctx.fillRect(x - 2, y - 3.5, 4, 7);
-        if (R.tags) {
+        if (sc.tags) {
           tctx.font = '10px Menlo, Consolas, monospace'; tctx.textBaseline = 'middle';
           tctx.fillStyle = MID;
           tctx.fillText(c.callsign + ' ' + signed(Math.round(c.dAlt / 100) / 10) + 'k', x + 7, y);
@@ -94,29 +109,29 @@
       const rng = max * i / 4, y = Math.round(Y(rng)) + 0.5;
       ctx.strokeStyle = i === 4 ? DIM : FAINT;
       ctx.beginPath(); ctx.moveTo(g.x0, y); ctx.lineTo(g.x1, y); ctx.stroke();
-      ctx.fillStyle = MID; ctx.textAlign = 'right'; ctx.fillText(String(+(R.rangeNm * i / 4).toFixed(1)), g.x0 - 5, y);
+      ctx.fillStyle = MID; ctx.textAlign = 'right'; ctx.fillText(String(+(sc.rangeNm * i / 4).toFixed(1)), g.x0 - 5, y);
     }
     ctx.strokeStyle = MID; ctx.strokeRect(g.x0 + 0.5, g.y0 + 0.5, pw, ph);
     ctx.fillStyle = DIM; ctx.textAlign = 'left'; ctx.fillText('NM', 6, g.y0 + 4);
 
-    ctx.drawImage(bs.trail, 0, 0, bs.trail.width, bs.trail.height, 0, 0, w, h);
+    ctx.drawImage(sc.trail, 0, 0, sc.trail.width, sc.trail.height, 0, 0, w, h);
 
     if (list) {
-      const sx = X(sweep), wedge = ctx.createLinearGradient(sx - 26 * Math.sign(sweep - prev || 1), 0, sx, 0);
+      const dir = Math.sign(sweep - prev) || 1, sx = X(sweep), wedge = ctx.createLinearGradient(sx - 26 * dir, 0, sx, 0);
       wedge.addColorStop(0, 'rgba(110,255,110,0)'); wedge.addColorStop(1, 'rgba(110,255,110,.16)');
-      ctx.fillStyle = wedge; ctx.fillRect(Math.min(sx, sx - 26 * Math.sign(sweep - prev || 1)), g.y0, 26, ph);
+      ctx.fillStyle = wedge; ctx.fillRect(Math.min(sx, sx - 26 * dir), g.y0, 26, ph);
       ctx.strokeStyle = 'rgba(160,255,160,.85)'; ctx.beginPath(); ctx.moveTo(sx, g.y0); ctx.lineTo(sx, g.y1); ctx.stroke();
       ctx.fillStyle = BRIGHT;
       ctx.beginPath(); ctx.moveTo(X(0), g.y1); ctx.lineTo(X(0) - 4, g.y1 + 6); ctx.lineTo(X(0) + 4, g.y1 + 6); ctx.fill();
     } else {
       ctx.fillStyle = MID; ctx.textAlign = 'center'; ctx.font = '12px Menlo, Consolas, monospace';
-      ctx.fillText('SELECT AN AIRCRAFT', (g.x0 + g.x1) / 2, (g.y0 + g.y1) / 2);
+      ctx.fillText('AIRCRAFT NOT IN THIS FRAME', (g.x0 + g.x1) / 2, (g.y0 + g.y1) / 2);
     }
 
     const ex = w - 30, EY = e => g.y1 - (e + 60) / 120 * ph;
     ctx.strokeStyle = MID; ctx.strokeRect(ex + 0.5, g.y0 + 0.5, 12, ph);
     ctx.fillStyle = 'rgba(110,255,110,.35)';
-    const top = EY(Math.min(60, R.elevDeg + R.beamDeg / 2)), bot = EY(Math.max(-60, R.elevDeg - R.beamDeg / 2));
+    const top = EY(Math.min(60, sc.elevDeg + sc.beamDeg / 2)), bot = EY(Math.max(-60, sc.elevDeg - sc.beamDeg / 2));
     ctx.fillRect(ex + 1, top, 11, Math.max(2, bot - top));
     ctx.fillStyle = MID; ctx.textAlign = 'left';
     for (const e of [-60, -30, 0, 30, 60]) { ctx.fillText(signed(e), ex + 16, EY(e)); ctx.fillRect(ex - 3, Math.round(EY(e)), 3, 1); }
@@ -128,65 +143,111 @@
     }
 
     const n = list ? list.filter(c => c.hit).length : 0;
-    $('bs-info').textContent = list
-      ? `ELEV ${signed(R.elevDeg)}° ±${R.beamDeg / 2}° · RNG ${R.rangeNm} NM · AZ ±${half}° · ${n} of ${list.filter(c => c.seen).length} in sector`
-      : 'Select an aircraft to see its radar.';
-    $('bs-elev-v').textContent = signed(R.elevDeg) + '°';
-    bs.raf = requestAnimationFrame(frame);
+    sc.info.textContent = list
+      ? `ELEV ${signed(sc.elevDeg)}° ±${sc.beamDeg / 2}° · RNG ${sc.rangeNm} NM · AZ ±${half}° · ${n} of ${list.filter(c => c.seen).length} in sector`
+      : 'This aircraft is not in the current frame.';
+    sc.elevV.textContent = signed(sc.elevDeg) + '°';
   }
 
-  function setElev(v) {
-    R.elevDeg = clampElev(v);
-    $('bs-elev').value = R.elevDeg;
+  function title(sc) {
+    const ac = DL.tl.aircraft[sc.id], s = DL.cur()[sc.id];
+    const name = ac ? ac.callsign : '?';
+    if (sc.name !== name) { sc.name = name; sc.titleEl.textContent = 'B-Scope · ' + name; }
+    const col = hex((s && s.color) || (ac && ac.color) || 0x8dff8d);
+    if (sc.col !== col) { sc.col = col; sc.sw.style.background = col; }
   }
 
-  const win = {
-    init() {
-      $('bs-close').onclick = () => this.close();
-      $('bs-elev').oninput = e => setElev(+e.target.value);
-      $('bs-level').onclick = () => setElev(0);
-      $('bs-beam').onchange = e => { R.beamDeg = +e.target.value; };
-      $('bs-labels').onchange = e => { R.tags = e.target.checked; };
-      document.querySelectorAll('[data-bsrange]').forEach(b => {
-        b.onclick = () => { R.rangeNm = +b.dataset.bsrange; this.sync(); if (DL.advWin) DL.advWin.refresh(); };
-      });
-      const cv = $('bs-canvas');
-      cv.addEventListener('wheel', e => { e.preventDefault(); setElev(R.elevDeg + (e.deltaY < 0 ? 1 : -1) * (e.shiftKey ? 5 : 1)); }, { passive: false });
-      let drag = null;
-      cv.addEventListener('pointerdown', e => { drag = { y: e.clientY, e0: R.elevDeg }; cv.setPointerCapture(e.pointerId); });
-      cv.addEventListener('pointermove', e => { if (drag) setElev(drag.e0 - (e.clientY - drag.y) * 0.5); });
-      for (const t of ['pointerup', 'pointercancel']) cv.addEventListener(t, () => { drag = null; });
-      DL.ui.dragWindow($('bscope'), document.querySelector('#bscope .vw-h'));
-      $('bs-beam').value = R.beamDeg;
-      this.sync();
-    },
+  function loop(now) {
+    raf = 0;
+    for (const sc of scopes.slice()) {
+      if (!DL.tl.aircraft[sc.id]) { close(sc); continue; }
+      title(sc);
+      draw(sc, now);
+    }
+    if (scopes.length) raf = requestAnimationFrame(loop);
+  }
 
-    isOpen() { return $('bscope').classList.contains('open'); },
+  function front(sc) {
+    const i = scopes.indexOf(sc);
+    if (i >= 0) { scopes.splice(i, 1); scopes.push(sc); }
+    scopes.forEach((s, j) => { s.el.style.zIndex = String(10 + Math.min(j, 5)); });
+  }
 
-    sync() {
-      document.querySelectorAll('[data-bsrange]').forEach(b => b.classList.toggle('on', +b.dataset.bsrange === R.rangeNm));
-      $('bs-elev').value = R.elevDeg;
-    },
+  function setElev(sc, v) {
+    sc.elevDeg = clampElev(v);
+    sc.elevIn.value = sc.elevDeg;
+  }
 
-    open() {
-      if (!R.on) return;
+  function syncButtons(sc) {
+    sc.el.querySelectorAll('[data-bsrange]').forEach(b => b.classList.toggle('on', +b.dataset.bsrange === sc.rangeNm));
+  }
+
+  function create(id) {
+    const el = document.createElement('div');
+    el.className = 'bsw open';
+    el.setAttribute('role', 'dialog');
+    el.setAttribute('aria-label', 'B-Scope');
+    el.innerHTML = TEMPLATE;
+    document.body.appendChild(el);
+    const q = s => el.querySelector(s);
+    const sc = {
+      id, el, cv: q('.bs-canvas'), trail: document.createElement('canvas'), info: q('.bs-info'), elevIn: q('.bs-elev'), elevV: q('.bs-elev-v'),
+      titleEl: q('.bs-title'), sw: q('.sw'), elevDeg: 0, beamDeg: 8, rangeNm: R.rangeNm, tags: true, last: 0, sweep: null, t0: 0, name: null, col: null,
+    };
+    q('.bs-beam').value = String(sc.beamDeg);
+    q('.bs-close').onclick = () => close(sc);
+    sc.elevIn.oninput = e => setElev(sc, +e.target.value);
+    q('.bs-level').onclick = () => setElev(sc, 0);
+    q('.bs-beam').onchange = e => { sc.beamDeg = +e.target.value; };
+    q('.bs-labels').onchange = e => { sc.tags = e.target.checked; };
+    el.querySelectorAll('[data-bsrange]').forEach(b => { b.onclick = () => { sc.rangeNm = +b.dataset.bsrange; syncButtons(sc); }; });
+    sc.cv.addEventListener('wheel', e => { e.preventDefault(); setElev(sc, sc.elevDeg + (e.deltaY < 0 ? 1 : -1) * (e.shiftKey ? 5 : 1)); }, { passive: false });
+    let drag = null;
+    sc.cv.addEventListener('pointerdown', e => { drag = { y: e.clientY, e0: sc.elevDeg }; sc.cv.setPointerCapture(e.pointerId); });
+    sc.cv.addEventListener('pointermove', e => { if (drag) setElev(sc, drag.e0 - (e.clientY - drag.y) * 0.5); });
+    for (const t of ['pointerup', 'pointercancel']) sc.cv.addEventListener(t, () => { drag = null; });
+    el.addEventListener('pointerdown', () => front(sc), true);
+    DL.ui.dragWindow(el, q('.vw-h'));
+    syncButtons(sc);
+    return sc;
+  }
+
+  function close(sc) {
+    const i = scopes.indexOf(sc);
+    if (i < 0) return;
+    scopes.splice(i, 1);
+    sc.el.remove();
+    DL.ui.layout();
+    if (DL.advWin) DL.advWin.refresh();
+  }
+
+  const api = {
+    scopes,
+    contactsFor,
+
+    forAircraft(id) { return scopes.find(s => s.id === id) || null; },
+    has(id) { return !!this.forAircraft(id); },
+    isOpen() { return scopes.length > 0; },
+
+    open(id) {
+      if (!R.on || !id || !DL.cur()[id]) return null;
+      const have = this.forAircraft(id);
+      if (have) { front(have); return have; }
       DL.ui.soloWindow('bscope');
-      $('bscope').classList.add('open');
-      bs.last = 0; bs.sweep = null; bs.t0 = 0;
-      this.sync();
+      const sc = create(id);
+      scopes.push(sc);
+      front(sc);
       DL.ui.layout();
-      if (!bs.raf) bs.raf = requestAnimationFrame(frame);
+      if (!raf) raf = requestAnimationFrame(loop);
       if (DL.advWin) DL.advWin.refresh();
+      return sc;
     },
 
-    close() {
-      $('bscope').classList.remove('open');
-      if (DL.advWin) DL.advWin.refresh();
-    },
+    closeFor(id) { const sc = this.forAircraft(id); if (sc) close(sc); },
 
-    contacts,
+    closeAll() { for (const sc of scopes.slice()) close(sc); },
 
-    toggle() { if (this.isOpen()) this.close(); else this.open(); },
+    toggleFor(id) { if (this.has(id)) this.closeFor(id); else this.open(id); },
   };
-  DL.bscope = win;
+  DL.bscope = api;
 })(window.DL);
