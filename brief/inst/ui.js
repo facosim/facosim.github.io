@@ -4,6 +4,21 @@
   const $ = id => document.getElementById(id);
   const clamp = FI.clamp;
 
+  const PITCH_TRIM = FI.aoa(100);
+  const flag = key => { try { return localStorage.getItem(key) === '1'; } catch (e) { return false; } };
+  const saveFlag = (key, on) => { try { localStorage.setItem(key, on ? '1' : '0'); } catch (e) { } };
+  const CENTRE = 0.08;
+  const bankOf = v => Math.abs(v) < CENTRE ? 0 : Math.round(v * FI.AC.maxBank);
+  const pitchOf = v => {
+    if (Math.abs(v) < CENTRE) return PITCH_TRIM;
+    const AC = FI.AC, n = ui.invert ? -v : v;
+    return Math.round((PITCH_TRIM + (n >= 0 ? n * (AC.pitchMax - PITCH_TRIM) : n * (PITCH_TRIM - AC.pitchMin))) * 2) / 2;
+  };
+  const stickY = p => {
+    const AC = FI.AC, n = (p - PITCH_TRIM) / (p >= PITCH_TRIM ? AC.pitchMax - PITCH_TRIM : PITCH_TRIM - AC.pitchMin);
+    return ui.invert ? -n : n;
+  };
+
   FI.layout = function (W, H) {
     if (W >= 720 && W >= H * 0.8) {
       const pw = Math.round(clamp(Math.min(W * 0.58, H), 300, W - 240));
@@ -15,7 +30,8 @@
 
   const ui = FI.ui = {
     touch: false,
-    dragging: null,
+    hold: false,
+    invert: false,
 
     init() {
       const sel = $('scn');
@@ -59,14 +75,9 @@
       $('set-apply').addEventListener('click', () => ui.applySettings());
       document.querySelectorAll('.modal').forEach(m => m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); }));
 
-      for (const [id, axis] of [['c-bank', 'bank'], ['c-pitch', 'pitch'], ['c-power', 'power']]) {
-        const el = $(id);
-        el.addEventListener('input', () => { FI.setControl(axis, +el.value); ui.refresh(); });
-        el.addEventListener('pointerdown', () => { ui.dragging = id; });
-        el.addEventListener('pointerup', () => { ui.dragging = null; });
-        el.addEventListener('pointercancel', () => { ui.dragging = null; });
-      }
+      ui.buildControls();
       $('c-level').addEventListener('click', () => { FI.setControl('bank', 0); ui.refresh(); });
+      $('c-hold').addEventListener('click', () => ui.setHold(!ui.hold));
       ui.repeat($('bug-dec'), () => ui.bump('bug', -1)); ui.repeat($('bug-inc'), () => ui.bump('bug', 1));
       ui.repeat($('obs-dec'), () => ui.bump('obs', -1)); ui.repeat($('obs-inc'), () => ui.bump('obs', 1));
       $('ap-hdg').addEventListener('click', () => { FI.setAp('hdg', !FI.ap.hdg); ui.refresh(); });
@@ -80,6 +91,40 @@
       const coarse = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window && navigator.maxTouchPoints > 0;
       ui.setTouch(coarse);
       ui.layoutDom();
+    },
+
+    buildControls() {
+      ui.stick = FI.Stick($('stick'), {
+        axis(a, v) { if (a === 'x') FI.setControl('bank', bankOf(v)); else FI.setControl('pitch', pitchOf(v)); },
+        changed() { ui.refresh(); },
+        release(used) {
+          if (!ui.hold) {
+            if (used.x) FI.setControl('bank', 0);
+            if (used.y) FI.setControl('pitch', PITCH_TRIM);
+          }
+          ui.refresh();
+        },
+      });
+      ui.throttle = FI.Lever($('throttle'), {
+        change(v) { FI.setControl('power', v); ui.refresh(); },
+        nudge(d) { FI.setControl('power', clamp(Math.round(FI.state.power) + d, 0, 100)); ui.refresh(); },
+        release() { ui.refresh(); },
+      });
+      ui.setHold(flag('fi-stick-hold'), false);
+      ui.setInvert(flag('fi-stick-invert'), false);
+    },
+    setHold(on, save = true) {
+      ui.hold = on;
+      if (save) saveFlag('fi-stick-hold', on);
+      $('c-hold').classList.toggle('on', on);
+      $('c-hold').setAttribute('aria-pressed', String(on));
+      ui.stick.setHold(on);
+    },
+    setInvert(on, save = true) {
+      ui.invert = on;
+      if (save) saveFlag('fi-stick-invert', on);
+      ui.stick.setLabels(on ? 'NOSE DN' : 'NOSE UP', on ? 'NOSE UP' : 'NOSE DN');
+      ui.controls();
     },
 
     repeat(btn, fn) {
@@ -225,6 +270,7 @@
     openSettings() {
       $('set-wdir').value = FI.wind.dir; $('set-wkt').value = FI.wind.kt;
       $('set-touch').checked = ui.touch;
+      $('set-invert').checked = ui.invert;
       if (window.facoTheme) $('set-theme').value = facoTheme.get();
       $('settings').classList.add('open');
     },
@@ -232,6 +278,7 @@
       FI.wind.dir = FI.norm360(+$('set-wdir').value || 0);
       FI.wind.kt = clamp(+$('set-wkt').value || 0, 0, 60);
       ui.setTouch($('set-touch').checked);
+      ui.setInvert($('set-invert').checked);
       if (window.facoTheme) facoTheme.set($('set-theme').value);
       $('settings').classList.remove('open');
       ui.refresh();
@@ -252,15 +299,16 @@
       $('bug-v').textContent = FI.pad3(nv.bug) + '°';
       $('obs-v').textContent = FI.pad3(nv.obs) + '°';
       $('ap-alt').title = ap.alt ? `Holding ${Math.round(ap.altTgt).toLocaleString('en-US')} ft (A)` : 'Hold the current altitude (A)';
-      ui.sliders();
+      ui.controls();
     },
-    sliders() {
+    controls() {
+      if (!ui.stick) return;
       const s = FI.state;
-      if (ui.dragging !== 'c-bank') $('c-bank').value = Math.round(s.cmdBank);
-      if (ui.dragging !== 'c-pitch') $('c-pitch').value = Math.round(s.cmdPitch * 2) / 2;
-      if (ui.dragging !== 'c-power') $('c-power').value = Math.round(s.power);
+      ui.stick.set(s.cmdBank / FI.AC.maxBank, stickY(s.cmdPitch));
+      ui.throttle.set(s.power / 100);
       $('c-bank-v').textContent = `${Math.abs(Math.round(s.cmdBank))}° ${s.cmdBank < -0.5 ? 'L' : s.cmdBank > 0.5 ? 'R' : ''}`;
-      $('c-pitch-v').textContent = `${s.cmdPitch >= 0 ? '+' : ''}${(Math.round(s.cmdPitch * 2) / 2).toFixed(1)}°`;
+      const pitch = Math.round(s.cmdPitch * 10) / 10;
+      $('c-pitch-v').textContent = `${pitch >= 0 ? '+' : ''}${pitch.toFixed(1)}°`;
       $('c-power-v').textContent = `${Math.round(s.power)}%`;
     },
 
@@ -273,13 +321,13 @@
       $('st-mode').textContent = (FI.paused ? 'Paused · ' : '') + FI.statusText();
       $('st-data').textContent = `HDG ${FI.pad3(FI.toMag(s.hdg))}  TRK ${FI.pad3(FI.toMag(s.trk))}  ${Math.round(s.ias)} kt  ${Math.round(s.alt).toLocaleString('en-US')} ft  ${s.vs >= 0 ? '+' : ''}${Math.round(s.vs / 10) * 10} fpm  ${n.ident || '---'} ${n.radial != null ? 'R-' + FI.pad3(n.radial) : ''}  DME ${n.dmeValid ? n.dme.toFixed(1) : '---'}`;
       const sc = FI.scn;
-      $('st-brief').textContent = sc ? sc.def.brief : 'Free flight: fly with the sliders or the keyboard, or pick a scenario.';
+      $('st-brief').textContent = sc ? sc.def.brief : 'Free flight: fly with the joystick or the keyboard, or pick a scenario.';
       $('st-brief').title = $('st-brief').textContent;
       const z = FI.map.cam.zoom, nm = FI.NM * z;
       const stepNm = nm > 120 ? 1 : nm > 60 ? 2 : nm > 24 ? 5 : 10;
       $('scale-bar').style.width = `${Math.round(stepNm * nm)}px`;
       $('scale-label').textContent = `${stepNm} nm`;
-      if (FI.ap.hdg || FI.ap.alt || FI.ap.nav || FI.ap.spd || (sc && !sc.off)) ui.sliders();
+      if (FI.ap.hdg || FI.ap.alt || FI.ap.nav || FI.ap.spd || (sc && !sc.off)) ui.controls();
       if (ui.quickOpen) ui.quickReadout();
     },
 
