@@ -5,7 +5,7 @@
   const clamp = FI.clamp;
 
   const PITCH_TRIM = FI.aoa(100);
-  const flag = key => { try { return localStorage.getItem(key) === '1'; } catch (e) { return false; } };
+  const flag = (key, fallback = false) => { try { const v = localStorage.getItem(key); return v === null ? fallback : v === '1'; } catch (e) { return fallback; } };
   const saveFlag = (key, on) => { try { localStorage.setItem(key, on ? '1' : '0'); } catch (e) { } };
   const CENTRE = 0.08;
   const bankOf = v => Math.abs(v) < CENTRE ? 0 : Math.round(v * FI.AC.maxBank);
@@ -111,7 +111,7 @@
         release() { ui.refresh(); },
       });
       ui.setHold(flag('fi-stick-hold'), false);
-      ui.setInvert(flag('fi-stick-invert'), false);
+      ui.setInvert(flag('fi-stick-invert', true), false);
     },
     setHold(on, save = true) {
       ui.hold = on;
