@@ -184,6 +184,10 @@
         const x = tapeX(n.adf.brgM), yy = hy + 53;
         style(2); g.strokeCircle(x, yy, 5); line(x, yy - 5, x, yy - 10);
       }
+      if (n.nav2.valid) {
+        const x = tapeX(n.nav2.brgM), yy = hy + 53;
+        style(2); poly([{ x, y: yy - 6 }, { x: x + 6, y: yy + 5 }, { x: x - 6, y: yy + 5 }], false); line(x, yy - 6, x, yy - 11);
+      }
       style(2);
       {
         const ty = hy + 66, tr = clamp(s.turnRate, -4.5, 4.5);
@@ -295,7 +299,7 @@
       const apRows = [
         { str: anyAp ? 'AP ON' : 'AP OFF', a: anyAp ? 1 : 0.5 },
         mode(`HDG ${pad3(hdgSel)}`, hdgOn && !navOn),
-        mode(navOn ? `NAV ${lat}${ap.gsCap ? ' GS' : ''}` : 'NAV ---', navOn),
+        mode(navOn ? `${ap.appr ? 'APPR' : 'NAV'} ${lat}${ap.gsCap ? ' GS' : ''}` : 'NAV ---', navOn),
         mode(altSel != null ? `ALT ${fmtAlt(altSel)}` : 'ALT ----', altSel != null),
         mode(spdSel != null ? `SPD ${Math.round(spdSel)}` : 'SPD ---', spdSel != null),
       ];

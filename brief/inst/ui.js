@@ -87,6 +87,7 @@
       $('ap-hdg').addEventListener('click', () => { FI.setAp('hdg', !FI.ap.hdg); ui.refresh(); });
       $('ap-alt').addEventListener('click', () => { FI.setAp('alt', !FI.ap.alt); ui.refresh(); });
       $('ap-nav').addEventListener('click', () => { FI.setAp('nav', !FI.ap.nav); ui.refresh(); });
+      $('ap-appr').addEventListener('click', () => { FI.setAp('appr', !FI.ap.appr); ui.refresh(); });
       document.querySelectorAll('[data-src]').forEach(b => b.addEventListener('click', () => ui.setSource(b.dataset.src)));
 
       ui.buildQuick();
@@ -257,6 +258,7 @@
       else if (k === 'h' || k === 'H') FI.setAp('hdg', !FI.ap.hdg);
       else if (k === 'a' || k === 'A') FI.setAp('alt', !FI.ap.alt);
       else if (k === 'n' || k === 'N') FI.setAp('nav', !FI.ap.nav);
+      else if (k === 'p' || k === 'P') FI.setAp('appr', !FI.ap.appr);
       else if (k === 'g' || k === 'G') ui.setPanel(FI.PANELS[(FI.PANELS.indexOf(FI.panelMode) + 1) % FI.PANELS.length]);
       else if (k === 'v' || k === 'V') ui.setSource(FI.nav.src === 'NAV' ? 'TCN' : 'NAV');
       else if (k === ' ') FI.paused = !FI.paused;
@@ -306,7 +308,7 @@
       document.querySelectorAll('[data-speed]').forEach(b => b.classList.toggle('on', +b.dataset.speed === FI.speed));
       $('panel-sel').value = FI.panelMode;
       $('btn-follow').classList.toggle('on', !!(FI.map && FI.map.follow));
-      $('ap-hdg').classList.toggle('on', ap.hdg); $('ap-alt').classList.toggle('on', ap.alt); $('ap-nav').classList.toggle('on', ap.nav);
+      $('ap-hdg').classList.toggle('on', ap.hdg); $('ap-alt').classList.toggle('on', ap.alt); $('ap-nav').classList.toggle('on', ap.nav && !ap.appr); $('ap-appr').classList.toggle('on', ap.appr);
       document.querySelectorAll('[data-src]').forEach(b => b.classList.toggle('on', b.dataset.src === nv.src));
       const act = document.activeElement;
       if (radios || act !== $('r-nav')) $('r-nav').value = FI.fmtMhz(nv.mhz);

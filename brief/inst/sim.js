@@ -20,7 +20,7 @@ window.FI = window.FI || {};
   };
   FI.nav = { src: 'NAV', mhz: 112.6, mhz2: 0, chan: '73X', khz: 0, obs: 90, bug: 0 };
   FI.wind = { dir: 0, kt: 0 };
-  FI.ap = { hdg: false, alt: false, nav: false, altTgt: 3000, gsCap: false, spd: false, spdTgt: 100, turnDir: 0 };
+  FI.ap = { hdg: false, alt: false, nav: false, appr: false, altTgt: 3000, gsCap: false, spd: false, spdTgt: 100, turnDir: 0 };
   FI.trail = [];
   FI.paused = false;
   FI.speed = 1;
@@ -148,10 +148,12 @@ window.FI = window.FI || {};
     n.nav2 = { mhz: nv.mhz2, ident: null, dme: null, dmeValid: false };
     if (nv.mhz2) {
       const f2 = nv.mhz2;
-      const c2 = nearestFirst(FI.ilsList.filter(l => l.dme && same(l.mhz, f2)).map(l => ({ id: l.id, x: l.dme.x, y: l.dme.y, elev: l.elev, dmeCls: 'T' }))
-        .concat(FI.stations.filter(s => s.dme && same(s.mhz, f2))));
-      const hit = c2.find(dmeRange);
-      n.nav2.ident = (hit || c2[0] || {}).id || null;
+      const c2 = nearestFirst(FI.ilsList.filter(l => same(l.mhz, f2)).map(l => ({ id: l.id, x: (l.dme || l.loc).x, y: (l.dme || l.loc).y, elev: l.elev, dmeCls: 'T', dme: !!l.dme }))
+        .concat(FI.stations.filter(s => (s.vor || s.dme) && same(s.mhz, f2))));
+      const heard = c2.find(s => s.vor ? inRange(s) : dmeRange(s)), hit = c2.find(s => s.dme && dmeRange(s));
+      n.nav2.ident = (heard || hit || c2[0] || {}).id || null;
+      n.nav2.valid = !!heard;
+      if (heard) { n.nav2.brg = norm360(Math.atan2(heard.x - S.x, -(heard.y - S.y)) * R2D); n.nav2.brgM = FI.toMag(n.nav2.brg); }
       if (hit) { n.nav2.dmeValid = true; n.nav2.dme = Math.hypot(dNm(hit) * NM, agl(hit)) / NM; }
     }
     FI.navOut = n;
@@ -175,6 +177,11 @@ window.FI = window.FI || {};
 
   function autopilot(dt, t, n) {
     const ap = FI.ap;
+    if (ap.appr && ap.gsCap && n.loc && n.loc.hasGs && S.alt <= n.loc.da) {
+      ap.appr = ap.nav = ap.alt = ap.hdg = false; ap.gsCap = false; ap.info = null;
+      FI.msg = 'Decision altitude: autopilot disconnected';
+      return;
+    }
     let bank = null;
     if (t.bank != null) bank = t.bank === 'std' ? stdBank() : t.bank === '-std' ? -stdBank() : t.bank;
     else {
@@ -260,13 +267,13 @@ window.FI = window.FI || {};
   FI.takeover = function () {
     const sc = FI.scn, ap = FI.ap;
     if (sc && !sc.off) sc.off = true;
-    ap.hdg = ap.alt = ap.nav = ap.spd = false; ap.gsCap = false; ap.info = null; ap.turnDir = 0;
+    ap.hdg = ap.alt = ap.nav = ap.spd = ap.appr = false; ap.gsCap = false; ap.info = null; ap.turnDir = 0;
     FI.msg = 'You have control';
   };
   FI.setControl = function (axis, v) {
     const sc = FI.scn, ap = FI.ap;
     if (sc && !sc.off) FI.takeover();
-    if (axis === 'bank') { S.cmdBank = clamp(v, -AC.maxBank, AC.maxBank); ap.hdg = ap.nav = false; ap.gsCap = false; ap.turnDir = 0; }
+    if (axis === 'bank') { S.cmdBank = clamp(v, -AC.maxBank, AC.maxBank); ap.hdg = ap.nav = ap.appr = false; ap.gsCap = false; ap.turnDir = 0; }
     if (axis === 'pitch') { S.cmdPitch = clamp(v, AC.pitchMin, AC.pitchMax); ap.alt = false; ap.gsCap = false; }
     if (axis === 'power') { S.power = clamp(v, 0, 100); ap.spd = false; }
   };
@@ -281,9 +288,16 @@ window.FI = window.FI || {};
     const sc = FI.scn, ap = FI.ap;
     if (sc && !sc.off) FI.takeover();
     if (mode === 'alt') { ap.alt = on; if (on) ap.altTgt = Math.round(S.alt / 100) * 100; ap.gsCap = false; }
-    if (mode === 'hdg') { ap.hdg = on; ap.turnDir = 0; if (on) ap.nav = false; }
+    if (mode === 'hdg') { ap.hdg = on; ap.turnDir = 0; if (on) ap.nav = ap.appr = false; }
     if (mode === 'spd') { ap.spd = on; if (on) ap.spdTgt = Math.round(S.ias); }
-    if (mode === 'nav') { ap.nav = on; if (on) ap.hdg = false; ap.gsCap = false; ap.turnDir = 0; }
+    if (mode === 'nav') { ap.nav = on; if (on) ap.hdg = false; else ap.appr = false; ap.gsCap = false; ap.turnDir = 0; }
+    if (mode === 'appr') {
+      const n = FI.navOut;
+      if (on && !(n && n.kind === 'LOC')) { FI.msg = 'Approach mode needs an ILS or localizer tuned on NAV1'; return; }
+      if (on) { ap.appr = ap.nav = ap.alt = true; ap.hdg = false; ap.altTgt = Math.round(S.alt / 100) * 100; ap.turnDir = 0; }
+      else { if (ap.gsCap) ap.alt = false; ap.appr = ap.nav = false; }
+      ap.gsCap = false;
+    }
     if (!on && mode !== 'alt') ap.info = null;
     FI.msg = '';
   };
@@ -292,7 +306,7 @@ window.FI = window.FI || {};
     if (sc && !sc.off) FI.takeover();
     if (hdg != null) {
       FI.nav.bug = norm360(Math.round(hdg));
-      ap.hdg = true; ap.nav = false; ap.gsCap = false; ap.info = null;
+      ap.hdg = true; ap.nav = ap.appr = false; ap.gsCap = false; ap.info = null;
       ap.turnDir = dir || 0;
     }
     if (alt != null) { ap.alt = true; ap.altTgt = Math.max(FI.groundElev || 0, Math.round(alt / 100) * 100); ap.gsCap = false; }
@@ -450,7 +464,7 @@ window.FI = window.FI || {};
     S.power = M.powerFor(M.drag(S.ias), S.ias, S.alt);
     Object.assign(FI.nav, def.nav);
     if (def.wind) Object.assign(FI.wind, def.wind);
-    Object.assign(FI.ap, { hdg: false, alt: false, nav: false, spd: false, turnDir: 0, gsCap: false, info: null, altTgt: st.alt });
+    Object.assign(FI.ap, { hdg: false, alt: false, nav: false, appr: false, spd: false, turnDir: 0, gsCap: false, info: null, altTgt: st.alt });
     FI.trail.length = 0; trailT = 0; acc = 0;
     FI.scn = { def, i: 0, step: def.steps[0], ctx: newCtx(), off: false, done: false };
     FI.msg = '';
@@ -464,7 +478,7 @@ window.FI = window.FI || {};
     const f = FI.freeStart;
     Object.assign(S, { x: f.x, y: f.y, hdg: f.hdg, alt: f.alt, ias: f.ias, vs: 0, bank: 0, cmdBank: 0, turnRate: 0, t: 0 });
     S.pitch = S.cmdPitch = aoa(S.ias); S.power = M.powerFor(M.drag(S.ias), S.ias, S.alt);
-    Object.assign(FI.ap, { hdg: false, alt: false, nav: false, spd: false, turnDir: 0, gsCap: false, info: null });
+    Object.assign(FI.ap, { hdg: false, alt: false, nav: false, appr: false, spd: false, turnDir: 0, gsCap: false, info: null });
     FI.trail.length = 0; trailT = 0; acc = 0; FI.msg = 'You have control'; FI.paused = false;
     physics(0); computeNav();
   };
@@ -485,7 +499,7 @@ window.FI = window.FI || {};
     const sc = FI.scn, ap = FI.ap, n = FI.navOut || {};
     if (sc && !sc.off) return (sc.done ? 'Scenario complete · ' : 'Autopilot: ') + sc.step.name;
     const m = [];
-    if (ap.nav) m.push('NAV ' + (n.kind === 'LOC' ? `${n.loc.name}` + (ap.gsCap ? ' + GS' : '') : n.track ? `${n.ident} course ${pad3(FI.nav.obs)}` : 'no signal, holding heading'));
+    if (ap.nav) m.push((ap.appr ? 'APPR ' : 'NAV ') + (n.kind === 'LOC' ? `${n.loc.name}` + (ap.gsCap ? ' + GS' : '') : n.track ? `${n.ident} course ${pad3(FI.nav.obs)}` : 'no signal, holding heading'));
     else if (ap.hdg) m.push('HDG ' + pad3(FI.nav.bug));
     if (ap.alt && !(ap.gsCap && ap.nav)) m.push('ALT ' + fmtAlt(ap.altTgt));
     if (ap.spd) m.push('SPD ' + ap.spdTgt + ' kt');

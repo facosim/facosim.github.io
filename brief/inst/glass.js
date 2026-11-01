@@ -155,6 +155,10 @@
     const brgHdr = txt('', 95, 626, 13, C.cyan);
     const brgId = txt('', 95, 656, 15, C.white);
     const brgTxt = txt('', 95, 688, 20, C.cyan);
+    side.fillRect(730, 610, 150, 100); side.strokeRect(730, 610, 150, 100);
+    const brg2Hdr = txt('', 805, 626, 13, C.white);
+    const brg2Id = txt('', 805, 656, 15, C.white);
+    const brg2Txt = txt('', 805, 688, 20, C.white);
 
     {
       const g = frame;
@@ -341,16 +345,23 @@
         hg.fillStyle(GREEN, 1);
         hg.fillPoints([P(k * 92, 0), P(k * 78, -10), P(k * 78, 10)], true);
       }
-      const adf = n.adf;
-      if (adf.valid) {
-        const bq = rot(adf.brgM), bs = Math.sin(bq * D2R), bc = -Math.cos(bq * D2R);
-        const Q = r => ({ x: HX + bs * r, y: HY + bc * r });
-        hg.lineStyle(3, CYAN, 1);
-        const t0 = Q(HR - 8), t1 = Q(HR - 60), b0 = Q(-(HR - 60)), b1 = Q(-(HR - 8));
-        hg.lineBetween(t0.x, t0.y, t1.x, t1.y); hg.lineBetween(b0.x, b0.y, b1.x, b1.y);
-        const w0 = { x: -bc * 10, y: bs * 10 }, h0 = Q(HR - 30);
+      const adf = n.adf, n2 = n.nav2;
+      const pointer = (brgM, color, twin) => {
+        const bq = rot(brgM), bs = Math.sin(bq * D2R), bc = -Math.cos(bq * D2R);
+        const Q = (r, side) => ({ x: HX + bs * r - bc * (side || 0), y: HY + bc * r + bs * (side || 0) });
+        hg.lineStyle(3, color, 1);
+        for (const sd of twin ? [-3.5, 3.5] : [0]) {
+          const t0 = Q(HR - 8, sd), t1 = Q(HR - 60, sd), b0 = Q(-(HR - 60), sd), b1 = Q(-(HR - 8), sd);
+          hg.lineBetween(t0.x, t0.y, t1.x, t1.y); hg.lineBetween(b0.x, b0.y, b1.x, b1.y);
+        }
+        const w0 = { x: -bc * 10, y: bs * 10 }, h0 = Q(HR - 30), t0 = Q(HR - 8);
         hg.lineBetween(t0.x, t0.y, h0.x + w0.x, h0.y + w0.y); hg.lineBetween(t0.x, t0.y, h0.x - w0.x, h0.y - w0.y);
-      }
+      };
+      if (adf.valid) pointer(adf.brgM, CYAN, false);
+      if (n2.valid) pointer(n2.brgM, WHITE, true);
+      brg2Hdr.setText('BRG2 NAV2');
+      brg2Id.setText(nv.mhz2 ? `${FI.fmtMhz(nv.mhz2)} ${n2.valid ? n2.ident : ''}` : 'OFF');
+      brg2Txt.setText(n2.valid ? `${pad3(n2.brgM)}°` : nv.mhz2 ? 'NO SIG' : '').setColor(n2.valid ? C.white : C.dim);
       brgHdr.setText('BRG1 ADF');
       brgId.setText(nv.khz ? `${nv.khz} ${adf.valid ? adf.id : ''}` : 'OFF');
       brgTxt.setText(adf.valid ? `${pad3(adf.brgM)}°` : nv.khz ? 'NO SIG' : '').setColor(adf.valid ? C.cyan : C.dim);
