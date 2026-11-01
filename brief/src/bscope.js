@@ -30,11 +30,15 @@
   const scopes = [];
   let raf = 0;
 
+  function liveStates() {
+    return (DL.scene && DL.scene.scrub) || DL.cur();
+  }
+
   function contactsFor(sc) {
-    const own = DL.cur()[sc.id];
-    if (!own) return null;
+    const states = liveStates();
+    if (!states[sc.id]) return null;
     const half = R.fovDeg / 2, max = sc.rangeNm * NM;
-    return DL.radarContacts(sc.id).map(c => {
+    return DL.radarContacts(sc.id, undefined, states).map(c => {
       const elev = Math.atan2(c.dAlt, Math.max(c.range, 1)) / DL.D2R;
       const seen = c.range <= max && Math.abs(c.rel) <= half;
       return Object.assign(c, { elev, seen, hit: seen && Math.abs(elev - sc.elevDeg) <= sc.beamDeg / 2 });
@@ -48,53 +52,31 @@
   function fit(sc) {
     const cv = sc.cv, dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
     if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) {
-      cv.width = sc.trail.width = Math.round(w * dpr);
-      cv.height = sc.trail.height = Math.round(h * dpr);
+      cv.width = Math.round(w * dpr);
+      cv.height = Math.round(h * dpr);
     }
     sc.w = w; sc.h = h; sc.dpr = dpr;
   }
 
+  function noise(seed) {
+    let t = seed >>> 0;
+    return () => {
+      t = (t + 0x6D2B79F5) >>> 0;
+      let x = Math.imul(t ^ (t >>> 15), 1 | t);
+      x ^= x + Math.imul(x ^ (x >>> 7), 61 | x);
+      return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
   function draw(sc, now) {
-    const ctx = sc.cv.getContext('2d'), tctx = sc.trail.getContext('2d');
+    const ctx = sc.cv.getContext('2d');
     fit(sc);
     const { w, h, dpr } = sc, g = geometry(w, h);
     if (!w || !h) return;
-    const dt = sc.last ? Math.min(0.1, (now - sc.last) / 1000) : 0.016;
-    sc.last = now;
     const half = R.fovDeg / 2, max = sc.rangeNm * NM, pw = g.x1 - g.x0, ph = g.y1 - g.y0;
     const X = rel => g.x0 + (rel / half + 1) / 2 * pw, Y = range => g.y1 - range / max * ph;
     const list = contactsFor(sc);
-
-    const T = Math.max(1.2, R.fovDeg / 90), tm = (now - (sc.t0 || (sc.t0 = now))) / 1000;
-    const phase = (tm % (2 * T)) / T, sweep = phase < 1 ? -half + phase * R.fovDeg : half - (phase - 1) * R.fovDeg;
-    const prev = sc.sweep === null ? sweep : sc.sweep;
-    sc.sweep = sweep;
-
-    tctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    tctx.globalCompositeOperation = 'destination-out';
-    tctx.fillStyle = `rgba(0,0,0,${1 - Math.exp(-dt / 1.7)})`;
-    tctx.fillRect(0, 0, w, h);
-    tctx.globalCompositeOperation = 'source-over';
-    if (list) {
-      for (let i = 0; i < 70 * dt * 6; i++) {
-        tctx.fillStyle = `rgba(110,255,110,${0.1 + Math.random() * 0.22})`;
-        tctx.fillRect(g.x0 + Math.random() * pw, g.y0 + Math.random() * ph, 1.4, 1.4);
-      }
-      const lo = Math.min(prev, sweep), hi = Math.max(prev, sweep);
-      for (const c of list) {
-        if (!c.hit || c.rel < lo || c.rel > hi) continue;
-        const x = X(c.rel), y = Y(c.range);
-        const gl = tctx.createRadialGradient(x, y, 0, x, y, 9);
-        gl.addColorStop(0, 'rgba(120,255,120,.55)'); gl.addColorStop(1, 'rgba(120,255,120,0)');
-        tctx.fillStyle = gl; tctx.fillRect(x - 9, y - 9, 18, 18);
-        tctx.fillStyle = BRIGHT; tctx.fillRect(x - 2, y - 3.5, 4, 7);
-        if (sc.tags) {
-          tctx.font = '10px Menlo, Consolas, monospace'; tctx.textBaseline = 'middle';
-          tctx.fillStyle = MID;
-          tctx.fillText(c.callsign + ' ' + signed(Math.round(c.dAlt / 100) / 10) + 'k', x + 7, y);
-        }
-      }
-    }
+    const tick = Math.floor(now / 110);
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.fillStyle = '#020a02'; ctx.fillRect(0, 0, w, h);
@@ -114,13 +96,28 @@
     ctx.strokeStyle = MID; ctx.strokeRect(g.x0 + 0.5, g.y0 + 0.5, pw, ph);
     ctx.fillStyle = DIM; ctx.textAlign = 'left'; ctx.fillText('NM', 6, g.y0 + 4);
 
-    ctx.drawImage(sc.trail, 0, 0, sc.trail.width, sc.trail.height, 0, 0, w, h);
-
     if (list) {
-      const dir = Math.sign(sweep - prev) || 1, sx = X(sweep), wedge = ctx.createLinearGradient(sx - 26 * dir, 0, sx, 0);
-      wedge.addColorStop(0, 'rgba(110,255,110,0)'); wedge.addColorStop(1, 'rgba(110,255,110,.16)');
-      ctx.fillStyle = wedge; ctx.fillRect(Math.min(sx, sx - 26 * dir), g.y0, 26, ph);
-      ctx.strokeStyle = 'rgba(160,255,160,.85)'; ctx.beginPath(); ctx.moveTo(sx, g.y0); ctx.lineTo(sx, g.y1); ctx.stroke();
+      const rnd = noise(tick * 7919 + sc.seed);
+      for (let i = 0; i < 160; i++) {
+        const near = rnd() ** 2.2;
+        ctx.fillStyle = `rgba(110,255,110,${(0.05 + rnd() * 0.2) * (1 - near * 0.55)})`;
+        ctx.fillRect(g.x0 + rnd() * pw, g.y1 - near * ph, 1.4, 1.4);
+      }
+      for (const c of list) {
+        if (!c.hit) continue;
+        const x = X(c.rel), y = Y(c.range), k = 1 - 0.55 * Math.min(1, c.range / max), shimmer = 0.92 + 0.08 * Math.sin(tick * 1.7 + x);
+        const gl = ctx.createRadialGradient(x, y, 0, x, y, 11);
+        gl.addColorStop(0, `rgba(120,255,120,${0.5 * k})`); gl.addColorStop(1, 'rgba(120,255,120,0)');
+        ctx.fillStyle = gl; ctx.fillRect(x - 11, y - 11, 22, 22);
+        ctx.globalAlpha = Math.min(1, k * shimmer + 0.15);
+        ctx.fillStyle = BRIGHT; ctx.fillRect(x - 2.5, y - 4, 5, 8);
+        ctx.globalAlpha = 1;
+        if (sc.tags) {
+          ctx.font = '10px Menlo, Consolas, monospace'; ctx.textAlign = 'left';
+          ctx.fillStyle = MID;
+          ctx.fillText(c.callsign + ' ' + signed(Math.round(c.dAlt / 100) / 10) + 'k', x + 8, y);
+        }
+      }
       ctx.fillStyle = BRIGHT;
       ctx.beginPath(); ctx.moveTo(X(0), g.y1); ctx.lineTo(X(0) - 4, g.y1 + 6); ctx.lineTo(X(0) + 4, g.y1 + 6); ctx.fill();
     } else {
@@ -144,7 +141,7 @@
 
     const n = list ? list.filter(c => c.hit).length : 0;
     sc.info.textContent = list
-      ? `ELEV ${signed(sc.elevDeg)}° ±${sc.beamDeg / 2}° · RNG ${sc.rangeNm} NM · AZ ±${half}° · ${n} of ${list.filter(c => c.seen).length} in sector`
+      ? `ELEV ${signed(sc.elevDeg)}° ±${sc.beamDeg / 2}° · RNG ${sc.rangeNm} NM · AZ ±${half}° · ${n} return${n === 1 ? '' : 's'} (${list.filter(c => c.seen).length} in sector)`
       : 'This aircraft is not in the current frame.';
     sc.elevV.textContent = signed(sc.elevDeg) + '°';
   }
@@ -191,8 +188,8 @@
     document.body.appendChild(el);
     const q = s => el.querySelector(s);
     const sc = {
-      id, el, cv: q('.bs-canvas'), trail: document.createElement('canvas'), info: q('.bs-info'), elevIn: q('.bs-elev'), elevV: q('.bs-elev-v'),
-      titleEl: q('.bs-title'), sw: q('.sw'), elevDeg: 0, beamDeg: 8, rangeNm: R.rangeNm, tags: true, last: 0, sweep: null, t0: 0, name: null, col: null,
+      id, el, cv: q('.bs-canvas'), seed: scopes.length * 977 + 1, info: q('.bs-info'), elevIn: q('.bs-elev'), elevV: q('.bs-elev-v'),
+      titleEl: q('.bs-title'), sw: q('.sw'), elevDeg: 0, beamDeg: 8, rangeNm: R.rangeNm, tags: true, name: null, col: null,
     };
     q('.bs-beam').value = String(sc.beamDeg);
     q('.bs-close').onclick = () => close(sc);
