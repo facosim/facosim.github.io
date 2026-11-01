@@ -201,7 +201,7 @@
       else if (k === 'f' || k === 'F') FI.map.setFollow(!FI.map.follow);
       else if (k === '0') FI.map.fit();
       else if (k === '?') $('help').classList.toggle('open');
-      else if (k === 'Escape') { ui.closeQuick(); document.querySelectorAll('.modal.open').forEach(m => m.classList.remove('open')); }
+      else if (k === 'Escape') { ui.closeQuick(); if (FI.map) FI.map.selected = false; document.querySelectorAll('.modal.open').forEach(m => m.classList.remove('open')); }
       else used = false;
       if (used) { e.preventDefault(); ui.refresh(); }
     },
@@ -291,10 +291,14 @@
     },
     hideTip() { $('tip').style.display = 'none'; },
     steerTip(p, d) {
-      const t = d.turn, a = d.dAlt;
+      const t = d.turn;
       const turn = Math.abs(t) < 1 ? `<b>Hold ${FI.pad3(d.hdgTgt)}°</b>` : `<b>${t > 0 ? 'Right' : 'Left'} ${Math.abs(Math.round(t))}° to ${FI.pad3(d.hdgTgt)}°</b> at standard rate`;
+      ui.tip(`${turn}<br><span class="dim">Drag left or right to turn.${ui.touch ? '' : ' Shift for 1° steps.'} Drag the cross lines on the path to climb or descend.</span>`, p);
+    },
+    climbTip(p, d) {
+      const a = d.dAlt;
       const alt = a === 0 ? `<b>Hold ${d.altTgt.toLocaleString('en-US')} ft</b>` : `<b>${a > 0 ? 'Climb' : 'Descend'} ${a > 0 ? '+' : '−'}${Math.abs(a).toLocaleString('en-US')} ft to ${d.altTgt.toLocaleString('en-US')} ft</b> at 500 fpm`;
-      ui.tip(`${turn}<br>${alt}<br><span class="dim">Drag left or right to turn, up to climb, down to descend.${ui.touch ? '' : ' Shift for 1° steps.'}</span>`, p);
+      ui.tip(`${alt}<br><span class="dim">Drag up to climb, down to descend.</span>`, p);
     },
 
     quickOpen: false,

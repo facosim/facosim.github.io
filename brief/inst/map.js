@@ -29,6 +29,7 @@
       this.textPool = []; this.textUsed = 0;
       this.follow = true;
       this.drag = null; this.pinch = null;
+      this.selected = false; this.tickHit = null; this.hoverTick = false;
 
       this.input.mouse && this.input.mouse.disableContextMenu();
       this.input.on('pointerdown', this.onDown, this);
@@ -80,8 +81,15 @@
       return { x: s.x + Math.sin(h) * d, y: s.y - Math.cos(h) * d };
     }
     hitHandle(w) {
+      if (!this.selected) return false;
       const hp = this.handlePos(), r = (touch() ? 24 : 10) / this.cam.zoom;
       return (hp.x - w.x) ** 2 + (hp.y - w.y) ** 2 <= r * r;
+    }
+    hitTick(w) {
+      const t = this.tickHit;
+      if (!t) return false;
+      const r = (touch() ? 26 : 14) / this.cam.zoom;
+      return (t.x - w.x) ** 2 + (t.y - w.y) ** 2 <= r * r;
     }
 
     touchesDown() { return [this.input.pointer1, this.input.pointer2].filter(q => q && q.isDown); }
@@ -109,43 +117,62 @@
       if (this.startPinch() || this.pinch) return;
       const w = this.toWorld(p), ev = p.event || {};
       if (p.rightButtonDown && p.rightButtonDown()) {
-        if (this.hitAircraft(w)) FI.ui && FI.ui.openQuick(p);
+        if (this.hitAircraft(w)) { this.selected = true; FI.ui && FI.ui.openQuick(p); }
         return;
       }
       if (this.hitHandle(w)) this.drag = { kind: 'nose' };
       else if (this.hitAircraft(w)) {
+        this.selected = true;
         if (ev.shiftKey || this.moveNext) {
           this.drag = { kind: 'move', dx: FI.state.x - w.x, dy: FI.state.y - w.y };
           this.moveNext = false;
           FI.ui && FI.ui.hideTip();
         } else this.startSteer(p);
       }
-      else this.drag = { kind: 'pan', sx: this.cam.scrollX, sy: this.cam.scrollY, px: p.x, py: p.y };
+      else if (this.hitTick(w)) this.startClimb(p);
+      else this.drag = { kind: 'pan', sx: this.cam.scrollX, sy: this.cam.scrollY, px: p.x, py: p.y, moved: false };
       document.body.classList.add('map-gesture');
     }
     startSteer(p) {
       const s = FI.state, ap = FI.ap, run = FI.scn && !FI.scn.off;
       const d = this.drag = {
         kind: 'steer', px: p.x, py: p.y, moved: false, h0: FI.toMag(s.hdg),
-        turn0: FI.turnLeft(),
-        alt0: !run && ap.alt ? ap.altTgt : Math.round(s.alt / 100) * 100,
-        turn: 0, dAlt: 0,
+        turn0: FI.turnLeft(), turn: 0,
+        holdAlt: run ? Math.round(s.alt / 100) * 100 : null,
       };
       if (touch()) d.hold = setTimeout(() => {
         if (this.drag === d && !d.moved) { this.drag = null; document.body.classList.remove('map-gesture'); FI.ui && FI.ui.openQuick(p); }
       }, 550);
     }
     moveSteer(p, d) {
-      const dx = p.x - d.px, dy = d.py - p.y;
-      if (!d.moved && Math.hypot(dx, dy) < (touch() ? 10 : 5)) return;
+      const dx = p.x - d.px;
+      if (!d.moved && Math.abs(dx) < (touch() ? 10 : 5) && Math.abs(p.y - d.py) < (touch() ? 10 : 5)) return;
       if (!d.moved) { d.moved = true; clearTimeout(d.hold); }
       const fine = p.event && p.event.shiftKey;
       const dh = fine ? Math.round(dx / 2) : Math.round(dx / 10) * 5;
       d.turn = clamp(d.turn0 + dh, -355, 355);
-      d.dAlt = Math.round(dy / 4) * 100;
-      FI.steer({ hdg: d.h0 + d.turn, dir: Math.abs(d.turn) > 170 ? Math.sign(d.turn) : 0, alt: d.alt0 + d.dAlt });
-      d.hdgTgt = FI.nav.bug; d.altTgt = FI.ap.altTgt;
+      const cmd = { hdg: d.h0 + d.turn, dir: Math.abs(d.turn) > 170 ? Math.sign(d.turn) : 0 };
+      if (d.holdAlt != null) cmd.alt = d.holdAlt;
+      FI.steer(cmd);
+      d.hdgTgt = FI.nav.bug;
       FI.ui && FI.ui.steerTip(p, d);
+    }
+    startClimb(p) {
+      const s = FI.state, ap = FI.ap, run = FI.scn && !FI.scn.off;
+      this.drag = {
+        kind: 'climb', px: p.x, py: p.y, moved: false,
+        alt0: !run && ap.alt ? ap.altTgt : Math.round(s.alt / 100) * 100, dAlt: 0,
+      };
+      FI.ui && FI.ui.hideTip();
+    }
+    moveClimb(p, d) {
+      const dy = d.py - p.y;
+      if (!d.moved && Math.abs(dy) < (touch() ? 10 : 5)) return;
+      d.moved = true;
+      d.dAlt = Math.round(dy / 4) * 100;
+      FI.steer({ alt: d.alt0 + d.dAlt });
+      d.altTgt = FI.ap.altTgt;
+      FI.ui && FI.ui.climbTip(p, d);
     }
     onMove(p) {
       if (this.pinch) { this.movePinch(); return; }
@@ -154,18 +181,24 @@
         if (this.inView(p)) {
           const w = this.toWorld(p);
           this.hoverAc = this.hitAircraft(w) && !this.hitHandle(w);
-          this.game.canvas.style.cursor = this.hitHandle(w) ? 'grab' : this.hoverAc ? (this.moveNext ? 'move' : 'grab') : 'default';
-        } else this.hoverAc = false;
+          this.hoverTick = !this.hoverAc && this.hitTick(w);
+          this.game.canvas.style.cursor = this.hitHandle(w) ? 'grab' : this.hoverAc ? (this.moveNext ? 'move' : 'grab') : this.hoverTick ? 'ns-resize' : 'default';
+        } else this.hoverAc = this.hoverTick = false;
         return;
       }
       const w = this.toWorld(p);
       if (d.kind === 'pan') {
+        if (!d.moved && Math.hypot(p.x - d.px, p.y - d.py) < (touch() ? 10 : 4)) return;
+        d.moved = true;
         this.cam.scrollX = d.sx - (p.x - d.px) / this.cam.zoom;
         this.cam.scrollY = d.sy - (p.y - d.py) / this.cam.zoom;
         this.setFollow(false);
       } else if (d.kind === 'steer') {
         this.game.canvas.style.cursor = 'grabbing';
         this.moveSteer(p, d);
+      } else if (d.kind === 'climb') {
+        this.game.canvas.style.cursor = 'ns-resize';
+        this.moveClimb(p, d);
       } else if (d.kind === 'move') {
         FI.place(w.x + d.dx, w.y + d.dy, null);
       } else if (d.kind === 'nose') {
@@ -179,11 +212,12 @@
     onUp() {
       if (this.pinch && !this.touchesDown().length) this.pinch = null;
       const d = this.drag;
-      if (d && d.kind === 'steer') {
+      if (d && (d.kind === 'steer' || d.kind === 'climb')) {
         clearTimeout(d.hold);
         FI.ui && FI.ui.hideTip();
-        this.game.canvas.style.cursor = 'grab';
+        this.game.canvas.style.cursor = d.kind === 'climb' ? 'ns-resize' : 'grab';
       }
+      if (d && d.kind === 'pan' && !d.moved) this.selected = false;
       this.drag = null;
       document.body.classList.remove('map-gesture');
     }
@@ -405,17 +439,21 @@
         g.lineStyle(1.5 / z, T(0x4da3ff), 0.9);
         this.dashed(g, s.x, s.y, s.x + Math.sin(t) * L * 1.3, s.y - Math.cos(t) * L * 1.3, 6 / z, 4 / z);
       }
-      g.lineStyle(1.5 / z, T(0xffd166), 0.9);
-      g.lineBetween(s.x, s.y, s.x + Math.sin(h) * L, s.y - Math.cos(h) * L);
+      if (this.selected) {
+        g.lineStyle(1.5 / z, T(0xffd166), 0.9);
+        g.lineBetween(s.x, s.y, s.x + Math.sin(h) * L, s.y - Math.cos(h) * L);
+      }
       this.drawPlan(z);
       const steering = this.drag && this.drag.kind === 'steer';
-      if ((this.hoverAc && !this.drag) || steering) {
-        g.lineStyle(1.5 / z, T(0x4da3ff), steering ? 0.9 : 0.6);
+      if ((this.hoverAc && !this.drag) || steering || this.selected) {
+        g.lineStyle(1.5 / z, T(0x4da3ff), steering ? 0.9 : this.hoverAc && !this.drag ? 0.6 : 0.45);
         g.strokeCircle(s.x, s.y, (touch() ? 30 : 18) / z);
-        if (!steering) this.text(this.moveNext ? 'drag to move' : 'drag to steer · right-click for menu', s.x, s.y + 24 / z, T('#8fb3d1'), 10, 0.5, 0);
+        if (this.hoverAc && !this.drag) this.text(this.moveNext ? 'drag to move' : this.selected ? 'drag to turn · right-click for menu' : 'click to select · drag to turn', s.x, s.y + 24 / z, T('#8fb3d1'), 10, 0.5, 0);
       }
-      const hp = this.handlePos();
-      g.fillStyle(T(0xffd166), 1); g.fillCircle(hp.x, hp.y, (touch() ? 9 : 5) / z);
+      if (this.selected) {
+        const hp = this.handlePos();
+        g.fillStyle(T(0xffd166), 1); g.fillCircle(hp.x, hp.y, (touch() ? 9 : 5) / z);
+      }
       const k = 1.1 / z, pts = GA.map(([px, py]) => ({ x: s.x + (px * Math.cos(h) - py * Math.sin(h)) * k, y: s.y + (px * Math.sin(h) + py * Math.cos(h)) * k }));
       g.fillStyle(T(0xffd166), 1); g.fillPoints(pts, true);
       g.lineStyle(1 / z, T(0x0a0e13), 1); g.strokePoints(pts, true);
@@ -424,11 +462,13 @@
 
     drawPlan(z) {
       const s = FI.state, ap = FI.ap, g = this.acG;
+      this.tickHit = null;
       if (FI.scn && !FI.scn.off) return;
-      const live = (this.drag && this.drag.kind === 'steer' && this.drag.moved) || (FI.ui && FI.ui.quickOpen);
+      const dr = this.drag;
+      const live = (dr && ((dr.kind === 'steer' && dr.moved) || dr.kind === 'climb')) || (FI.ui && FI.ui.quickOpen);
       const turn = FI.turnLeft(), dAlt = ap.alt ? ap.altTgt - s.alt : 0;
-      if (!live && Math.abs(turn) < 2 && Math.abs(dAlt) < 60) return;
-      if (!ap.hdg && !ap.alt) return;
+      if (!this.selected && !live && Math.abs(turn) < 2 && Math.abs(dAlt) < 60) return;
+      if (!this.selected && !ap.hdg && !ap.alt) return;
       const w = FI.wind, wx = -w.kt * Math.sin(w.dir * D2R), wy = w.kt * Math.cos(w.dir * D2R);
       let x = s.x, y = s.y, h = s.hdg, left = ap.hdg && !ap.nav ? turn : 0;
       const pts = [{ x, y }], dt = 1, rate = 3;
@@ -453,7 +493,10 @@
         const ad = Math.abs(dAlt), count = ad < 100 ? 1 : ad < 1000 ? 2 : 3;
         const stepPx = count === 1 ? 0 : clamp(3 + 7 * ad / 1000, 3, 8), sign = dAlt >= 0 ? 1 : -1;
         const p0 = pts[mid - 1], p1 = pts[mid + 1], L = Math.hypot(p1.x - p0.x, p1.y - p0.y) || 1, ux = (p1.x - p0.x) / L, uy = (p1.y - p0.y) / L;
-        g.lineStyle(2 / z, T(0x4da3ff), Math.min(1, a + 0.05));
+        this.tickHit = { x: pts[mid].x, y: pts[mid].y };
+        const grab = this.hoverTick || (dr && dr.kind === 'climb');
+        if (grab) { g.lineStyle(1.5 / z, T(0x4da3ff), 0.6); g.strokeCircle(pts[mid].x, pts[mid].y, (touch() ? 26 : 14) / z); }
+        g.lineStyle((grab ? 3 : 2) / z, T(0x4da3ff), grab ? 1 : Math.min(1, a + 0.05));
         for (let k = 0; k < count; k++) {
           const off = (k - (count - 1) / 2) * 7 / z, cx = pts[mid].x + ux * off, cy = pts[mid].y + uy * off;
           const half = (20 + sign * k * stepPx) / 2 / z;
