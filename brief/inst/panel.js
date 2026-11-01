@@ -7,6 +7,9 @@
   const SANS = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
   const WHITE = 0xf2f5f8, FACE = 0x0b0f14, BEZEL = 0x242c36, RING = 0x3a4654;
 
+  FI.PANELS = ['analog', 'glass', 't6a', 'hud'];
+  FI.panelName = mode => FI.PANELS.includes(mode) ? mode : 'analog';
+
   const px = (r, a) => r * Math.sin(a * D2R), py = (r, a) => -r * Math.cos(a * D2R);
   const rad = a => (a - 90) * D2R;
 
@@ -53,6 +56,8 @@
       this.buildTC(0, 1); this.buildHI(1, 1); this.buildVSI(2, 1);
       this.buildCDI(0, 2); this.buildADF(1, 2); this.buildReadout(2, 2);
       this.glass = FI.Glass(this);
+      this.t6a = FI.T6A(this);
+      this.hud = FI.HUD(this);
       this.setMode(FI.panelMode);
       if (this.pending) this.layout(this.pending);
     }
@@ -61,20 +66,22 @@
       if (!this.cam) { this.pending = L; return; }
       this.cam.setViewport(L.x, L.y, L.w, L.h);
       const s = Math.min(L.w / W, L.h / H);
-      for (const r of [this.root, this.glass.root]) r.setScale(s).setPosition((L.w - W * s) / 2, (L.h - H * s) / 2);
+      for (const r of [this.root, this.glass.root, this.t6a.root, this.hud.root]) r.setScale(s).setPosition((L.w - W * s) / 2, (L.h - H * s) / 2);
     }
 
     setMode(mode) {
-      this.mode = mode === 'glass' ? 'glass' : 'analog';
+      this.mode = FI.panelName(mode);
       this.root.setVisible(this.mode === 'analog');
       this.glass.root.setVisible(this.mode === 'glass');
+      this.t6a.root.setVisible(this.mode === 't6a');
+      this.hud.root.setVisible(this.mode === 'hud');
       this.paintPlate();
     }
 
     paintPlate() {
       const light = !!(window.facoTheme && facoTheme.isLight);
       this.lightPlate = light;
-      this.cam.setBackgroundColor(this.mode === 'glass' ? (light ? '#c3cad2' : '#05070a') : (light ? '#c3cad2' : '#141a21'));
+      this.cam.setBackgroundColor(this.mode === 'analog' ? (light ? '#c3cad2' : '#141a21') : (light ? '#c3cad2' : '#05070a'));
       this.plate.clear();
       this.plate.fillStyle(light ? 0xa9b2bc : 0x1a212a, 1);
       this.plate.fillRoundedRect(4, 4, W - 8, H - 8, 14);
@@ -298,6 +305,8 @@
       const s = FI.state, n = FI.navOut, nv = FI.nav, I = this.inst;
       if (!n || !I.asi) return;
       if (this.mode === 'glass') { this.glass.update(); return; }
+      if (this.mode === 't6a') { this.t6a.update(); return; }
+      if (this.mode === 'hud') { this.hud.update(); return; }
       I.asi.n.clear(); needle(I.asi.n, I.asi.ang(clamp(s.ias, 0, 200)), R - 22, 9, WHITE, 18);
       const ai = I.ai, ppd = R / 30, off = clamp(s.pitch, -25, 25) * ppd;
       ai.ball.setRotation(-s.bank * D2R);

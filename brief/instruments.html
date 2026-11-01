@@ -9,7 +9,7 @@
 <meta property="og:title" content="Flight Instruments — FACO">
 <meta property="og:url" content="https://facosim.com/brief/instruments.html">
 <meta property="og:type" content="website">
-<meta property="og:description" content="Fly real US VORs, TACANs, NDBs and ILS approaches on a top-down map and watch what the six-pack or a G1000-style glass cockpit shows.">
+<meta property="og:description" content="Fly real US VORs, TACANs, NDBs and ILS approaches on a top-down map and watch what the six-pack, a G1000-style glass cockpit, a T-6A panel or a head-up display shows.">
 <meta property="og:image" content="https://facosim.com/img/icon_instruments.jpg">
 <meta property="og:image:width" content="1500">
 <meta property="og:image:height" content="1500">
@@ -190,9 +190,12 @@
     <button id="btn-zin" class="icon zoom-step" title="Zoom in">+</button>
   </div>
   <div class="sep"></div>
-  <div class="seg" title="Instrument panel: analog six-pack or G1000-style glass cockpit (G)">
-    <button data-panel="analog" class="on">Six-pack</button><button data-panel="glass">Glass</button>
-  </div>
+  <select id="panel-sel" aria-label="Instrument panel" title="Instrument panel: analog six-pack, G1000-style glass cockpit, T-6A or head-up display (G steps to the next)">
+    <option value="analog">Six-pack</option>
+    <option value="glass">Glass</option>
+    <option value="t6a">T-6A</option>
+    <option value="hud">Head-Up Display</option>
+  </select>
   <div class="spacer"></div>
   <button id="btn-touch" title="Touchscreen mode: finger-sized buttons and sliders">Touch</button>
   <button id="btn-help" class="icon" title="Controls and what the instruments show (?)">?</button>
@@ -275,7 +278,7 @@
       <li><b>Radios:</b> type a frequency in <b>NAV1</b> (a VOR such as 112.60, or a localizer such as 109.70), a channel in <b>TACAN</b> (such as 73X), or a kHz in <b>ADF</b>, or pick a station from <b>Tune nearby</b>. <b>NAV1</b> or <b>TCN</b> (<kbd>V</kbd>) picks which one drives the nav indicator; − and + (<kbd>[</kbd> <kbd>]</kbd>) turn the OBS. On the map the tuned station's compass rose is turned to its magnetic north, the selected course is the dashed blue line and the thin orange line is the radial you are on.</li>
       <li><b>What each station gives:</b> a VOR gives a radial; VOR/DME and VORTAC add DME on NAV1. The aircraft has a military TACAN receiver, so a TACAN or VORTAC gives a radial and DME by channel. A standalone TACAN tuned on NAV1 (its paired VHF frequency) gives DME only, as in a civil aircraft. A DME gives distance only. An ILS gives the localizer and glideslope, and DME where the approach has it. An NDB gives a bearing on the ADF. A station only comes in within its published service volume (25 to 130 nm by class and height) and radio line of sight; out of range the flag shows.</li>
       <li><b>Magnetic:</b> headings, courses, radials and bearings are magnetic, like in the airplane. Each VOR's radials use that station's own variation, so they can differ by a few degrees from the area's. The wind is in degrees true, like a winds-aloft forecast.</li>
-      <li><b>Panel:</b> <b>Six-pack</b> or <b>Glass</b> (<kbd>G</kbd>) switches between the analog gauges and a G1000-style glass cockpit. Both show the same aircraft, so you can switch mid-flight and compare.</li>
+      <li><b>Panel:</b> the drop-down at the top (or <kbd>G</kbd> to step to the next) picks the instrument panel: <b>Six-pack</b> analog gauges, a <b>Glass</b> G1000-style cockpit, a <b>T-6A</b> trainer panel or a <b>Head-Up Display</b>. They all show the same aircraft, so you can switch mid-flight and compare. Your choice is remembered.</li>
       <li><b>Scenarios:</b> <b>Play</b> (<kbd>Space</kbd>) pauses and resumes, <b>↺ Restart</b> starts the scenario over, 1× 2× 4× sets the speed. The status bar says what the autopilot is doing.</li>
     </ul>
     <h3>The instruments</h3>
@@ -286,9 +289,11 @@
       <li><b>Turn coordinator:</b> the airplane banks to show the rate of turn. Wings on the lower marks mean a standard rate of 3° per second, a full circle in two minutes. The ball shows coordination (the model always flies coordinated).</li>
       <li><b>Heading indicator:</b> the card turns so your heading is under the line at the top. The orange bug is the autopilot's heading.</li>
       <li><b>Vertical speed:</b> climb or descent in hundreds of feet per minute.</li>
-      <li><b>ADF:</b> a fixed card with 0 at the nose: the needle points at the NDB, so it shows the relative bearing. Magnetic bearing to the station = heading + relative bearing. With no signal the needle parks at 90°. On the glass cockpit the cyan BRG1 pointer on the HSI points at the NDB against the compass rose, and the box on the left gives the magnetic bearing.</li>
+      <li><b>ADF:</b> a fixed card with 0 at the nose: the needle points at the NDB, so it shows the relative bearing. Magnetic bearing to the station = heading + relative bearing. With no signal the needle parks at 90°. On the glass cockpit the cyan BRG1 pointer on the HSI points at the NDB against the compass rose, and the box on the left gives the magnetic bearing. The T-6A panel shows it as the magenta pointer on its HSI, the head-up display as the circle on the heading tape.</li>
       <li><b>VOR/ILS:</b> turn the OBS so the course is at the top. The needle shows which side the course is on: each dot is 2° for a VOR and ½° for a localizer. With a VOR the triangle says whether that course takes you <b>TO</b> or <b>FROM</b> the station, and the OFF flag shows out of range or right over it. With the ILS the horizontal needle is the glideslope (each dot 0.14°): needle below center means fly down. Flying away from the runway on a back course the needle reads backwards.</li>
       <li><b>Glass cockpit:</b> the same information on one screen. The attitude fills the background with the yellow aircraft symbol in the middle; airspeed is the tape on the left (TAS below it), altitude on the right with vertical speed beside it, the selected altitude in cyan above and the altimeter setting below. Magenta bars on the tapes show where airspeed and altitude will be in 6 seconds. The HSI at the bottom combines the heading indicator and the nav indicator: cyan is the heading bug, the green arrow is the course with the deviation bar in its middle (2 dots each side, full scale), the small green triangle points TO or FROM, the magenta diamond is the ground track and the magenta arc on top is where the heading will be in 6 seconds. With the ILS the green diamond left of the altitude tape is the glideslope. The top bar shows the nav frequencies (green is the one feeding the HSI) and the autopilot modes, active in green and armed in white; the boxes beside the HSI show the wind and DME.</li>
+      <li><b>T-6A panel:</b> the layout of a military trainer. Airspeed is at the top left with the Mach window and the barber pole at 316 kt; the attitude indicator is in the top middle with a small arc HSI on its lower edge; the altimeter is at the top right with its hatched digital window, the MB and IN HG boxes below it; the vertical speed indicator and a TCAS display (static: there is no traffic) are below it. The full HSI is at the bottom middle: the green arrow is the course with the deviation bar in its middle (2 dots each side, full scale) and the TO or FROM triangle, the amber bug is the heading bug, and the magenta pointer and ADF box are the NDB bearing and distance. The nav source (VOR, TCN, LOC or DME) is green, and red when the signal is lost; with the ILS the glideslope scale appears beside it. DME distance, groundspeed and the time to the station are on the left of the HSI, the course and heading bug on the right.</li>
+      <li><b>Head-Up Display:</b> a generic HUD, the symbols drawn over a simulated view of the sky and ground. The heading tape is on top: the box above it is the heading, the bracket is the heading bug, the diamond the selected course, the dot the ground track, and the circle with a stem the ADF bearing to the NDB, with the turn rate scale below it. In the middle are the pitch ladder (the solid line is the horizon, dashed lines are below it), the bank scale, the fixed aircraft symbol and the flight path marker, the circle with wings, which shows where the aircraft is really going: it sits on the horizon when the climb is zero and slides sideways with drift in a crosswind. Airspeed is the tape on the left (amber marks the stall and never-exceed speeds), altitude the tape on the right with vertical speed beside it, and a hollow triangle on each tape is the autopilot's selected speed or altitude. The deviation dots at the bottom middle are the VOR, TACAN or localizer needle with the TO or FROM triangle, the dots to the right of the ladder are the glideslope. The corners show the nav radios, the autopilot modes, groundspeed, TAS, Mach, angle of attack, the wind, and the DME, radial, time to the station and ADF bearing.</li>
       <li><b>Readout:</b> the lower right box lists the NAV1 frequency and TACAN channel with the station they hear (green drives the nav indicator), the course, the radial you are on, DME distance and station, the flags, the ADF station and bearing, heading and bug, ground track and groundspeed, and the wind.</li>
     </ul>
     <h3>Data</h3>
@@ -304,7 +309,10 @@
 <script src="inst/sim.js"></script>
 <script src="inst/navdb.js"></script>
 <script src="inst/map.js"></script>
+<script src="inst/vecfont.js"></script>
 <script src="inst/glass.js"></script>
+<script src="inst/t6a.js"></script>
+<script src="inst/hud.js"></script>
 <script src="inst/panel.js"></script>
 <script src="inst/ui.js"></script>
 <script>  const q = new URLSearchParams(location.search);
@@ -318,7 +326,7 @@
   FI.startZoom = +q.get('z') || 0;
   let savedPanel = null;
   try { savedPanel = localStorage.getItem('fi-panel'); } catch (e) { }
-  FI.panelMode = (q.get('p') || savedPanel) === 'glass' ? 'glass' : 'analog';
+  FI.panelMode = FI.panelName(q.get('p') || savedPanel);
   FI.ui.init();
   document.getElementById('scn').value = String(scnIndex);
   FI.game = new Phaser.Game({

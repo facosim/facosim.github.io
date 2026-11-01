@@ -49,7 +49,8 @@
       $('btn-fit').addEventListener('click', () => FI.map.fit());
       $('btn-zin').addEventListener('click', () => FI.map.zoomCenter(1.4));
       $('btn-zout').addEventListener('click', () => FI.map.zoomCenter(1 / 1.4));
-      document.querySelectorAll('[data-panel]').forEach(b => b.addEventListener('click', () => ui.setPanel(b.dataset.panel)));
+      const panelSel = $('panel-sel');
+      panelSel.addEventListener('change', () => { ui.setPanel(panelSel.value); panelSel.blur(); });
       $('btn-touch').addEventListener('click', () => ui.setTouch(!ui.touch));
       $('btn-help').addEventListener('click', () => $('help').classList.add('open'));
       $('help-close').addEventListener('click', () => $('help').classList.remove('open'));
@@ -92,9 +93,9 @@
       ui.refresh();
     },
     setPanel(mode) {
-      FI.panelMode = mode === 'glass' ? 'glass' : 'analog';
+      FI.panelMode = FI.panelName(mode);
       try { localStorage.setItem('fi-panel', FI.panelMode); } catch (e) { }
-      if (FI.panel && FI.panel.glass) FI.panel.setMode(FI.panelMode);
+      if (FI.panel && FI.panel.hud) FI.panel.setMode(FI.panelMode);
       ui.refresh();
     },
     setSource(src) { FI.nav.src = src === 'TCN' ? 'TCN' : 'NAV'; FI.ap.gsCap = false; FI.computeNav(); ui.refresh(); },
@@ -195,7 +196,7 @@
       else if (k === 'h' || k === 'H') FI.setAp('hdg', !FI.ap.hdg);
       else if (k === 'a' || k === 'A') FI.setAp('alt', !FI.ap.alt);
       else if (k === 'n' || k === 'N') FI.setAp('nav', !FI.ap.nav);
-      else if (k === 'g' || k === 'G') ui.setPanel(FI.panelMode === 'glass' ? 'analog' : 'glass');
+      else if (k === 'g' || k === 'G') ui.setPanel(FI.PANELS[(FI.PANELS.indexOf(FI.panelMode) + 1) % FI.PANELS.length]);
       else if (k === 'v' || k === 'V') ui.setSource(FI.nav.src === 'NAV' ? 'TCN' : 'NAV');
       else if (k === ' ') FI.paused = !FI.paused;
       else if (k === 'f' || k === 'F') FI.map.setFollow(!FI.map.follow);
@@ -240,7 +241,7 @@
       const s = FI.state, ap = FI.ap, nv = FI.nav;
       $('btn-play').textContent = FI.paused ? '▶ Play' : '❚❚ Pause';
       document.querySelectorAll('[data-speed]').forEach(b => b.classList.toggle('on', +b.dataset.speed === FI.speed));
-      document.querySelectorAll('[data-panel]').forEach(b => b.classList.toggle('on', b.dataset.panel === FI.panelMode));
+      $('panel-sel').value = FI.panelMode;
       $('btn-follow').classList.toggle('on', !!(FI.map && FI.map.follow));
       $('ap-hdg').classList.toggle('on', ap.hdg); $('ap-alt').classList.toggle('on', ap.alt); $('ap-nav').classList.toggle('on', ap.nav);
       document.querySelectorAll('[data-src]').forEach(b => b.classList.toggle('on', b.dataset.src === nv.src));
