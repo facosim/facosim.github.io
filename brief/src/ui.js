@@ -148,6 +148,8 @@
       this.setTouch(saved === '1' || saved === '0' ? saved === '1' : detected, false);
 
       this.buildSettings();
+      $('set-ac').onchange = () => this.showAircraftForm();
+      $('set-ac-reset').onclick = () => { this.acDraft[$('set-ac').value] = Object.assign({}, this.acDefaults[$('set-ac').value]); this.showAircraftForm(); };
       this.watchBar();
       window.addEventListener('resize', () => this.layout());
       this.refresh();
@@ -623,14 +625,39 @@
       $('p-future').style.display = last ? '' : 'none';
     },
 
+    acFields: [
+      ['defSpeed', 'Start speed', 'kt', 5, 'Speed new aircraft of this type start with'],
+      ['defAlt', 'Start altitude', 'ft', 500, 'Altitude new aircraft of this type start at'],
+      ['vStall', 'Stall speed', 'kt', 5, 'Below this the aircraft cannot pull many g'],
+      ['vMax', 'Max speed', 'kt', 5, 'Top speed'],
+      ['maxG', 'Max g', 'g', 0.5, 'Structural limit'],
+      ['accel', 'Acceleration', 'kt/s', 0.5, 'How fast it speeds up at full power'],
+      ['induced', 'Induced drag', '', 0.01, 'Higher means less sustained g in a turn'],
+    ],
+
     buildSettings() {
-      const rows = Object.keys(DL.TYPES).map(k => {
-        const t = DL.TYPES[k];
-        return `<tr data-type="${k}"><td>${t.name}</td>` +
-          ['defSpeed', 'defAlt', 'vStall', 'vMax', 'maxG', 'accel', 'induced'].map(f =>
-            `<td><input type="number" step="${f === 'induced' ? 0.01 : f === 'maxG' || f === 'accel' ? 0.5 : f === 'defAlt' ? 500 : 5}" data-f="${f}" value="${t[f]}"></td>`).join('') + '</tr>';
-      }).join('');
-      $('set-types').innerHTML = rows;
+      const fields = this.acFields.map(f => f[0]);
+      if (!this.acDefaults) {
+        this.acDefaults = {};
+        for (const k in DL.TYPES) { this.acDefaults[k] = {}; for (const f of fields) this.acDefaults[k][f] = DL.TYPES[k][f]; }
+      }
+      this.acDraft = {};
+      for (const k in DL.TYPES) { this.acDraft[k] = {}; for (const f of fields) this.acDraft[k][f] = DL.TYPES[k][f]; }
+      const sel = $('set-ac');
+      sel.innerHTML = Object.keys(DL.TYPES).map(k => `<option value="${k}">${DL.TYPES[k].name}</option>`).join('');
+      sel.value = this.acEdit && DL.TYPES[this.acEdit] ? this.acEdit : DL.TYPES[this.placeType] ? this.placeType : Object.keys(DL.TYPES)[0];
+      this.showAircraftForm();
+    },
+
+    showAircraftForm() {
+      const k = $('set-ac').value, d = this.acDraft[k];
+      this.acEdit = k;
+      $('set-ac-form').innerHTML = this.acFields.map(([f, label, unit, step, hint]) =>
+        `<div><label for="ac-${f}">${label}${unit ? ' (' + unit + ')' : ''}</label>` +
+        `<input type="number" id="ac-${f}" step="${step}" data-f="${f}" value="${d[f]}"><span class="hint">${hint}</span></div>`).join('');
+      $('set-ac-form').querySelectorAll('input').forEach(inp => {
+        inp.oninput = () => { const v = +inp.value; if (v > 0) this.acDraft[$('set-ac').value][inp.dataset.f] = v; };
+      });
     },
 
     setSettingsTab(name) {
@@ -673,15 +700,12 @@
       st.showVertical = $('set-vert').checked;
       st.vertLevelFt = Math.max(0, +$('set-vlevel').value || 0);
       st.vertSteepFt = Math.max(st.vertLevelFt + 1, +$('set-vsteep').value || 1000);
-      document.querySelectorAll('#set-types tr[data-type]').forEach(tr => {
-        const t = DL.TYPES[tr.dataset.type];
-        tr.querySelectorAll('input').forEach(inp => {
-          const v = +inp.value;
-          if (v > 0) t[inp.dataset.f] = v;
-        });
+      for (const k in DL.TYPES) {
+        const t = DL.TYPES[k];
+        Object.assign(t, this.acDraft[k]);
         t.vMax = Math.max(t.vMax, t.vStall + 10);
         t.maxG = Math.max(1, t.maxG);
-      });
+      }
       if ($('set-touch').checked !== this.touch) this.setTouch($('set-touch').checked, true);
       if (window.facoTheme) facoTheme.set($('set-theme').value);
       DL.resimAll();
