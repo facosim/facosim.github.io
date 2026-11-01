@@ -33,6 +33,47 @@
   const VSI_SCALE = [[0, 0], [0.5, 30], [1, 70], [2, 111], [4, 152], [6, 180]];
   const vsiAng = k => 270 + Math.sign(k) * interp(VSI_SCALE, Math.min(Math.abs(k), 6));
 
+  function clipped(g, yMax) {
+    const inside = p => p.y <= yMax;
+    const cut = (a, b) => ({ x: a.x + (b.x - a.x) * (yMax - a.y) / (b.y - a.y), y: yMax });
+    const segment = (a, b) => {
+      if (inside(a) && inside(b)) return [a, b];
+      if (!inside(a) && !inside(b)) return null;
+      return inside(a) ? [a, cut(a, b)] : [cut(a, b), b];
+    };
+    const ring = (cx, cy, r) => Array.from({ length: 72 }, (_, i) => ({ x: cx + r * Math.cos(i * Math.PI / 36), y: cy + r * Math.sin(i * Math.PI / 36) }));
+    const self = {
+      clear() { g.clear(); },
+      lineStyle(...a) { g.lineStyle(...a); },
+      fillStyle(...a) { g.fillStyle(...a); },
+      lineBetween(x0, y0, x1, y1) {
+        const s = segment({ x: x0, y: y0 }, { x: x1, y: y1 });
+        if (s) g.lineBetween(s[0].x, s[0].y, s[1].x, s[1].y);
+      },
+      strokePoints(pts, closed) {
+        if (pts.every(inside)) { g.strokePoints(pts, closed); return; }
+        if (!pts.some(inside)) return;
+        const n = closed ? pts.length : pts.length - 1;
+        for (let i = 0; i < n; i++) {
+          const s = segment(pts[i], pts[(i + 1) % pts.length]);
+          if (s) g.lineBetween(s[0].x, s[0].y, s[1].x, s[1].y);
+        }
+      },
+      fillPoints(pts) {
+        const out = [];
+        for (let i = 0; i < pts.length; i++) {
+          const a = pts[i], b = pts[(i + 1) % pts.length];
+          if (inside(a)) out.push(a);
+          if (inside(a) !== inside(b)) out.push(cut(a, b));
+        }
+        if (out.length > 2) g.fillPoints(out, true);
+      },
+      fillCircle(cx, cy, r) { self.fillPoints(ring(cx, cy, r)); },
+      strokeCircle(cx, cy, r) { self.strokePoints(ring(cx, cy, r), true); },
+    };
+    return self;
+  }
+
   function taper(g, cx, cy, a, r0, r1, w0, w1, color) {
     const dx = Math.sin(a * D2R), dy = -Math.cos(a * D2R), nx = -dy, ny = dx;
     const P = (r, w) => ({ x: cx + dx * r + nx * w, y: cy + dy * r + ny * w });
@@ -240,8 +281,10 @@
     function makeHSI(c) {
       const { x: x0, y: y0, r: R, arc } = c;
       const spacing = arc ? 0.30 : 0.225;
-      const card = gfx();
-      const mid = gfx();
+      const clipY = c.clipY == null ? null : y0 + c.clipY * R;
+      const wrap = g => clipY == null ? g : clipped(g, clipY);
+      const card = wrap(gfx());
+      const mid = wrap(gfx());
       const fixed = gfx();
       fixed.fillStyle(PALE, 1);
       fixed.fillTriangle(x0, y0 - R - 0.04 * R, x0 - 0.075 * R, y0 - R - 0.13 * R, x0 + 0.075 * R, y0 - R - 0.13 * R);
@@ -333,10 +376,10 @@
       }
       fx.lineStyle(3, AMBER, 1); fx.strokeCircle(x, y, 0.05 * r);
 
-      const disc = gfx();
+      const disc = clipped(gfx(), ARC.y + 0.18 * ARC.r);
       disc.fillStyle(BLACK, 1); disc.fillCircle(ARC.x, ARC.y, ARC.r * 1.1);
 
-      const arcHsi = makeHSI({ x: ARC.x, y: ARC.y, r: ARC.r, arc: true });
+      const arcHsi = makeHSI({ x: ARC.x, y: ARC.y, r: ARC.r, arc: true, clipY: 0.18 });
       const gs = makeGS(x + 1.16 * r, y, 0.253 * r, -0.7 * r, null);
       const readouts = makeReadouts(x - 170, y - 170, x + 200, y - 170);
 
