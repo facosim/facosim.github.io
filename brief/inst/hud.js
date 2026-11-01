@@ -300,7 +300,7 @@
       ];
       apRows.forEach((row, i) => T(row.str, 866, 56 + i * 20, 11, { align: 'right', alpha: row.a }));
 
-      const tas = s.tas, tK = 288.15 - 1.98 * s.alt / 1000, mach = tas / (38.967 * Math.sqrt(tK));
+      const tas = s.tas, mach = FI.machOf(tas, s.alt);
       [`GS ${Math.round(s.gs)}`, `TAS ${Math.round(tas)}`, `M ${mach.toFixed(2).replace(/^0/, '')}`, `AOA ${aoa.toFixed(1)}`].forEach((str, i) => T(str, 116, 662 + i * 21, 12, { align: 'left' }));
       [`BARO 29.92`, `AGL ${fmtAlt(Math.max(0, s.alt - (FI.groundElev || 0)))}`].forEach((str, i) => T(str, 676, 662 + i * 21, 12, { align: 'left' }));
 

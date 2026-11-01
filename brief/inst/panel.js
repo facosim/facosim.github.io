@@ -117,26 +117,35 @@
       c.add(t);
       return t;
     }
-    hub(c, r) { const g = this.add.graphics(); g.fillStyle(0x1b222b, 1); g.fillCircle(0, 0, r || 7); g.lineStyle(1, 0x5d6b78, 1); g.strokeCircle(0, 0, r || 7); c.add(g); }
+    hub(c, r) { const g = this.add.graphics(); g.fillStyle(0x1b222b, 1); g.fillCircle(0, 0, r || 7); g.lineStyle(1, 0x5d6b78, 1); g.strokeCircle(0, 0, r || 7); c.add(g); return g; }
 
     buildASI(col, row) {
       const c = this.cell(col, row); this.bezel(c);
-      const A = FI.AC, ang = v => v * 1.7 - 170;
-      const g = this.add.graphics();
-      const arc = (v0, v1, r, w, color) => { g.lineStyle(w, color, 1); g.beginPath(); g.arc(0, 0, r, rad(ang(v0)), rad(ang(v1)), false); g.strokePath(); };
+      const g = this.add.graphics(); c.add(g);
+      this.txt(c, 'AIRSPEED', 0, -48, 11, '#aeb9c4', SANS);
+      this.txt(c, 'KNOTS', 0, 48, 11, '#aeb9c4', SANS);
+      const n = this.add.graphics(); c.add(n);
+      const hub = this.hub(c);
+      this.inst.asi = { n, g, c, hub, labels: [], ang: v => v / FI.AC.dial * 340 - 170 };
+      this.drawASI();
+    }
+
+    drawASI() {
+      const { g, c, n, hub, labels, ang } = this.inst.asi, A = FI.AC;
+      g.clear();
+      labels.splice(0).forEach(t => t.destroy());
+      const arc = (v0, v1, r, w, color) => { if (v1 <= v0) return; g.lineStyle(w, color, 1); g.beginPath(); g.arc(0, 0, r, rad(ang(v0)), rad(ang(v1)), false); g.strokePath(); };
       arc(A.vS0, A.vFe, R - 24, 7, 0xe6edf3);
       arc(A.vS1, A.vNo, R - 14, 9, 0x2fa84f);
       arc(A.vNo, A.vNe, R - 14, 9, 0xf2c94c);
       g.lineStyle(4, 0xe53935, 1); tick(g, ang(A.vNe), R - 22, R - 6);
       g.lineStyle(2, WHITE, 1);
-      for (let v = 0; v <= 200; v += 10) tick(g, ang(v), R - (v % 20 ? 8 : 14), R - 2);
-      c.add(g);
-      for (let v = 0; v <= 200; v += 20) this.txt(c, String(v), px(R - 34, ang(v)), py(R - 34, ang(v)), 17);
-      this.txt(c, 'AIRSPEED', 0, -48, 11, '#aeb9c4', SANS);
-      this.txt(c, 'KNOTS', 0, 48, 11, '#aeb9c4', SANS);
-      const n = this.add.graphics(); c.add(n); this.hub(c);
-      this.inst.asi = { n, ang };
+      for (let v = 0; v <= A.dial; v += A.dialStep / 2) tick(g, ang(v), R - (v % A.dialStep ? 8 : 14), R - 2);
+      for (let v = 0; v <= A.dial; v += A.dialStep) labels.push(this.txt(c, String(v), px(R - 34, ang(v)), py(R - 34, ang(v)), 17));
+      c.bringToTop(n); c.bringToTop(hub);
     }
+
+    refreshAircraft() { if (this.inst.asi) this.drawASI(); }
 
     buildAI(col, row) {
       const c = this.cell(col, row); this.bezel(c);
@@ -314,7 +323,7 @@
       if (this.mode === 'glass') { this.glass.update(); return; }
       if (this.mode === 't6a') { this.t6a.update(); return; }
       if (this.mode === 'hud') { this.hud.update(); return; }
-      I.asi.n.clear(); needle(I.asi.n, I.asi.ang(clamp(s.ias, 0, 200)), R - 22, 9, WHITE, 18);
+      I.asi.n.clear(); needle(I.asi.n, I.asi.ang(clamp(s.ias, 0, FI.AC.dial)), R - 22, 9, WHITE, 18);
       const ai = I.ai, ppd = R / 30, off = clamp(s.pitch, -25, 25) * ppd;
       ai.ball.setRotation(-s.bank * D2R);
       const g = ai.bg; g.clear();

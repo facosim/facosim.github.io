@@ -4,18 +4,18 @@
   const $ = id => document.getElementById(id);
   const clamp = FI.clamp;
 
-  const PITCH_TRIM = FI.aoa(100);
+  const trim = () => FI.aoa(FI.AC.speeds.cruise);
   const flag = (key, fallback = false) => { try { const v = localStorage.getItem(key); return v === null ? fallback : v === '1'; } catch (e) { return fallback; } };
   const saveFlag = (key, on) => { try { localStorage.setItem(key, on ? '1' : '0'); } catch (e) { } };
   const CENTRE = 0.08;
   const bankOf = v => Math.abs(v) < CENTRE ? 0 : Math.round(v * FI.AC.maxBank);
   const pitchOf = v => {
-    if (Math.abs(v) < CENTRE) return PITCH_TRIM;
+    if (Math.abs(v) < CENTRE) return trim();
     const AC = FI.AC, n = ui.invert ? -v : v;
-    return Math.round((PITCH_TRIM + (n >= 0 ? n * (AC.pitchMax - PITCH_TRIM) : n * (PITCH_TRIM - AC.pitchMin))) * 2) / 2;
+    return Math.round((trim() + (n >= 0 ? n * (AC.pitchMax - trim()) : n * (trim() - AC.pitchMin))) * 2) / 2;
   };
   const stickY = p => {
-    const AC = FI.AC, n = (p - PITCH_TRIM) / (p >= PITCH_TRIM ? AC.pitchMax - PITCH_TRIM : PITCH_TRIM - AC.pitchMin);
+    const AC = FI.AC, n = (p - trim()) / (p >= trim() ? AC.pitchMax - trim() : trim() - AC.pitchMin);
     return ui.invert ? -n : n;
   };
 
@@ -35,6 +35,10 @@
 
     init() {
       const sel = $('scn');
+      const acSel = $('ac-sel');
+      for (const id of FI.AIRCRAFT_IDS) { const o = document.createElement('option'); o.value = id; o.textContent = FI.AIRCRAFT[id].name; o.title = FI.AIRCRAFT[id].maker; acSel.appendChild(o); }
+      acSel.value = FI.AC.id;
+      acSel.addEventListener('change', () => { ui.setAircraft(acSel.value); acSel.blur(); });
       ui.fillScenarios();
       sel.addEventListener('change', () => { ui.start(sel.value); sel.blur(); });
       const dl = $('apt-list');
@@ -80,8 +84,6 @@
       window.addEventListener('hashchange', () => { const m = FI.panelFromHash(location.hash); if (m && m !== FI.panelMode) ui.setPanel(m); });
       $('c-level').addEventListener('click', () => { FI.setControl('bank', 0); ui.refresh(); });
       $('c-hold').addEventListener('click', () => ui.setHold(!ui.hold));
-      ui.repeat($('bug-dec'), () => ui.bump('bug', -1)); ui.repeat($('bug-inc'), () => ui.bump('bug', 1));
-      ui.repeat($('obs-dec'), () => ui.bump('obs', -1)); ui.repeat($('obs-inc'), () => ui.bump('obs', 1));
       $('ap-hdg').addEventListener('click', () => { FI.setAp('hdg', !FI.ap.hdg); ui.refresh(); });
       $('ap-alt').addEventListener('click', () => { FI.setAp('alt', !FI.ap.alt); ui.refresh(); });
       $('ap-nav').addEventListener('click', () => { FI.setAp('nav', !FI.ap.nav); ui.refresh(); });
@@ -102,11 +104,13 @@
         release(used) {
           if (!ui.hold) {
             if (used.x) FI.setControl('bank', 0);
-            if (used.y) FI.setControl('pitch', PITCH_TRIM);
+            if (used.y) FI.setControl('pitch', trim());
           }
           ui.refresh();
         },
       });
+      ui.bugKnob = FI.Knob($('bug-knob'), { change: d => ui.bump('bug', d) });
+      ui.obsKnob = FI.Knob($('obs-knob'), { change: d => ui.bump('obs', d) });
       ui.throttle = FI.Lever($('throttle'), {
         change(v) { FI.setControl('power', v); ui.refresh(); },
         nudge(d) { FI.setControl('power', clamp(Math.round(FI.state.power) + d, 0, 100)); ui.refresh(); },
@@ -129,15 +133,29 @@
       ui.controls();
     },
 
-    repeat(btn, fn) {
-      let t = null, iv = null;
-      const stop = () => { clearTimeout(t); clearInterval(iv); t = iv = null; };
-      btn.addEventListener('pointerdown', e => { e.preventDefault(); fn(); t = setTimeout(() => { iv = setInterval(fn, 60); }, 400); });
-      for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) btn.addEventListener(ev, stop);
-    },
     bump(what, d) {
       FI.nav[what] = FI.norm360(FI.nav[what] + d);
       ui.refresh();
+    },
+    setAircraft(id) {
+      const cur = $('scn').value;
+      FI.setAircraft(id);
+      try { localStorage.setItem('fi-aircraft', FI.AC.id); } catch (e) { }
+      $('ac-sel').value = FI.AC.id;
+      FI.buildScenarios();
+      ui.fillScenarios();
+      if (FI.panel && FI.panel.refreshAircraft) FI.panel.refreshAircraft();
+      ui.refreshAircraft();
+      ui.start(cur === '' ? 'free' : cur);
+      if (FI.map) FI.map.fit();
+    },
+    refreshAircraft() {
+      const AC = FI.AC;
+      for (const it of ui.quickItems || []) {
+        if (it.step === 'spd') it.vEl.textContent = (it.sign > 0 ? '+' : '−') + AC.spdStep + ' kt';
+        if (it.step === 'alt') it.vEl.textContent = (it.sign > 0 ? '+' : '−') + (AC.climbBy / 2).toLocaleString('en-US') + ' ft';
+      }
+      ui.controls();
     },
     setPanel(mode) {
       FI.panelMode = FI.panelName(mode);
@@ -305,6 +323,7 @@
       if (radios || act !== $('r-tcn')) $('r-tcn').value = nv.chan || '';
       if (radios || act !== $('r-adf')) $('r-adf').value = nv.khz ? String(nv.khz) : '';
       $('bug-v').textContent = FI.pad3(nv.bug) + '°';
+      if (ui.bugKnob) { ui.bugKnob.set(nv.bug); ui.obsKnob.set(nv.obs); }
       $('obs-v').textContent = FI.pad3(nv.obs) + '°';
       $('ap-alt').title = ap.alt ? `Holding ${Math.round(ap.altTgt).toLocaleString('en-US')} ft (A)` : 'Hold the current altitude (A)';
       ui.controls();
@@ -317,7 +336,7 @@
       $('c-bank-v').textContent = `${Math.abs(Math.round(s.cmdBank))}° ${s.cmdBank < -0.5 ? 'L' : s.cmdBank > 0.5 ? 'R' : ''}`;
       const pitch = Math.round(s.cmdPitch * 10) / 10;
       $('c-pitch-v').textContent = `${pitch >= 0 ? '+' : ''}${pitch.toFixed(1)}°`;
-      $('c-power-v').textContent = `${Math.round(s.power)}%`;
+      $('c-power-v').textContent = `${Math.round(s.power)}%${FI.AC.ab && s.power > FI.AC.ab.at ? ' AB' : ''}`;
     },
 
     lastTick: 0,
@@ -354,7 +373,7 @@
     },
     climbTip(p, d) {
       const a = d.dAlt;
-      const alt = a === 0 ? `<b>Hold ${d.altTgt.toLocaleString('en-US')} ft</b>` : `<b>${a > 0 ? 'Climb' : 'Descend'} ${a > 0 ? '+' : '−'}${Math.abs(a).toLocaleString('en-US')} ft to ${d.altTgt.toLocaleString('en-US')} ft</b> at 500 fpm`;
+      const alt = a === 0 ? `<b>Hold ${d.altTgt.toLocaleString('en-US')} ft</b>` : `<b>${a > 0 ? 'Climb' : 'Descend'} ${a > 0 ? '+' : '−'}${Math.abs(a).toLocaleString('en-US')} ft to ${d.altTgt.toLocaleString('en-US')} ft</b> at ${FI.AC.climbFpm} fpm`;
       ui.tip(`${alt}<br><span class="dim">Drag up to climb, down to descend.</span>`, p);
     },
 
@@ -362,12 +381,12 @@
     buildQuick() {
       const box = $('quick'), NS = 'http://www.w3.org/2000/svg';
       const items = ui.quickItems = [
-        { a: 0, t: 'Climb', v: '+500 ft', go: m => ui.qAlt(500 * m) },
+        { a: 0, t: 'Climb', v: '+500 ft', step: 'alt', sign: 1, go: m => ui.qAlt(FI.AC.climbBy / 2 * m) },
         { a: 45, t: 'Right', v: '30°', go: m => ui.qTurn(30 * m) },
         { a: 90, t: 'Right', v: '90°', go: m => ui.qTurn(90 * m) },
-        { a: 135, t: 'Faster', v: '+10 kt', go: m => ui.qSpd(10 * m) },
-        { a: 180, t: 'Descend', v: '−500 ft', go: m => ui.qAlt(-500 * m) },
-        { a: 225, t: 'Slower', v: '−10 kt', go: m => ui.qSpd(-10 * m) },
+        { a: 135, t: 'Faster', v: '+10 kt', step: 'spd', sign: 1, go: m => ui.qSpd(FI.AC.spdStep * m) },
+        { a: 180, t: 'Descend', v: '−500 ft', step: 'alt', sign: -1, go: m => ui.qAlt(-FI.AC.climbBy / 2 * m) },
+        { a: 225, t: 'Slower', v: '−10 kt', step: 'spd', sign: -1, go: m => ui.qSpd(-FI.AC.spdStep * m) },
         { a: 270, t: 'Left', v: '90°', go: m => ui.qTurn(-90 * m) },
         { a: 315, t: 'Left', v: '30°', go: m => ui.qTurn(-30 * m) },
       ];
@@ -384,7 +403,7 @@
         g.appendChild(path);
         const [tx, ty] = pt(it.a, (r0 + r1) / 2);
         const t1 = document.createElementNS(NS, 'text'); t1.setAttribute('x', tx); t1.setAttribute('y', ty - 3); t1.textContent = it.t;
-        const t2 = document.createElementNS(NS, 'text'); t2.setAttribute('x', tx); t2.setAttribute('y', ty + 11); t2.setAttribute('class', 'v'); t2.textContent = it.v;
+        const t2 = document.createElementNS(NS, 'text'); t2.setAttribute('x', tx); t2.setAttribute('y', ty + 11); t2.setAttribute('class', 'v'); t2.textContent = it.v; it.vEl = t2;
         g.appendChild(t1); g.appendChild(t2);
         const fire = e => { e.preventDefault(); e.stopPropagation(); it.go(e.shiftKey ? 2 : 1); ui.flash(g); ui.refresh(); ui.quickReadout(); };
         g.addEventListener('click', fire);
@@ -435,7 +454,7 @@
     },
     qSpd(d) {
       const ap = FI.ap, run = FI.scn && !FI.scn.off;
-      FI.steer({ ias: (!run && ap.spd ? ap.spdTgt : Math.round(FI.state.ias / 5) * 5) + d });
+      FI.steer({ ias: (!run && ap.spd ? ap.spdTgt : Math.round(FI.state.ias / (FI.AC.spdStep / 2)) * (FI.AC.spdStep / 2)) + d });
     },
     quickPill(q) {
       const s = FI.state;

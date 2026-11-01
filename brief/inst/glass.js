@@ -234,7 +234,7 @@
       band(A.vS0, A.vFe, ASI.x1 - 14, 5, WHITE);
       band(A.vS1, A.vNo, ASI.x1 - 8, 8, 0x2fa84f);
       band(A.vNo, A.vNe, ASI.x1 - 8, 8, YELLOW);
-      band(A.vNe, 400, ASI.x1 - 8, 8, 0xe53935);
+      band(A.vNe, A.vNe + 300, ASI.x1 - 8, 8, 0xe53935);
       t.lineStyle(2, WHITE, 1);
       let ai = 0;
       const v0 = Math.floor((s.ias - 50) / 5) * 5;

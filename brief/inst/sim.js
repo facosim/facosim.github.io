@@ -12,15 +12,7 @@ window.FI = window.FI || {};
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
   Object.assign(FI, { NM, KT, KT2FPM, D2R, R2D, norm360, norm180, clamp });
 
-  const AC = FI.AC = {
-    name: 'Trainer', kT: 3.88, tMax: 4.0, dragA: 1.824, dragB: 0.39,
-    vMin: 45, vNe: 163, vS0: 40, vS1: 48, vFe: 85, vNo: 129,
-    rollRate: 15, pitchRate: 3, maxBank: 30, pitchMin: -10, pitchMax: 15,
-  };
-  const aoa = V => 0.5 + 4.5 * (85 / Math.max(V, 40)) ** 2;
-  const thrust = (V, p) => Math.min(AC.tMax, AC.kT * (p / 100) * (100 / Math.max(V, 40)));
-  const drag = V => { const v = Math.max(V, 40) / 100; return AC.dragA * v * v + AC.dragB / (v * v); };
-  FI.aoa = aoa;
+  const AC = FI.AC, M = FI.model, G = M.G, aoa = FI.aoa;
 
   const S = FI.state = {
     x: 0, y: 0, hdg: 0, ias: 100, alt: 3000, vs: 0, pitch: 3.5, bank: 0, power: 65,
@@ -201,7 +193,7 @@ window.FI = window.FI || {};
       vsTgt = clamp(-S.gs * KT2FPM * Math.tan(n.loc.gsAngle * D2R) - 600 * n.gsDev, -1500, 300);
     } else if (t.vs != null) vsTgt = t.vs;
     else if (t.alt != null) {
-      const vmax = t.vsMax || 500;
+      const vmax = t.vsMax || AC.climbFpm;
       vsTgt = clamp((t.alt - S.alt) * 2, -vmax, vmax);
     }
     if (vsTgt != null) {
@@ -210,8 +202,8 @@ window.FI = window.FI || {};
     }
     if (t.ias != null) {
       const gamma = (S.pitch - aoa(S.ias)) * D2R;
-      const need = (drag(S.ias) + 19.06 * Math.sin(gamma)) * S.ias / AC.kT;
-      S.power = clamp(need + 2 * (t.ias - S.ias), 0, 100);
+      const need = M.powerFor(M.drag(S.ias) + G * Math.sin(gamma) + M.energy(S.ias, S.vs), S.ias, S.alt);
+      S.power = clamp(need + 200 / AC.speeds.cruise * (t.ias - S.ias), 0, 100);
     }
   }
 
@@ -221,14 +213,15 @@ window.FI = window.FI || {};
     S.bank += clamp(db, -AC.rollRate * dt, AC.rollRate * dt);
     const dp = clamp(S.cmdPitch, AC.pitchMin, AC.pitchMax) - S.pitch;
     S.pitch += clamp(dp, -AC.pitchRate * dt, AC.pitchRate * dt);
-    S.tas = S.ias * (1 + 0.02 * S.alt / 1000);
+    const ratio = M.ratio(S.alt);
+    S.tas = S.ias * ratio;
     S.turnRate = 1091 * Math.tan(S.bank * D2R) / Math.max(S.tas, 40);
     S.hdg = norm360(S.hdg + S.turnRate * dt);
     const gamma = (S.pitch - aoa(S.ias)) * D2R;
     S.vs = S.tas * KT2FPM * Math.sin(gamma);
     S.alt = Math.max(FI.groundElev || 0, S.alt + S.vs / 60 * dt);
-    const acc = thrust(S.ias, S.power) - drag(S.ias) - 19.06 * Math.sin(gamma);
-    S.ias = clamp(S.ias + acc * dt, AC.vMin, 220);
+    const acc = M.thrust(S.ias, S.power, S.alt) - M.drag(S.ias) - G * Math.sin(gamma);
+    S.ias = clamp(S.ias + (acc - M.energy(S.ias, S.vs)) / ratio * dt, AC.vMin, M.vCap(S.alt));
     const h = S.hdg * D2R, wd = w.dir * D2R;
     const ge = S.tas * Math.sin(h) - w.kt * Math.sin(wd), gn = S.tas * Math.cos(h) - w.kt * Math.cos(wd);
     S.gs = Math.hypot(ge, gn);
@@ -294,7 +287,7 @@ window.FI = window.FI || {};
       ap.turnDir = dir || 0;
     }
     if (alt != null) { ap.alt = true; ap.altTgt = Math.max(FI.groundElev || 0, Math.round(alt / 100) * 100); ap.gsCap = false; }
-    if (ias != null) { ap.spd = true; ap.spdTgt = clamp(Math.round(ias), FI.SPD_MIN, FI.SPD_MAX); }
+    if (ias != null) { ap.spd = true; ap.spdTgt = clamp(Math.round(ias), AC.spdMin, AC.spdMax); }
     FI.msg = '';
   };
   FI.turnLeft = function () {
@@ -304,7 +297,6 @@ window.FI = window.FI || {};
     if (ap.turnDir && Math.abs(err) >= 10 && Math.sign(err) !== ap.turnDir) err += 360 * ap.turnDir;
     return err;
   };
-  FI.SPD_MIN = 60; FI.SPD_MAX = 125;
 
   const pad3 = h => String(Math.round(norm360(h)) % 360 || 360).padStart(3, '0');
   const fmtAlt = a => Math.round(a).toLocaleString('en-US');
@@ -321,52 +313,57 @@ window.FI = window.FI || {};
     const via = (s, m) => ({ course: vt(s, m), x: s.x, y: s.y });
     const viaVor = m => via(V, m);
     const dist = s => Math.hypot(S.x - s.x, S.y - s.y) / NM;
-    const level = (alt, hdg) => ({ name: `Hold heading ${pad3(hdg)}, ${fmtAlt(alt)} ft`, hdg: M(hdg), alt, ias: 100 });
+    const SP = AC.speeds, CL = AC.climbFpm, DS = AC.descFpm, UP = AC.climbBy;
+    const tasT = SP.turn * (1 + 0.02 * A / 1000), sbank = Math.round(Math.atan(3 * tasT / 1091) * R2D);
+    const turnBrief = sbank <= AC.maxBank - 5
+      ? `A right turn at 3° per second: about ${sbank}° of bank at ${SP.turn} kt, two minutes around. Watch the turn coordinator and the heading indicator.`
+      : `At ${SP.turn} kt a 3° per second turn would need ${sbank}° of bank, more than this aircraft allows here, so it turns as fast as it can. Watch the turn coordinator and the heading indicator.`;
+    const level = (alt, hdg) => ({ name: `Hold heading ${pad3(hdg)}, ${fmtAlt(alt)} ft`, hdg: M(hdg), alt, ias: SP.cruise });
     const radios = { src: 'NAV', mhz: V.mhz, chan: H.tacan ? H.tacan.chan : FI.nav.chan, khz: H.ndb ? H.ndb.khz : FI.nav.khz };
     const vorName = `${V.id} ${V.type || 'VOR'} ${FI.fmtMhz(V.mhz)}`;
     const list = [
       {
         id: 'level', name: `Straight and level across ${V.id}`,
-        brief: `${vorName}. Hold heading 045 at ${fmtAlt(A)} ft and 100 kt. Watch the TO flag flip to FROM as you cross the station.`,
-        start: { ...pos(225, 6), hdg: M(45), alt: A, ias: 100 }, nav: { ...radios, obs: 45, bug: 45 },
-        steps: [{ name: 'Straight and level, heading 045', hdg: M(45), alt: A, ias: 100 }],
+        brief: `${vorName}. Hold heading 045 at ${fmtAlt(A)} ft and ${SP.cruise} kt. Watch the TO flag flip to FROM as you cross the station.`,
+        start: { ...pos(225, 6), hdg: M(45), alt: A, ias: SP.cruise }, nav: { ...radios, obs: 45, bug: 45 },
+        steps: [{ name: 'Straight and level, heading 045', hdg: M(45), alt: A, ias: SP.cruise }],
       },
       {
         id: 'turn360', name: 'Standard-rate 360° turn',
-        brief: 'A right turn at 3° per second: about 15° of bank at 100 kt, two minutes around. Watch the turn coordinator and the heading indicator.',
-        start: { ...pos(180, 5), hdg: M(360), alt: A, ias: 100 }, nav: { ...radios, obs: 360, bug: 360 },
+        brief: turnBrief,
+        start: { ...pos(180, 5), hdg: M(360), alt: A, ias: SP.turn }, nav: { ...radios, obs: 360, bug: 360 },
         steps: [
-          { name: 'Standard-rate turn to the right', bank: 'std', alt: A, ias: 100, until: (c) => c.turned >= 360 - S.bank / 2 },
-          { name: 'Roll out on heading 360', hdg: M(360), alt: A, ias: 100 },
+          { name: 'Standard-rate turn to the right', bank: 'std', alt: A, ias: SP.turn, until: (c) => c.turned >= 360 - S.bank / 2 },
+          { name: 'Roll out on heading 360', hdg: M(360), alt: A, ias: SP.turn },
         ],
       },
       {
         id: 'climb', name: 'Climb 1,000 ft and level off',
-        brief: `Climb from ${fmtAlt(A)} to ${fmtAlt(A + 1000)} ft at 500 fpm and 90 kt, then level off. Watch the VSI lead and the altimeter catch up.`,
-        start: { ...pos(270, 6), hdg: M(90), alt: A, ias: 100 }, nav: { ...radios, obs: 90, bug: 90 },
+        brief: `Climb from ${fmtAlt(A)} to ${fmtAlt(A + UP)} ft at ${CL} fpm and ${SP.climb} kt, then level off. Watch the VSI lead and the altimeter catch up.`,
+        start: { ...pos(270, 6), hdg: M(90), alt: A, ias: SP.cruise }, nav: { ...radios, obs: 90, bug: 90 },
         steps: [
-          { name: `Climb to ${fmtAlt(A + 1000)} ft at 500 fpm, 90 kt`, hdg: M(90), alt: A + 1000, vsMax: 500, ias: 90, until: () => Math.abs(S.alt - A - 1000) < 30 && Math.abs(S.vs) < 80 },
-          { name: `Level at ${fmtAlt(A + 1000)} ft, 100 kt`, hdg: M(90), alt: A + 1000, ias: 100 },
+          { name: `Climb to ${fmtAlt(A + UP)} ft at ${CL} fpm, ${SP.climb} kt`, hdg: M(90), alt: A + UP, vsMax: CL, ias: SP.climb, until: () => Math.abs(S.alt - A - UP) < 30 && Math.abs(S.vs) < Math.max(80, CL * 0.12) },
+          { name: `Level at ${fmtAlt(A + UP)} ft, ${SP.cruise} kt`, hdg: M(90), alt: A + UP, ias: SP.cruise },
         ],
       },
       {
         id: 'radialOut', name: `Intercept and track the ${V.id} 090 radial outbound`,
         brief: `${vorName}, OBS 090. From south of the course the needle is left: fly toward it with a 30° intercept, then track outbound with the FROM flag.`,
-        start: { ...pos(160, 4), hdg: M(360), alt: A, ias: 100 }, nav: { ...radios, obs: 90, bug: 60 },
+        start: { ...pos(160, 4), hdg: M(360), alt: A, ias: SP.cruise }, nav: { ...radios, obs: 90, bug: 60 },
         steps: [
-          { name: 'Intercept the 090 radial, heading 060', track: viaVor(90), alt: A, ias: 100, until: () => Math.abs(xtk(vt(V, 90), V.x, V.y)) < 0.15 },
-          { name: 'Track the 090 radial outbound', track: viaVor(90), alt: A, ias: 100, until: () => dist(V) >= 12 },
+          { name: 'Intercept the 090 radial, heading 060', track: viaVor(90), alt: A, ias: SP.cruise, until: () => Math.abs(xtk(vt(V, 90), V.x, V.y)) < 0.15 },
+          { name: 'Track the 090 radial outbound', track: viaVor(90), alt: A, ias: SP.cruise, until: () => dist(V) >= 12 },
           level(A, 90),
         ],
       },
       {
         id: 'direct', name: `Direct to ${V.id} and station passage`,
         brief: `${vorName}. Inbound on the 300 radial with course 120 set: the needle is centered with TO. Over the station the flag shows, then FROM as you go outbound.`,
-        start: { ...pos(300, 8), hdg: M(120), alt: A, ias: 100 }, nav: { ...radios, obs: 120, bug: 120 },
+        start: { ...pos(300, 8), hdg: M(120), alt: A, ias: SP.cruise }, nav: { ...radios, obs: 120, bug: 120 },
         steps: [
-          { name: 'Track inbound on the 300 radial, course 120', track: viaVor(120), alt: A, ias: 100, until: () => dist(V) < 0.4 },
-          { name: 'Station passage: TO becomes FROM', track: viaVor(120), alt: A, ias: 100, until: () => dist(V) > 1 },
-          { name: 'Track outbound on the 120 radial', track: viaVor(120), alt: A, ias: 100, until: () => dist(V) >= 8 },
+          { name: 'Track inbound on the 300 radial, course 120', track: viaVor(120), alt: A, ias: SP.cruise, until: () => dist(V) < 0.4 },
+          { name: 'Station passage: TO becomes FROM', track: viaVor(120), alt: A, ias: SP.cruise, until: () => dist(V) > 1 },
+          { name: 'Track outbound on the 120 radial', track: viaVor(120), alt: A, ias: SP.cruise, until: () => dist(V) >= 8 },
           level(A, 120),
         ],
       },
@@ -378,31 +375,31 @@ window.FI = window.FI || {};
       const crs = Math.round(L.crsM), ih = norm360(crs - 30);
       const da = L.hasGs ? L.da : L.elev + 500;
       const steps = [
-        { name: `Intercept the localizer, heading ${pad3(ih)}`, hdg: norm360(L.course - 30), alt: A, ias: 100, until: () => FI.navOut.kind === 'LOC' && FI.navOut.locValid && Math.abs(FI.navOut.locDev) < 1.2 },
+        { name: `Intercept the localizer, heading ${pad3(ih)}`, hdg: norm360(L.course - 30), alt: A, ias: SP.int, until: () => FI.navOut.kind === 'LOC' && FI.navOut.locValid && Math.abs(FI.navOut.locDev) < 1.2 },
       ];
       if (L.hasGs) {
-        steps.push({ name: 'Track the localizer, glideslope armed', track: viaLoc, alt: A, gs: true, ias: 90, until: () => FI.ap.gsCap });
-        steps.push({ name: 'Descend on the glideslope, 90 kt', track: viaLoc, gs: true, ias: 90, until: () => S.alt <= da });
+        steps.push({ name: 'Track the localizer, glideslope armed', track: viaLoc, alt: A, gs: true, ias: SP.appr, until: () => FI.ap.gsCap });
+        steps.push({ name: `Descend on the glideslope, ${SP.appr} kt`, track: viaLoc, gs: true, ias: SP.appr, until: () => S.alt <= da });
       } else {
-        steps.push({ name: 'Track the localizer', track: viaLoc, alt: A, ias: 90, until: () => Math.hypot(S.x - L.thr.x, S.y - L.thr.y) / NM < 6 });
-        steps.push({ name: `Descend to ${fmtAlt(da)} ft at 700 fpm`, track: viaLoc, alt: da, vsMax: 700, ias: 90, until: () => Math.hypot(S.x - L.thr.x, S.y - L.thr.y) / NM < 0.8 });
+        steps.push({ name: 'Track the localizer', track: viaLoc, alt: A, ias: SP.appr, until: () => Math.hypot(S.x - L.thr.x, S.y - L.thr.y) / NM < 6 });
+        steps.push({ name: `Descend to ${fmtAlt(da)} ft at ${DS} fpm`, track: viaLoc, alt: da, vsMax: DS, ias: SP.appr, until: () => Math.hypot(S.x - L.thr.x, S.y - L.thr.y) / NM < 0.8 });
       }
-      steps.push({ name: `Missed approach: climb to ${fmtAlt(A)} ft on runway heading`, hdg: L.course, alt: A, vsMax: 700, ias: 80 });
+      steps.push({ name: `Missed approach: climb to ${fmtAlt(A)} ft on runway heading`, hdg: L.course, alt: A, vsMax: DS, ias: SP.missed });
       list.push({
         id: 'ils', name: `${L.name} at ${apt.code}`,
         brief: `${L.id} ${FI.fmtMhz(L.mhz)}, course ${pad3(crs)}. Heading ${pad3(ih)} cuts the localizer at 30°. Track it inbound` +
-          (L.hasGs ? `, capture the ${L.gsAngle}° glideslope from below at 90 kt, descend to the ${fmtAlt(da)} ft decision altitude and go around.` : `, descend to ${fmtAlt(da)} ft (no glideslope on this one) and go around.`),
-        start: { x: L.thr.x - dx * 16 * NM + rx * 3 * NM, y: L.thr.y - dy * 16 * NM + ry * 3 * NM, hdg: norm360(L.course - 30), alt: A, ias: 100 },
+          (L.hasGs ? `, capture the ${L.gsAngle}° glideslope from below at ${SP.appr} kt, descend to the ${fmtAlt(da)} ft decision altitude and go around.` : `, descend to ${fmtAlt(da)} ft (no glideslope on this one) and go around.`),
+        start: { x: L.thr.x - dx * 16 * NM + rx * 3 * NM, y: L.thr.y - dy * 16 * NM + ry * 3 * NM, hdg: norm360(L.course - 30), alt: A, ias: SP.int },
         nav: { ...radios, src: 'NAV', mhz: L.mhz, obs: crs, bug: ih }, steps,
       });
     }
     list.push({
       id: 'xwind', name: 'Track a radial in a crosswind',
       brief: `Wind from the north at 20 kt. To keep the needle centered on course 090 to ${V.id} the nose points about 12° left of the track: heading and track differ by the wind correction angle.`,
-      start: { ...pos(270, 8), hdg: norm360(vt(V, 90) - 12), alt: A, ias: 100 }, nav: { ...radios, obs: 90, bug: 78 }, wind: { dir: 360, kt: 20 },
+      start: { ...pos(270, 8), hdg: norm360(vt(V, 90) - 12), alt: A, ias: SP.cruise }, nav: { ...radios, obs: 90, bug: 78 }, wind: { dir: 360, kt: 20 },
       steps: [
-        { name: 'Track course 090 to the station, crabbed into the wind', track: viaVor(90), alt: A, ias: 100, until: () => dist(V) < 0.4 },
-        { name: 'Track the 090 radial outbound, still crabbed', track: viaVor(90), alt: A, ias: 100 },
+        { name: 'Track course 090 to the station, crabbed into the wind', track: viaVor(90), alt: A, ias: SP.cruise, until: () => dist(V) < 0.4 },
+        { name: 'Track the 090 radial outbound, still crabbed', track: viaVor(90), alt: A, ias: SP.cruise },
       ],
     });
     const T = H.tacan;
@@ -410,11 +407,11 @@ window.FI = window.FI || {};
       list.push({
         id: 'tacan', name: `TACAN: ${T.id} channel ${T.chan}, 180 radial outbound`,
         brief: `${T.id} ${T.type}, channel ${T.chan}. The TACAN receiver gives azimuth and DME by channel. Inbound on the 360 radial with course 180 set, cross the station and track the 180 radial out to 10 DME.`,
-        start: { ...posAt(T, 360, 8), hdg: M(180), alt: A, ias: 100 }, nav: { ...radios, src: 'TCN', chan: T.chan, obs: 180, bug: 180 },
+        start: { ...posAt(T, 360, 8), hdg: M(180), alt: A, ias: SP.cruise }, nav: { ...radios, src: 'TCN', chan: T.chan, obs: 180, bug: 180 },
         steps: [
-          { name: 'Track inbound on the 360 radial, course 180', track: via(T, 180), alt: A, ias: 100, until: () => dist(T) < 0.4 },
-          { name: 'Station passage: TO becomes FROM', track: via(T, 180), alt: A, ias: 100, until: () => dist(T) > 1 },
-          { name: 'Track the 180 radial outbound to 10 DME', track: via(T, 180), alt: A, ias: 100, until: () => dist(T) >= 10 },
+          { name: 'Track inbound on the 360 radial, course 180', track: via(T, 180), alt: A, ias: SP.cruise, until: () => dist(T) < 0.4 },
+          { name: 'Station passage: TO becomes FROM', track: via(T, 180), alt: A, ias: SP.cruise, until: () => dist(T) > 1 },
+          { name: 'Track the 180 radial outbound to 10 DME', track: via(T, 180), alt: A, ias: SP.cruise, until: () => dist(T) >= 10 },
           level(A, 180),
         ],
       });
@@ -425,23 +422,23 @@ window.FI = window.FI || {};
       list.push({
         id: 'ndb', name: `NDB: track to ${N.id} and station passage`,
         brief: `${N.id} NDB ${N.khz} kHz on the ADF. Turn until the needle points at the nose (0°), track to the beacon, and watch the needle swing to the tail (180°) over it.`,
-        start: { ...p, hdg: norm360(brg + 60), alt: A, ias: 100 }, nav: { ...radios, khz: N.khz, obs: 90, bug: Math.round(FI.toMag(brg)) },
+        start: { ...p, hdg: norm360(brg + 60), alt: A, ias: SP.cruise }, nav: { ...radios, khz: N.khz, obs: 90, bug: Math.round(FI.toMag(brg)) },
         steps: [
-          { name: `Turn and track to ${N.id}, needle on the nose`, mode: 'TRK', track: { course: brg, x: N.x, y: N.y }, alt: A, ias: 100, until: () => dist(N) < 0.3 },
-          { name: 'Station passage: the needle swings to the tail', mode: 'TRK', track: { course: brg, x: N.x, y: N.y }, alt: A, ias: 100, until: () => dist(N) > 4 },
+          { name: `Turn and track to ${N.id}, needle on the nose`, mode: 'TRK', track: { course: brg, x: N.x, y: N.y }, alt: A, ias: SP.cruise, until: () => dist(N) < 0.3 },
+          { name: 'Station passage: the needle swings to the tail', mode: 'TRK', track: { course: brg, x: N.x, y: N.y }, alt: A, ias: SP.cruise, until: () => dist(N) > 4 },
           level(A, Math.round(FI.toMag(brg))),
         ],
       });
     }
     FI.SCENARIOS = list;
-    FI.freeStart = { ...pos(225, 6), hdg: M(45), alt: A, ias: 100, nav: { ...radios } };
+    FI.freeStart = { ...pos(225, 6), hdg: M(45), alt: A, ias: SP.cruise, nav: { ...radios } };
   };
 
   FI.loadScenario = function (def) {
     const st = def.start;
     Object.assign(S, { x: st.x, y: st.y, hdg: st.hdg, alt: st.alt, ias: st.ias, vs: 0, bank: 0, cmdBank: 0, turnRate: 0, t: 0 });
     S.pitch = S.cmdPitch = aoa(S.ias);
-    S.power = clamp(drag(S.ias) * S.ias / AC.kT, 0, 100);
+    S.power = M.powerFor(M.drag(S.ias), S.ias, S.alt);
     Object.assign(FI.nav, def.nav);
     if (def.wind) Object.assign(FI.wind, def.wind);
     Object.assign(FI.ap, { hdg: false, alt: false, nav: false, spd: false, turnDir: 0, gsCap: false, info: null, altTgt: st.alt });
@@ -457,7 +454,7 @@ window.FI = window.FI || {};
     FI.scn = null;
     const f = FI.freeStart;
     Object.assign(S, { x: f.x, y: f.y, hdg: f.hdg, alt: f.alt, ias: f.ias, vs: 0, bank: 0, cmdBank: 0, turnRate: 0, t: 0 });
-    S.pitch = S.cmdPitch = aoa(S.ias); S.power = clamp(drag(S.ias) * S.ias / AC.kT, 0, 100);
+    S.pitch = S.cmdPitch = aoa(S.ias); S.power = M.powerFor(M.drag(S.ias), S.ias, S.alt);
     Object.assign(FI.ap, { hdg: false, alt: false, nav: false, spd: false, turnDir: 0, gsCap: false, info: null });
     FI.trail.length = 0; trailT = 0; acc = 0; FI.msg = 'You have control'; FI.paused = false;
     physics(0); computeNav();

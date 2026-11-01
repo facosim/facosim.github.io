@@ -53,6 +53,22 @@
   </g>
 </svg>`;
 
+  const KNOB = `<svg viewBox="0 0 48 48" aria-hidden="true">
+  <defs>
+    <radialGradient id="fi-knob" cx="35%" cy="30%" r="78%">
+      <stop offset="0" stop-color="#7b8999"/>
+      <stop offset=".55" stop-color="#2f3944"/>
+      <stop offset="1" stop-color="#171d24"/>
+    </radialGradient>
+  </defs>
+  <circle class="k-ring" cx="24" cy="24" r="22.5"/>
+  <g class="k-rot" transform="rotate(0 24 24)">
+    <circle class="k-body" cx="24" cy="24" r="18" fill="url(#fi-knob)"/>
+    <path class="k-grip" d="M24 6.5V9M24 39V41.5M6.5 24H9M39 24H41.5M11.6 11.6L13.4 13.4M34.6 34.6L36.4 36.4M36.4 11.6L34.6 13.4M13.4 34.6L11.6 36.4"/>
+    <path class="k-mark" d="M24 9.5V21"/>
+  </g>
+</svg>`;
+
   function drag(el, h) {
     let id = null;
     const stop = e => {
@@ -208,6 +224,47 @@
         kick();
       },
       get active() { return pointer.active; },
+    };
+  };
+
+  FI.Knob = function (el, h) {
+    el.innerHTML = KNOB;
+    const rot = el.querySelector('.k-rot');
+    let last = 0, acc = 0, wheel = 0;
+    const steps = Math.trunc;
+
+    drag(el, {
+      start(e) { last = e.clientX; acc = 0; },
+      move(e) {
+        acc += (e.clientX - last) * (e.shiftKey ? 0.2 : 1);
+        last = e.clientX;
+        const k = steps(acc);
+        if (k) { acc -= k; h.change(k); }
+      },
+      end() { acc = 0; el.blur(); },
+    });
+
+    el.addEventListener('wheel', e => {
+      e.preventDefault();
+      const dy = e.deltaY || e.deltaX;
+      wheel += -dy / (e.deltaMode === 1 ? 3 : 100) * (e.shiftKey ? 10 : 1);
+      const k = steps(wheel);
+      if (k) { wheel -= k; h.change(k); }
+    }, { passive: false });
+
+    el.addEventListener('keydown', e => {
+      const big = e.shiftKey ? 10 : 1, d = { ArrowRight: big, ArrowUp: big, ArrowLeft: -big, ArrowDown: -big, PageUp: 10, PageDown: -10 }[e.key];
+      if (d === undefined) return;
+      e.preventDefault();
+      e.stopPropagation();
+      h.change(d);
+    });
+
+    return {
+      set(v) {
+        rot.setAttribute('transform', `rotate(${v} 24 24)`);
+        el.setAttribute('aria-valuenow', String(Math.round(v)));
+      },
     };
   };
 })(window.FI);
