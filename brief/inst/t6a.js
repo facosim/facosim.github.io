@@ -420,7 +420,7 @@
           arcHsi.update(s, n, nv);
           gs(n, ov);
           const name = navName(n), col = n.flag ? RED : GREEN;
-          [-1, 0, 1].forEach(i => text(ov, name[i + 1], x - 1.19 * r, y + i * 30, 21, col, 'center', { weight: 0.2 }));
+          [-1, 0, 1].forEach(i => text(ov, name[i + 1], x - 1.19 * r, y + i * 30, 18, col, 'center', { weight: 0.2 }));
           readouts(s, n, nv, ov);
         },
       };
@@ -438,7 +438,7 @@
           h.update(s, n, nv);
           gs(n, ov);
           const name = navName(n), col = n.flag ? RED : GREEN;
-          [-1, 0, 1].forEach(i => text(ov, name[i + 1], x - 1.33 * r, y + i * 0.26 * r, 0.22 * r, col, 'center', { weight: 0.2 }));
+          [-1, 0, 1].forEach(i => text(ov, name[i + 1], x - 1.33 * r, y + i * 0.26 * r, 0.19 * r, col, 'center', { weight: 0.2 }));
           readouts(s, n, nv, ov);
           const A = n.adf, any = A.valid || !!nv.khz;
           mg.clear();
