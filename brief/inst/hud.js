@@ -286,6 +286,7 @@
         [`NAV1 ${FI.fmtMhz(nv.mhz)}${!tcn && n.ident ? ' ' + n.ident : ''}`, tcn ? 0.5 : 1],
         [`TCN  ${nv.chan || '---'}${tcn && n.ident ? ' ' + n.ident : ''}`, tcn ? 1 : 0.5],
         [`ADF  ${nv.khz ? nv.khz + (adf.valid ? ' ' + adf.id : ' NO SIG') : 'OFF'}`, nv.khz ? 1 : 0.5],
+        [`NAV2 ${nv.mhz2 ? FI.fmtMhz(nv.mhz2) + (n.nav2.ident ? ' ' + n.nav2.ident : '') + (n.nav2.dmeValid ? ' ' + n.nav2.dme.toFixed(1) + 'NM' : '') : 'OFF'}`, nv.mhz2 ? 1 : 0.5],
       ];
       radio.forEach(([str, a], i) => T(str, 34, 56 + i * 20, 11, { align: 'left', alpha: a }));
 

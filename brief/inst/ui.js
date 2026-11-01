@@ -53,7 +53,8 @@
       $('r-nav').addEventListener('change', () => ui.tune('nav', $('r-nav').value));
       $('r-tcn').addEventListener('change', () => ui.tune('tcn', $('r-tcn').value));
       $('r-adf').addEventListener('change', () => ui.tune('adf', $('r-adf').value));
-      for (const id of ['r-nav', 'r-tcn', 'r-adf']) {
+      $('r-nav2').addEventListener('change', () => ui.tune('nav2', $('r-nav2').value));
+      for (const id of ['r-nav', 'r-nav2', 'r-tcn', 'r-adf']) {
         $(id).addEventListener('keydown', e => { if (e.key === 'Enter') $(id).blur(); if (e.key === 'Escape') { ui.refresh(true); $(id).blur(); } });
         $(id).addEventListener('focus', () => $(id).select());
       }
@@ -185,6 +186,10 @@
       if (which === 'nav') {
         const f = Math.round(parseFloat(t) * 20) / 20;
         if (f >= 108 && f <= 117.95) { nv.mhz = f; nv.src = 'NAV'; }
+      } else if (which === 'nav2') {
+        const f = Math.round(parseFloat(t) * 20) / 20;
+        if (f >= 108 && f <= 117.95) nv.mhz2 = f;
+        else if (t === '' || t === '0' || t === 'OFF') nv.mhz2 = 0;
       } else if (which === 'tcn') {
         const m = /^(\d{1,3})\s*([XY])?$/.exec(t);
         if (m && +m[1] >= 1 && +m[1] <= 126) { nv.chan = +m[1] + (m[2] || 'X'); nv.src = 'TCN'; }
@@ -305,6 +310,7 @@
       document.querySelectorAll('[data-src]').forEach(b => b.classList.toggle('on', b.dataset.src === nv.src));
       const act = document.activeElement;
       if (radios || act !== $('r-nav')) $('r-nav').value = FI.fmtMhz(nv.mhz);
+      if (radios || act !== $('r-nav2')) $('r-nav2').value = nv.mhz2 ? FI.fmtMhz(nv.mhz2) : '';
       if (radios || act !== $('r-tcn')) $('r-tcn').value = nv.chan || '';
       if (radios || act !== $('r-adf')) $('r-adf').value = nv.khz ? String(nv.khz) : '';
       $('bug-v').textContent = FI.pad3(nv.bug) + '°';

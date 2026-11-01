@@ -264,10 +264,11 @@
           text(ov, val, lx, ly + i * ROW, BIG, GREEN, 'left');
           if (unit) text(ov, unit, lx + V.width(val, BIG) + 5, ly + i * ROW + 1, SMALL, GREEN, 'left');
         };
-        line(0, n.dmeValid ? n.dme.toFixed(1) : '--.-', 'NM');
+        const d = n.kind === 'LOC' && n.nav2 && n.nav2.dmeValid ? n.nav2 : n;
+        line(0, d.dmeValid ? d.dme.toFixed(1) : '--.-', d === n ? 'NM' : 'NM N2');
         line(1, String(Math.round(s.gs)), 'KT');
         let ete = '-:--';
-        if (n.dmeValid && s.gs > 20) { const m = Math.floor(n.dme / s.gs * 60); ete = `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`; }
+        if (d.dmeValid && s.gs > 20) { const m = Math.floor(d.dme / s.gs * 60); ete = `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`; }
         line(2, ete);
         const right = (i, label, val, color) => {
           text(ov, val, rx, ry + i * ROW, BIG, color, 'right');

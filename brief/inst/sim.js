@@ -18,7 +18,7 @@ window.FI = window.FI || {};
     x: 0, y: 0, hdg: 0, ias: 100, alt: 3000, vs: 0, pitch: 3.5, bank: 0, power: 65,
     cmdBank: 0, cmdPitch: 3.5, tas: 100, gs: 100, trk: 0, turnRate: 0, t: 0,
   };
-  FI.nav = { src: 'NAV', mhz: 112.6, chan: '73X', khz: 0, obs: 90, bug: 0 };
+  FI.nav = { src: 'NAV', mhz: 112.6, mhz2: 0, chan: '73X', khz: 0, obs: 90, bug: 0 };
   FI.wind = { dir: 0, kt: 0 };
   FI.ap = { hdg: false, alt: false, nav: false, altTgt: 3000, gsCap: false, spd: false, spdTgt: 100, turnDir: 0 };
   FI.trail = [];
@@ -145,6 +145,15 @@ window.FI = window.FI || {};
       const brg = norm360(Math.atan2(ndb.x - S.x, -(ndb.y - S.y)) * R2D);
       return { valid: true, id: ndb.id, name: ndb.name, rel: norm360(brg - S.hdg), brgM: FI.toMag(brg), dist: dNm(ndb), st: ndb };
     })() : { valid: false, id: ndbs[0] ? ndbs[0].id : null, rel: 90 };
+    n.nav2 = { mhz: nv.mhz2, ident: null, dme: null, dmeValid: false };
+    if (nv.mhz2) {
+      const f2 = nv.mhz2;
+      const c2 = nearestFirst(FI.ilsList.filter(l => l.dme && same(l.mhz, f2)).map(l => ({ id: l.id, x: l.dme.x, y: l.dme.y, elev: l.elev, dmeCls: 'T' }))
+        .concat(FI.stations.filter(s => s.dme && same(s.mhz, f2))));
+      const hit = c2.find(dmeRange);
+      n.nav2.ident = (hit || c2[0] || {}).id || null;
+      if (hit) { n.nav2.dmeValid = true; n.nav2.dme = Math.hypot(dNm(hit) * NM, agl(hit)) / NM; }
+    }
     FI.navOut = n;
     return n;
   }
