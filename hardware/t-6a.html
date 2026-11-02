@@ -22,6 +22,7 @@
 <link rel="stylesheet" href="../css/site.css">
 <script type="application/ld+json">{"url":"/","name":"FACO","description":"","image":"../img/logo_solid.png","@context":"http://schema.org","@type":"WebSite"}</script>
 <link rel="stylesheet" type="text/css" href="../css/t6a.css">
+<link rel="stylesheet" href="../css/hardware-hotspots.css">
 <link rel="stylesheet" href="../css/hardware-disclaimer.css">
 <link rel="stylesheet" href="../css/fonts.css">
 <link rel="stylesheet" href="../css/dark-mode.css">
@@ -441,47 +442,21 @@
                         <div class="fluid-image-animation-wrapper sqs-image sqs-block-alignment-wrapper" data-animation-role="image">
                           <div class="fluid-image-container sqs-image-content visitor-mode">
                             <div class="js-content-mode-element-wrapper js-content-mode-element-system_desktop">
-                              <div class="js-content-mode-element content-fill">
-                                <img data-sqsp-image-block-image="" alt="" src="../img/cockpit-t-6.webp" width="2365" height="1497" style="display:block;object-position:var(--image-component-focal-point);object-fit:var(--image-component-object-fit)" loading="lazy" decoding="async">
+                              <div class="js-content-mode-element content-fill hw-view">
+                                <img data-sqsp-image-block-image="" alt="T-6A cockpit instrument panel illustration showing the KLN-900 GPS and the Radio Management Unit" src="../img/cockpit-t-6.webp" width="1896" height="1272" style="display:block;object-position:var(--image-component-focal-point);object-fit:var(--image-component-object-fit)" loading="lazy" decoding="async">
                                 <div class="fluidImageOverlay"></div>
-                                <div class="t6a-annotations" aria-label="T-6A cockpit controls">
-                                  <a class="t6a-annotation t6a-kln" href="#kln-info" data-area-target="kln-area">GPS (KLN-900)</a>
-                                  <a class="t6a-annotation t6a-rmu" href="#rmu-info" data-area-target="rmu-area">Radio (RMU)</a>
-                                  <span class="t6a-area t6a-kln-area" aria-label="KLN GPS Unit"></span>
-                                  <span class="t6a-area t6a-rmu-area" aria-label="Radio (RMU)"></span>
+                                <div class="hw-stage t6a-stage" role="group" aria-label="T-6A cockpit controls">
+                                  <div class="hw-part hw-kln">
+                                    <div class="hw-pop"><span class="hw-cut"></span></div>
+                                    <a class="hw-hit" href="#kln-info" tabindex="-1" aria-hidden="true"></a>
+                                    <a class="hw-label" href="#kln-info">GPS (KLN-900)</a>
+                                  </div>
+                                  <div class="hw-part hw-rmu">
+                                    <div class="hw-pop"><span class="hw-cut"></span></div>
+                                    <a class="hw-hit" href="#rmu-info" tabindex="-1" aria-hidden="true"></a>
+                                    <a class="hw-label" href="#rmu-info">Radio (RMU)</a>
+                                  </div>
                                 </div>
-                                <script>
-                                  (function () {
-                                  document.querySelectorAll('.t6a-annotation').forEach(function (label) {
-                                  var area = document.getElementById(label.dataset.areaTarget);
-                                  if (!area) {
-                                  return;
-                                  }
-                                  label.addEventListener('click', function (event) {
-                                  var info = document.getElementById(label.getAttribute('href').slice(1));
-                                  if (!info) {
-                                  return;
-                                  }
-                                  event.preventDefault();
-                                  window.scrollTo({
-                                  behavior: 'smooth',
-                                  top: info.getBoundingClientRect().top + window.scrollY - 32
-                                  });
-                                  window.history.replaceState(null, '', label.getAttribute('href'));
-                                  });
-                                  ['mouseenter', 'focus'].forEach(function (eventName) {
-                                  label.addEventListener(eventName, function () {
-                                  area.classList.add('is-highlighted');
-                                  });
-                                  });
-                                  ['mouseleave', 'blur'].forEach(function (eventName) {
-                                  label.addEventListener(eventName, function () {
-                                  area.classList.remove('is-highlighted');
-                                  });
-                                  });
-                                  });
-                                  })();
-                                </script>
                               </div>
                             </div>
                           </div>

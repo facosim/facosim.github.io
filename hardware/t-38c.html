@@ -22,6 +22,7 @@
 <link rel="stylesheet" href="../css/site.css">
 <script type="application/ld+json">{"url":"/","name":"FACO","description":"","image":"../img/logo_solid.png","@context":"http://schema.org","@type":"WebSite"}</script>
 <link rel="stylesheet" type="text/css" href="../css/t38c.css">
+<link rel="stylesheet" href="../css/hardware-hotspots.css">
 <link rel="stylesheet" href="../css/hardware-disclaimer.css">
 <link rel="stylesheet" href="../css/fonts.css">
 <link rel="stylesheet" href="../css/dark-mode.css">
@@ -441,44 +442,21 @@
                         <div class="fluid-image-animation-wrapper sqs-image sqs-block-alignment-wrapper" data-animation-role="image">
                           <div class="fluid-image-container sqs-image-content visitor-mode">
                             <div class="js-content-mode-element-wrapper js-content-mode-element-system_desktop">
-                              <div class="js-content-mode-element content-fill">
-                                <img data-sqsp-image-block-image="" alt="" src="../img/cockpit-t-38.webp" width="1208" height="806" style="display:block;object-position:var(--image-component-focal-point);object-fit:var(--image-component-object-fit)" loading="lazy" decoding="async">
+                              <div class="js-content-mode-element content-fill hw-view">
+                                <img data-sqsp-image-block-image="" alt="T-38C cockpit instrument panel illustration showing the Up Front Control Panel and the Multi-Function Display" src="../img/cockpit-t-38.webp" width="1896" height="1272" style="display:block;object-position:var(--image-component-focal-point);object-fit:var(--image-component-object-fit)" loading="lazy" decoding="async">
                                 <div class="fluidImageOverlay"></div>
-                                <div class="t38-annotations" aria-label="T-38C cockpit controls">
-                                  <a class="t38-annotation t38-mfd" href="#multi-function-display-info" data-area-target="multi-function-display">Multi-Function Display</a>
-                                  <a class="t38-annotation t38-ufcp" href="#up-front-control-panel-info" data-area-target="up-front-control-panel">Up Front Control Panel</a>
-                                  <span class="t38-area t38-mfd-area" aria-label="Multi-Function Display"></span>
-                                  <span class="t38-area t38-ufcp-area" aria-label="Up Front Control Panel"></span>
+                                <div class="hw-stage t38-stage" role="group" aria-label="T-38C cockpit controls">
+                                  <div class="hw-part hw-ufcp">
+                                    <div class="hw-pop"><span class="hw-cut"></span></div>
+                                    <a class="hw-hit" href="#up-front-control-panel-info" tabindex="-1" aria-hidden="true"></a>
+                                    <a class="hw-label" href="#up-front-control-panel-info">Up Front Control Panel</a>
+                                  </div>
+                                  <div class="hw-part hw-mfd">
+                                    <div class="hw-pop"><span class="hw-cut"></span></div>
+                                    <a class="hw-hit" href="#multi-function-display-info" tabindex="-1" aria-hidden="true"></a>
+                                    <a class="hw-label" href="#multi-function-display-info">Multi-Function Display</a>
+                                  </div>
                                 </div>
-                                <script>
-                                  (function () {
-                                  document.querySelectorAll('.t38-annotation').forEach(function (label) {
-                                  var area = document.getElementById(label.dataset.areaTarget);
-                                  if (!area) {
-                                  return;
-                                  }
-                                  label.addEventListener('click', function (event) {
-                                  var info = document.getElementById(label.getAttribute('href').slice(1));
-                                  if (!info) {
-                                  return;
-                                  }
-                                  event.preventDefault();
-                                  info.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                                  window.history.replaceState(null, '', label.getAttribute('href'));
-                                  });
-                                  ['mouseenter', 'focus'].forEach(function (eventName) {
-                                  label.addEventListener(eventName, function () {
-                                  area.classList.add('is-highlighted');
-                                  });
-                                  });
-                                  ['mouseleave', 'blur'].forEach(function (eventName) {
-                                  label.addEventListener(eventName, function () {
-                                  area.classList.remove('is-highlighted');
-                                  });
-                                  });
-                                  });
-                                  })();
-                                </script>
                               </div>
                             </div>
                           </div>

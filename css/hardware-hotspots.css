@@ -1,0 +1,118 @@
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+.hw-view > img[data-sqsp-image-block-image] {
+  transition: filter 0.25s ease;
+}
+
+.hw-view:has(.hw-part:active, .hw-label:focus-visible) > img[data-sqsp-image-block-image] {
+  filter: brightness(0.5) saturate(0.85);
+}
+
+@media (hover: hover) {
+  .hw-view:has(.hw-part:hover) > img[data-sqsp-image-block-image] {
+    filter: brightness(0.5) saturate(0.85);
+  }
+}
+
+.hw-stage,
+.hw-part {
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+}
+
+.hw-stage {
+  z-index: 2;
+}
+
+.hw-part {
+  --lift: 0;
+}
+
+.hw-part:active,
+.hw-part:has(:focus-visible) {
+  --lift: 1;
+}
+
+@media (hover: hover) {
+  .hw-part:hover {
+    --lift: 1;
+  }
+}
+
+.hw-pop {
+  filter:
+    brightness(calc(1 + 0.08 * var(--lift)))
+    drop-shadow(0 calc(var(--lift) * clamp(5px, 1.1vw, 16px)) calc(var(--lift) * clamp(8px, 1.5vw, 22px)) rgba(0, 0, 0, calc(var(--lift) * 0.6)))
+    drop-shadow(0 0 calc(var(--lift) * 5px) rgba(8, 121, 209, calc(var(--lift) * 0.85)));
+  inset: 0;
+  opacity: var(--lift);
+  pointer-events: none;
+  position: absolute;
+  transform: scale(calc(1 + (var(--pop) - 1) * var(--lift)));
+  transform-origin: var(--ox) var(--oy);
+  transition: opacity 0.2s ease, transform 0.25s cubic-bezier(0.2, 0.8, 0.3, 1), filter 0.25s ease;
+  z-index: 1;
+}
+
+.hw-cut {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  clip-path: var(--shape);
+  inset: 0;
+  position: absolute;
+}
+
+.hw-hit {
+  clip-path: var(--shape);
+  cursor: pointer;
+  inset: 0;
+  pointer-events: auto;
+  position: absolute;
+  -webkit-tap-highlight-color: transparent;
+  z-index: 2;
+}
+
+.hw-label {
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(8, 121, 209, 0.5);
+  border-radius: 0.7em;
+  box-shadow: 0 calc(1px + var(--lift) * 5px) calc(4px + var(--lift) * 8px) rgba(0, 0, 0, calc(0.3 + var(--lift) * 0.2));
+  color: #0b5a9e;
+  font-family: 'Public Sans', sans-serif;
+  font-size: clamp(0.6rem, 1vw, 0.95rem);
+  font-weight: 700;
+  left: var(--lx);
+  line-height: 1.15;
+  max-width: var(--lw);
+  min-width: min-content;
+  padding: 0.3em 0.7em;
+  pointer-events: auto;
+  position: absolute;
+  scale: calc(1 + var(--lift) * 0.06);
+  text-align: center;
+  text-decoration: none;
+  top: var(--ly);
+  transition: scale 0.25s cubic-bezier(0.2, 0.8, 0.3, 1), box-shadow 0.25s ease;
+  translate: -50% -50%;
+  width: max-content;
+  z-index: 3;
+}
+
+.hw-label:focus-visible {
+  outline: 2px solid #0879d1;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hw-pop,
+  .hw-label,
+  .hw-view > img[data-sqsp-image-block-image] {
+    transition: none;
+  }
+}

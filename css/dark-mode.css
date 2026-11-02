@@ -97,14 +97,9 @@ html[data-theme="dark"] .t38-control-card,
 html[data-theme="dark"] .t6a-control-card {
   border-top-color: #3d8fd6;
 }
-html[data-theme="dark"] .t38-annotations,
-html[data-theme="dark"] .t6a-annotations {
-  color: #5aaef0;
-}
-html[data-theme="dark"] .t38-annotation:hover,
-html[data-theme="dark"] .t38-annotation:focus-visible,
-html[data-theme="dark"] .t6a-annotation:hover,
-html[data-theme="dark"] .t6a-annotation:focus-visible {
+html[data-theme="dark"] .hw-label {
+  background: rgba(16, 24, 36, 0.94);
+  border-color: rgba(90, 174, 240, 0.6);
   color: #8cc8f5;
 }
 html[data-theme="dark"] .t38-control-card__contact,
