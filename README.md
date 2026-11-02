@@ -15,7 +15,9 @@ The static site for FACO Simulations: pilot training tools, simulator hardware a
 | `css/`, `js/`, `fonts/`, `img/` | Shared styles, scripts, fonts and images |
 | `tools/build-navdata.mjs` | Rebuilds `brief/inst/navdata.js` from FAA NASR data |
 | `sw.js`, `manifest.webmanifest` | Offline support for the three tools (below) |
-| `404.html`, `robots.txt`, `sitemap.xml`, `attribution.html` | Error page, crawler files and credits |
+| `404.html`, `attribution.html` | Error page and credits |
+| `robots.txt`, `sitemap.xml`, `llms.txt`, `llms-full.txt` | What crawlers and AI assistants read (below) |
+| `tools/check-seo.mjs`, `tools/check-offline.mjs` | Checks for the search and offline setup |
 
 ## Working on it
 
@@ -32,6 +34,29 @@ Work happens on the `staging` branch. `master` is the live site: the workflow in
 Flight Instruments, Briefing Lines and the Flight Calculator work without a connection after one visit. `sw.js` is a service worker that keeps their files, and `manifest.webmanifest` lets them be installed as an app.
 
 When a file the tools load is added, renamed or removed, update the `FILES` list at the top of `sw.js` and raise its `VERSION`. `node tools/check-offline.mjs` checks that every file the three pages reference is in that list.
+
+## Search and AI crawlers
+
+Every page carries what search engines and AI assistants read without running any script: one `<h1>`, a unique `<title>` and meta description, an absolute canonical URL that matches its `sitemap.xml` entry, Open Graph and Twitter tags, and a JSON-LD graph (Organization and WebSite everywhere, plus a page type, a breadcrumb trail and, where it fits, an item list, `SoftwareApplication` or `WebApplication`). The three tools also have a `<noscript>` notice saying what they do.
+
+When a page is added, copy the head of a sibling page, change its fields, add the page to `sitemap.xml` and run:
+
+```
+node tools/check-seo.mjs
+```
+
+It fails when a page lacks an h1, repeats a title or description, has a canonical that is not in the sitemap, or has JSON-LD that does not parse or refers to something it does not define, and when `robots.txt`, `llms.txt` or `llms-full.txt` point at files that do not exist. Pages that carry `noindex` (`404.html`, `projects.html`) are skipped and must stay out of the sitemap.
+
+`llms.txt` is a short Markdown guide to the site for AI assistants and `llms-full.txt` is the same with the details. Both are written by hand, so update them when a product or tool changes.
+
+`robots.txt` allows every crawler and names the common AI ones so that the policy is explicit. To keep a crawler out, give it its own group:
+
+```
+User-agent: GPTBot
+Disallow: /
+```
+
+The crawlers that collect content for model training are GPTBot, Google-Extended, ClaudeBot, CCBot, Applebot-Extended, Meta-ExternalAgent and Amazonbot. OAI-SearchBot, ChatGPT-User, Claude-SearchBot, Claude-User, PerplexityBot, Perplexity-User, DuckAssistBot and MistralAI-User fetch pages to answer a search or a question, so blocking them also removes the site from those answers.
 
 ## Flight data
 

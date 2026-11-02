@@ -1,0 +1,35 @@
+# FACO Simulations
+
+> FACO Simulations, LLC builds pilot training tools: 3D-printable cockpit hardware, flight simulation software and free browser-based learning tools for pilots at every level. Its tagline is "Creative ideas today for the pilots of tomorrow." Contact: contact@facosim.com
+
+FACO delivers customized training solutions and manages the whole development lifecycle: training needs analysis, scenario planning, 3D modeling, texturing, software development, testing, validation and deployment. The learning tools below run in the visitor's browser and need no account; Flight Instruments, Briefing Lines and Flight Calculator also keep working offline after the first visit. The Flight Instruments tool uses FAA aeronautical data and is for training only, never for navigation. The hardware and software products are independently developed and are not affiliated with or endorsed by any simulator or aircraft manufacturer.
+
+## Learning tools (free, in the browser)
+
+- [Flight Instruments](https://facosim.com/brief/instruments.html): fly a Cessna 172, T-6A Texan II, F-16 or Boeing 737 over real US VOR, TACAN, NDB and ILS data and compare a six-pack, a G1000-style glass cockpit, a T-6A panel and a head-up display. Deep links: #sixpack, #glass, #t6a, #hud.
+- [Briefing Lines](https://facosim.com/brief/lines.html): rebuild a flight frame by frame on a top-down map, with radar and B-Scope views and missile, gun and flare markers, then step through it for a debrief. Debriefs save to a file on the user's computer.
+- [Flight Calculator](https://facosim.com/brief/e6b.html): an E6B for student pilots covering wind correction, true airspeed, density altitude, time-speed-distance, fuel, crosswind, climb and descent, and unit and coordinate conversion.
+- [Of The Day](https://facosim.com/learning/od): a daily study grid of an emergency procedure, checklist, FAA regulation, glossary term, mishap, aircraft and workout.
+
+## Software
+
+- [Sim Task Trainer](https://facosim.com/software/sim-task-trainer): a locally run application that adds physics-driven AI wingmen and adaptive threats to simulators such as X-Plane and Prepar3D. In development.
+- [Air Superiority Fighter](https://facosim.com/software/air-superiority-fighter): an F-15C for X-Plane with a VR-ready cockpit and HUD, a radar B-Scope, an INS, custom weapons and FMOD sound.
+- [Auto Mouse Recenter](https://facosim.com/software/auto-recenter): a very simple Windows program that resets the mouse position every few seconds, useful for VR flight simulators.
+
+## Hardware
+
+- [T-6A GPS and Radio panels](https://facosim.com/hardware/t-6a): 3D-printable replicas of the T-6A Texan II KLN-900 GPS unit and Radio Management Unit.
+- [T-38C trainers](https://facosim.com/hardware/t-38c): 3D-printable T-38C Up Front Control Panel and Multi-Function Display, with free model files and pre-assembly on request.
+
+## About and contact
+
+- [About FACO Simulations](https://facosim.com/about): what the company does and how it works with customers.
+- [Contact](https://facosim.com/contact): questions about tools, hardware, software and learning resources.
+- [Credits and licenses](https://facosim.com/attribution): FAA data, the Phaser framework, fonts and trademarks.
+
+## Optional
+
+- [Full text version of this summary](https://facosim.com/llms-full.txt)
+- [Links](https://facosim.com/links): a launcher for SkyVector and ForeFlight with a local and Zulu clock.
+- [Sitemap](https://facosim.com/sitemap.xml)

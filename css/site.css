@@ -1648,6 +1648,14 @@ h3 {
 h4 {
   color: var(--headingSmallColor);
 }
+h1.looks-h2 {
+  --heading-1-size-value: var(--heading-2-size-value);
+  color: var(--headingLargeColor);
+}
+h1.looks-h3 {
+  --heading-1-size-value: var(--heading-3-size-value);
+  color: var(--headingMediumColor);
+}
 .sqsrte-large {
   color: var(--paragraphLargeColor);
 }

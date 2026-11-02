@@ -1,0 +1,121 @@
+# FACO Simulations
+
+> FACO Simulations, LLC builds pilot training tools: 3D-printable cockpit hardware, flight simulation software and free browser-based learning tools for pilots at every level. Its tagline is "Creative ideas today for the pilots of tomorrow." Website: https://facosim.com/ Contact: contact@facosim.com
+
+This file is the full text version of https://facosim.com/llms.txt. Every fact below comes from the pages it links to.
+
+## About FACO Simulations
+
+FACO Simulations delivers customized training solutions designed for specific operational scenarios and learning objectives. It manages the entire development lifecycle: training needs analysis, scenario planning, 3D modeling, texturing, software development, testing, validation and deployment. The aim is highly realistic, performance-based training that builds skill, decision-making and mission readiness. The company provides accessible, repeatable and engaging learning for pilots at every level.
+
+Page: https://facosim.com/about
+
+## Learning tools
+
+The learning tools below are free, run in the visitor's browser and need no account. Flight Instruments, Briefing Lines and Flight Calculator also work offline after the first visit. Nothing the visitor enters is uploaded.
+
+### Flight Instruments
+
+URL: https://facosim.com/brief/instruments.html
+
+A top-down map flight simulator for practicing instrument navigation. The visitor flies an aircraft over real US navigation aids and approaches and watches what the instruments show.
+
+- Aircraft: Cessna 172, T-6A Texan II, F-16 and Boeing 737, each with its own performance model, scenarios and instrument scales. The Cessna 172 stalls near 48 kt, tops out near 125 kt, climbs about 950 ft/min at sea level and has a ceiling of about 14,000 ft.
+- Instrument panels: six-pack analog gauges, a G1000-style glass cockpit, a T-6A trainer panel and a head-up display. All four show the same flight, so the visitor can switch mid-flight and compare. A link ending in #sixpack, #glass, #t6a or #hud opens that panel directly, for example https://facosim.com/brief/instruments.html#t6a.
+- Controls: a virtual joystick and throttle lever (keyboard, mouse and touch), steering by dragging the aircraft on the map, and a quick menu on right-click or press-and-hold.
+- Autopilot: heading bug with HDG, altitude hold with ALT, NAV to track a VOR course or an ILS localizer and glideslope, and APPR to fly an ILS approach down to the decision altitude.
+- Radios: NAV1, NAV2 (distance measuring only), TACAN and ADF, with a Tune nearby list. VOR, VORTAC, TACAN, DME, NDB and ILS stations only come in within their service volume and line of sight.
+- Data: airports, runways, ILS and localizer approaches, VORs, VORTACs, TACANs, DMEs and NDBs from the FAA National Airspace System Resource (NASR) data, a public-domain US Government work. The data has no terrain and is not kept up to date for the user. It is for training only and must not be used for navigation.
+
+### Briefing Lines
+
+URL: https://facosim.com/brief/lines.html
+
+A debrief tool that rebuilds a flight frame by frame on a top-down grid so an engagement can be stepped through afterwards.
+
+- Add aircraft by type and drag the flight path; g, bank, speed and climb are modeled, with vertical ticks for climb and descent and maneuvers such as Split-S and Immelmann.
+- Named aircraft have their own top-down outline and public performance figures (stall and corner speed, sea-level top speed, g limit, thrust and drag), all editable per aircraft in Settings.
+- Move tool and box selection shift an aircraft's whole flight, trail and markers together; quick speed and altitude boxes re-fly the later frames.
+- Advanced window: a radar sector and a green B-Scope window for each aircraft, with an elevation strip and beam control, plus missile shot, gun burst and flare markers.
+- A right-click wheel menu holds the most used actions.
+- Save writes the whole debrief to a .json file on the user's computer and Open (or dropping the file on the page) loads it back. Nothing is uploaded.
+
+### Flight Calculator
+
+URL: https://facosim.com/brief/e6b.html
+
+An easy E6B for student pilots. Answers update as the visitor types and the last entries are kept on the device. Sections: wind correction, find the wind, time-speed-distance, fuel, climb and descent, true airspeed, density altitude, crosswind, unit conversion, coordinates (latitude and longitude, MGRS and UTM), and distance and course between two points.
+
+### Of The Day
+
+URL: https://facosim.com/learning/od
+
+Terms, events and procedures to review every day before flying. A new set of cards appears each day: an emergency procedure, a checklist, an FAA regulation, a pilot-controller glossary term, a mishap, an aircraft, a military aircraft, a historical aircraft and a workout. Hovering a card shows the short version and clicking it shows more.
+
+Learning index: https://facosim.com/learning
+
+## Software
+
+Software page: https://facosim.com/software
+
+### Sim Task Trainer
+
+URL: https://facosim.com/software/sim-task-trainer
+
+An advanced, locally executed application that turns flight simulators into realistic, dynamic and repeatable mission environments. It is designed to work with simulators such as Laminar Research X-Plane and Lockheed Martin Prepar3D. Instead of scripted waypoints it runs its own internal simulation of every participating entity and exports real-time parameters to the connected simulator.
+
+- Physics-driven AI: entities can use only the controls a human operator has, such as flight controls and throttle, and stay bound by aerodynamics, aircraft capability and physics.
+- Supports fixed-wing aircraft, ground vehicles, naval vessels and mission-specific support assets, so air, land and sea operations can be coordinated.
+- Supporting wingmen that hold formation, fly tactics and respond to threats; adaptive threat aircraft that maneuver aggressively and try to exploit weaknesses.
+- Large scenarios with hundreds of AI aircraft over regions hundreds of miles wide: combat air patrols, air-to-air refueling, cargo and logistics, maritime patrol, ground force support, strike packages and search and rescue.
+- Scenarios are repeatable so instructors and trainees can compare performance under the same conditions.
+- Status: still under development. Contact FACO for the future plans.
+
+### Air Superiority Fighter
+
+URL: https://facosim.com/software/air-superiority-fighter
+
+An F-15C for X-Plane, integrated with Sim Task Trainer for repeatable, realistic training. It is sold through the X-Plane.Org store: https://store.x-plane.org/F-15C-Eagle_p_1416.html
+
+Features: Virtual Reality ready including the HUD and controls; a custom radar B-Scope with target tracking, locking and management; a Heads Up Display with simulated air-to-air modes including auto-acquisition; a Flight Control Augmentation System; a Multi-Function Display (MPCD); windshield rain and ice effects with a defrost system; an Internal Navigation System for waypoint navigation without GPS, including in-flight X-Plane flight-plan loading; FMOD sound with audible warnings; a fully animated 3D cockpit; stored radio-frequency channels; custom weapons and effects.
+
+### Auto Mouse Recenter
+
+URL: https://facosim.com/software/auto-recenter
+
+A very simple Windows program (version 1.0) that resets the computer mouse position every few seconds, useful for Virtual Reality flight simulators. Download: https://github.com/facosim/Auto-Mouse-Center/releases/download/v1.0/AutoMouseCenter.exe
+
+### Other software
+
+More projects are in development: https://facosim.com/software/other
+
+## Hardware
+
+Hardware page: https://facosim.com/hardware
+
+The hardware is 3D-printable, for flight simulator control practice. The products are independently developed and are not affiliated with or endorsed by any simulator manufacturer, aircraft manufacturer or other third-party company. Trademarks belong to their owners and are used for identification only. They are intended solely for non-commercial, limited personal use. Assembly, configuration and programming by the user may be required; FACO can discuss fully assembled options on request.
+
+### T-6A GPS and Radio panels
+
+URL: https://facosim.com/hardware/t-6a
+
+- GPS Unit (KLN-900): a replica of the Garmin KLN-900 used in the T-6A Texan II. It connects to a computer over USB, has buttons and knobs that mimic the real unit for navigation and route-planning practice, and has room for a 3-inch screen showing GPS information over HDMI.
+- Radio Unit (RMU): a replica of the Radio Management Unit used in the T-6A Texan II. It connects to a computer over USB for radio-operation practice.
+
+### T-38C trainers
+
+URL: https://facosim.com/hardware/t-38c
+
+- Up Front Control Panel (UFCP): practice with the primary data entry tool of the T-38C avionics. It is designed for a USB keyboard encoder board and a 3-inch HDMI screen. Model download: https://cults3d.com/en/3d-model/game/t-38c-up-front-control-panel-ufcp-trainer
+- Multi-Function Display (MFD): covers a 10.1-inch display to simulate the primary T-38C avionics display, for use with a USB encoder board and HDMI output. Model download: https://cults3d.com/en/3d-model/game/t-38c-multi-function-display-mfd-trainer
+- The model files are available freely but may need significant changes to suit a particular simulator setup. Pre-assembled units are available by contacting FACO.
+
+### Other hardware
+
+More projects are in progress: https://facosim.com/hardware/other
+
+## Credits, licenses and links
+
+- Credits and licenses: https://facosim.com/attribution. Flight Instruments and Briefing Lines draw with Phaser 4 (MIT License). The site font is Public Sans (SIL Open Font License 1.1 and CC0 1.0). Aircraft and product names belong to their owners.
+- Links: https://facosim.com/links, a launcher for SkyVector and ForeFlight with a local and Zulu clock.
+- Contact: https://facosim.com/contact or contact@facosim.com

@@ -4,17 +4,26 @@
 <meta charset="utf-8">
 <script src="../js/theme.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Briefing Lines</title>
+<title>Briefing Lines: Flight Debrief Reconstruction | FACO</title>
+<meta name="description" content="Rebuild a flight frame by frame on a map, shape each turn, add radar and weapon events, and step through the engagement for the debrief. Saves to a file.">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://facosim.com/brief/lines.html">
 <meta property="og:site_name" content="FACO">
-<meta property="og:title" content="Briefing Lines — FACO">
-<meta property="og:url" content="https://facosim.com/brief/lines.html">
+<meta property="og:locale" content="en_US">
 <meta property="og:type" content="website">
-<meta property="og:description" content="Rebuild a flight frame by frame, shape each turn, and step through the engagement for the debrief.">
-<meta name="description" content="Rebuild a flight frame by frame, shape each turn, and step through the engagement for the debrief.">
+<meta property="og:title" content="Briefing Lines: Flight Debrief Reconstruction | FACO">
+<meta property="og:description" content="Rebuild a flight frame by frame on a map, shape each turn, add radar and weapon events, and step through the engagement for the debrief. Saves to a file.">
+<meta property="og:url" content="https://facosim.com/brief/lines.html">
 <meta property="og:image" content="https://facosim.com/img/icon_combat_lines.jpg">
 <meta property="og:image:width" content="1500">
 <meta property="og:image:height" content="1500">
+<meta property="og:image:alt" content="Briefing Lines showing two aircraft flight paths drawn on a grid.">
 <meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Briefing Lines: Flight Debrief Reconstruction | FACO">
+<meta name="twitter:description" content="Rebuild a flight frame by frame on a map, shape each turn, add radar and weapon events, and step through the engagement for the debrief. Saves to a file.">
+<meta name="twitter:image" content="https://facosim.com/img/icon_combat_lines.jpg">
+<meta name="twitter:image:alt" content="Briefing Lines showing two aircraft flight paths drawn on a grid.">
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","@id":"https://facosim.com/#organization","name":"FACO Simulations, LLC","alternateName":"FACO","url":"https://facosim.com/","logo":{"@type":"ImageObject","url":"https://facosim.com/img/logo_solid.png","width":1103,"height":300},"email":"contact@facosim.com","slogan":"Creative ideas today for the pilots of tomorrow."},{"@type":"WebSite","@id":"https://facosim.com/#website","url":"https://facosim.com/","name":"FACO","alternateName":"FACO Simulations","inLanguage":"en-US","publisher":{"@id":"https://facosim.com/#organization"}},{"@type":"WebPage","@id":"https://facosim.com/brief/lines.html#webpage","url":"https://facosim.com/brief/lines.html","name":"Briefing Lines","description":"Rebuild a flight frame by frame on a map, shape each turn, add radar and weapon events, and step through the engagement for the debrief. Saves to a file.","inLanguage":"en-US","isPartOf":{"@id":"https://facosim.com/#website"},"publisher":{"@id":"https://facosim.com/#organization"},"primaryImageOfPage":{"@type":"ImageObject","url":"https://facosim.com/img/icon_combat_lines.jpg"},"mainEntity":{"@id":"https://facosim.com/brief/lines.html#app"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://facosim.com/"},{"@type":"ListItem","position":2,"name":"Learning","item":"https://facosim.com/learning"},{"@type":"ListItem","position":3,"name":"Briefing Lines","item":"https://facosim.com/brief/lines.html"}]},{"@type":"WebApplication","@id":"https://facosim.com/brief/lines.html#app","name":"Briefing Lines","url":"https://facosim.com/brief/lines.html","description":"Rebuild a flight frame by frame on a map, shape each turn, add radar and weapon events, and step through the engagement for the debrief. Saves to a file.","applicationCategory":"EducationalApplication","operatingSystem":"Any","browserRequirements":"Requires JavaScript and WebGL.","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"inLanguage":"en","image":"https://facosim.com/img/icon_combat_lines.jpg","featureList":["Rebuild a flight frame by frame on a top-down map","Quick speed and altitude edits, whole-flight moves and multi-select","Radar sector with a B-Scope window for each aircraft","Missile shot, gun burst and flare event markers","Save and open debriefs as files","Works offline after the first visit"],"publisher":{"@id":"https://facosim.com/#organization"}}]}</script>
 <link rel="icon" type="image/png" href="../img/favicon.png">
 <link rel="manifest" href="../manifest.webmanifest">
 <meta name="theme-color" content="#111821">
@@ -324,6 +333,12 @@
 </style>
 </head>
 <body>
+<noscript>
+<div style="position:fixed;top:64px;left:16px;right:16px;z-index:100;max-width:640px;margin:0 auto;padding:14px 16px;background:#121a24;color:#c9d4df;border:1px solid #233244;border-radius:8px;font:14px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+<strong>Briefing Lines needs JavaScript.</strong>
+<p style="margin:8px 0 0">It rebuilds a flight frame by frame on a top-down map, with radar and B-Scope views and missile, gun and flare events, so an engagement can be stepped through for the debrief and saved to a file. Turn on JavaScript in your browser to use it, or <a href="../index.html" style="color:#8fb3d1">go back to FACO</a>.</p>
+</div>
+</noscript>
 
 <div id="bar">
   <a id="btn-home" href="../index.html" title="Back to the FACO website">← Back to FACO</a>
